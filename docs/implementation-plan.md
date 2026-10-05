@@ -333,7 +333,8 @@
 - [x] 浏览器回归验证转义美元符号仍显示字面文本，真实公式、行内代码和链接目标保持正确。
 - [x] GitHub Actions 源码验证和 arm64 包构建通过。
 - [x] arm64 与 x64 macOS 包构建通过。
-- [ ] 等待 Ubuntu 发布 runner，上传并验证 v0.16.42 Release 产物。
+- [x] Ubuntu 发布 runner 排队超时，上传 job 被取消，未生成 Release。
+- [ ] v0.16.43 改用 macOS runner 执行上传，验证 Release 产物。
 
 ## v0.16.34 基线交付与剩余事项
 
