@@ -28,3 +28,10 @@ jobs:
           appendFileSync(process.env.GITHUB_ENV, `CHROMIUM_PATH=${chromium.executablePath()}\n`);
           JS
       - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Playwright diagnostics
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: ignore

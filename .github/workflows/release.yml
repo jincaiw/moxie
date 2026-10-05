@@ -23,6 +23,13 @@ jobs:
       - run: npm run test:desktop
       - run: npx playwright install chromium
       - run: npm test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        name: Playwright diagnostics
+        with:
+          name: playwright-results-${{ github.run_id }}
+          path: test-results/
+          if-no-files-found: ignore
   build:
     name: Build ${{ matrix.arch }} macOS package
     needs: verify

@@ -565,6 +565,43 @@ test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async (
   );
 });
 
+test("CommonMark 列表续段、嵌套任务和惰性引用在预览与导出中一致", async ({
+  page,
+}) => {
+  const source =
+    "1. 第一项\n   后续段落中的 **强调** 与 `代码`。\n\n2. 第二项\n   - [x] 嵌套任务\n\n> 引用首行\n延续引用行";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "commonmark-boundaries.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press("Control+Home");
+
+  const content = page.locator(".cm-content");
+  await expect(content.locator(".md-strong")).toHaveText("强调");
+  await expect(content.locator(".md-inline-code")).toHaveText("代码");
+  await expect(content.locator(".task-checkbox")).toBeChecked();
+  await expect(content).toContainText("第一项");
+  await expect(content).toContainText("后续段落");
+  await expect(content).toContainText("延续引用行");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "commonmark-boundaries.md");
+  }, source);
+  expect(html).toContain("<ol>");
+  expect(html).toContain('<input checked="" disabled="" type="checkbox">');
+  expect(html).toContain("延续引用行");
+
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(content).toContainText("后续段落中的 **强调** 与 `代码`");
+  await expect(content).toContainText("延续引用行");
+});
+
 test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __moxieAttack?: number }).__moxieAttack = 0;
