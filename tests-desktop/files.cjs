@@ -387,7 +387,7 @@ test("递归目录按需授权、刷新和符号链接隔离", async () => {
     assert.equal((await h.call("file:recent")).length, 0);
     assert.equal((await h.call("file:reopen", note.path)).text, "# 子目录");
     await fs.writeFile(path.join(root, "new.markdown"), "new");
-    assert.equal((await h.call("folder:refresh", root)).entries.length, 2);
+    assert.equal((await h.call("folder:refresh", tree.path)).entries.length, 2);
     await fs.rm(note.path);
     await fs.symlink(path.join(outside, "private.md"), note.path);
     await assert.rejects(h.call("file:reopen", note.path), /文件夹之外/);
@@ -456,20 +456,20 @@ test("文件夹授权重启恢复，目录版本只在内容变化时更新", as
       await fs.mkdir(other);
       await store.folder(other);
     }
-    await store.folder(root);
+    await store.folder(tree.path);
     const reopened = new FileStore(state);
     await reopened.init();
-    assert.equal(await reopened.folder(root, true, tree.version), null);
+    assert.equal(await reopened.folder(tree.path, true, tree.version), null);
     assert.equal((await reopened.read(file, true)).text, "chapter");
     await fs.writeFile(path.join(root, "第二章.md"), "new");
-    const changed = await reopened.folder(root, true, tree.version);
+    const changed = await reopened.folder(tree.path, true, tree.version);
     assert.notEqual(changed.version, tree.version);
     assert.equal(changed.entries.length, 2);
     await fs.writeFile(path.join(root, "第二章.md"), "content change");
-    assert.equal(await reopened.folder(root, true, changed.version), null);
+    assert.equal(await reopened.folder(tree.path, true, changed.version), null);
     await fs.rm(path.join(root, "第二章.md"));
     assert.equal(
-      (await reopened.folder(root, true, changed.version)).entries.length,
+      (await reopened.folder(tree.path, true, changed.version)).entries.length,
       1,
     );
   } finally {

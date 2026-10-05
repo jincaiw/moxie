@@ -340,7 +340,13 @@
 
 - [x] 发布验证、arm64/x64 打包和上传统一使用 macOS runner。
 - [x] Playwright 在 macOS 使用 `npx playwright install chromium`，不再调用 Linux 专用 `--with-deps`。
-- [ ] 通过 GitHub Actions 完整验证 v0.16.44 源码、两架构产物和 Release 附件。
+- [x] macOS 首轮验证发现文件夹测试传入 `/var` 临时路径，但授权树保存规范化的 `/private/var` 路径。
+- [ ] 修正跨平台测试并在 v0.16.45 完成源码、两架构产物和 Release 附件验证。
+
+## v0.16.45 macOS 文件夹测试
+
+- [x] 文件夹授权刷新和重启恢复测试使用首次选择返回的规范路径，保留对未授权路径的拒绝测试。
+- [ ] 通过 macOS runner 重新运行桌面文件回归及发布工作流。
 
 ## v0.16.34 基线交付与剩余事项
 

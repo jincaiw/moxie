@@ -70,6 +70,11 @@ npm run package:mac
 
 - 发布验证、arm64/x64 打包和 Release 上传全部改用 macOS runner。
 - Playwright 在 macOS runner 上直接安装 Chromium，移除 Linux 专用系统依赖安装步骤。
+- 首次 macOS 验证发现桌面文件夹测试假设临时目录路径不变，需按文件夹选择器返回的规范路径刷新。
+
+## v0.16.45 发布候选
+
+- 桌面文件夹测试改用授权树返回的规范路径，兼容 macOS `/var` 到 `/private/var` 的路径解析。
 
 ## v0.16.36 已实现
 
