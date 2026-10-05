@@ -923,6 +923,23 @@ test("字数统计展示字数、字符、段落与预计阅读时间", async ({
   await expect(rows.nth(5)).toContainText("1 分钟");
 });
 
+test("字数统计分批处理时仍以换行隔开词语", async ({ page }) => {
+  await page.goto("/");
+  const text = Array.from({ length: 257 }, () => "hello").join("\n");
+  await page.locator(".md-input").setInputFiles({
+    name: "多行统计.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(text),
+  });
+  await page.getByRole("button", { name: "字数统计" }).click();
+  const rows = page
+    .getByRole("dialog", { name: "字数统计" })
+    .locator(".document-stats > div");
+  await expect(rows.nth(0)).toContainText("257");
+  await expect(rows.nth(1)).toContainText("1,285");
+  await expect(rows.nth(3)).toContainText("257");
+});
+
 test("无序和有序列表支持多行切换、缩进保留与取消", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

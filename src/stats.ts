@@ -18,6 +18,15 @@ export function documentStats(markdown: string): DocumentStats {
   const segmenter = new Intl.Segmenter("zh-CN", { granularity: "word" });
   const lineBreak = /\r\n?|\n/g;
   let start = 0;
+  const readableLines: string[] = [];
+
+  const flushWords = () => {
+    if (!readableLines.length) return;
+    for (const part of segmenter.segment(readableLines.join("\n"))) {
+      if (part.isWordLike) words++;
+    }
+    readableLines.length = 0;
+  };
 
   const countLine = (line: string) => {
     lines++;
@@ -40,9 +49,8 @@ export function documentStats(markdown: string): DocumentStats {
       .replace(/<[^>]*>/g, "")
       .replace(/\\([\\`*{}\[\]()#+.!_>~-])/g, "$1");
 
-    for (const part of segmenter.segment(readable)) {
-      if (part.isWordLike) words++;
-    }
+    readableLines.push(readable);
+    if (readableLines.length >= 256) flushWords();
     for (const character of readable) {
       characters++;
       if (!/\s/u.test(character)) charactersWithoutSpaces++;
@@ -54,6 +62,7 @@ export function documentStats(markdown: string): DocumentStats {
     start = match.index! + match[0].length;
   }
   if (markdown.length || start) countLine(markdown.slice(start));
+  flushWords();
 
   return {
     words,

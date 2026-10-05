@@ -81,55 +81,66 @@ export type DocumentFile = {
 };
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
-  const lines: { text: string; from: number }[] = [];
-  const breaks = /\r\n?|\n/g;
-  let from = 0;
-  for (const match of text.matchAll(breaks)) {
-    lines.push({ text: text.slice(from, match.index), from });
-    from = match.index! + match[0].length;
-  }
-  lines.push({ text: text.slice(from), from });
+  const lineAt = (from: number) => {
+    const lf = text.indexOf("\n", from);
+    const cr = text.indexOf("\r", from);
+    const newline = cr >= 0 && (lf < 0 || cr < lf) ? cr : lf;
+    const end = newline < 0 ? text.length : newline;
+    const next =
+      newline < 0
+        ? text.length + 1
+        : newline +
+          (text.charCodeAt(newline) === 13 &&
+          text.charCodeAt(newline + 1) === 10
+            ? 2
+            : 1);
+    return {
+      text: text.slice(from, end),
+      from,
+      next,
+    };
+  };
 
-  let fence: { character: string; length: number } | undefined;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  let fence: RegExp | undefined;
+  let line: ReturnType<typeof lineAt> | null = lineAt(0);
+  while (line) {
+    const next: ReturnType<typeof lineAt> | null =
+      line.next <= text.length ? lineAt(line.next) : null;
     if (fence) {
-      const close = new RegExp(
-        `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
-      );
-      if (close.test(line.text)) fence = undefined;
-      continue;
+      if (fence.test(line.text)) fence = undefined;
+    } else {
+      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
+      if (opening) {
+        const character = opening[1][0] === "`" ? "`" : "~";
+        fence = new RegExp(
+          `^ {0,3}${character}{${opening[1].length},}[ \\t]*$`,
+        );
+      } else {
+        const atx = /^ {0,3}(#{1,6})(?:[ \\t]+(.*?)|[ \\t]*)$/.exec(line.text);
+        if (atx) {
+          result.push({
+            level: atx[1].length,
+            title: (atx[2] || "").replace(/[ \\t]+#+[ \\t]*$/, "").trim(),
+            from: line.from,
+          });
+        } else {
+          const setext = next && /^ {0,3}(=+|-+)[ \\t]*$/.exec(next.text);
+          if (
+            setext &&
+            line.text.trim() &&
+            !/^ {0,3}(?:>|[-+*][ \\t]|\\d+[.)][ \\t])/.test(line.text)
+          ) {
+            result.push({
+              level: setext[1][0] === "=" ? 1 : 2,
+              title: line.text.trim(),
+              from: line.from,
+            });
+            line = next;
+          }
+        }
+      }
     }
-    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
-    if (opening) {
-      fence = { character: opening[1][0], length: opening[1].length };
-      continue;
-    }
-
-    const atx = /^ {0,3}(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/.exec(line.text);
-    if (atx) {
-      result.push({
-        level: atx[1].length,
-        title: (atx[2] || "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
-        from: line.from,
-      });
-      continue;
-    }
-
-    const next = lines[i + 1];
-    const setext = next && /^ {0,3}(=+|-+)[ \t]*$/.exec(next.text);
-    if (
-      setext &&
-      line.text.trim() &&
-      !/^ {0,3}(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(line.text)
-    ) {
-      result.push({
-        level: setext[1][0] === "=" ? 1 : 2,
-        title: line.text.trim(),
-        from: line.from,
-      });
-      i++;
-    }
+    line = line && line.next <= text.length ? lineAt(line.next) : null;
   }
   return result;
 }
