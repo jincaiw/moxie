@@ -445,6 +445,44 @@ test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async (
   );
 });
 
+test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as Window & { __moxieAttack?: number }).__moxieAttack = 0;
+  });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "unsafe-html.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      '# 安全测试\n\n<div>\n<strong oNmouseover="window.__moxieAttack=1">危险文本</strong>\n<a href="javascript:window.__moxieAttack=3">危险链接</a>\n</div>',
+    ),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press("Control+Home");
+  const previews = page.locator(".html-block-preview");
+  await expect(previews).toHaveCount(1);
+  await expect(previews).toContainText("危险链接");
+  await expect(previews.locator("[onmouseover]")).toHaveCount(0);
+  await expect(previews.locator('[href^="javascript:"]')).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => (window as Window & { __moxieAttack?: number }).__moxieAttack,
+    ),
+  ).toBe(0);
+
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(
+      '# 安全测试\n\n<div>\n<strong oNmouseover="window.__moxieAttack=1">危险文本</strong>\n<a href="javascript:window.__moxieAttack=3">危险链接</a>\n</div>',
+      "unsafe-html.md",
+    );
+  });
+  expect(html).not.toMatch(/\bonmouseover\s*=/i);
+  expect(html).not.toMatch(/javascript:/i);
+});
+
 test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({ page }) => {
   await page.addInitScript(() => {
     const state = window as unknown as {
