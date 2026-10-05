@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.35",
+  "version": "0.16.36",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -28,6 +28,7 @@
     "@lezer/highlight": "^1.2.5",
     "@lezer/markdown": "^1.7.2",
     "dompurify": "^3.2.6",
+    "electron-updater": "^6.8.9",
     "html-to-docx": "^1.8.0",
     "katex": "^0.16.22",
     "lucide-react": "^0.468.0",
@@ -46,6 +47,7 @@
     "cross-env": "^7.0.3",
     "electron": "^35.1.5",
     "electron-builder": "^26.0.12",
+    "js-yaml": "^4.3.2",
     "prettier": "^3.9.9",
     "typescript": "^5.7.3",
     "vite": "^6.2.0",
@@ -62,6 +64,10 @@
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
         {
           "target": "dmg",
@@ -83,7 +89,14 @@
       "output": "release"
     },
     "artifactName": "Moxie-${version}-${arch}.${ext}",
-    "publish": [],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "jincaiw",
+        "repo": "moxie",
+        "releaseType": "release"
+      }
+    ],
     "compression": "normal"
   },
   "description": "本地 Markdown 桌面编辑器",

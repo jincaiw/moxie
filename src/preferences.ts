@@ -10,6 +10,7 @@ export type Preferences = {
   font: "sans" | "serif";
   width: number;
   autoSave: boolean;
+  autoCheckUpdates: boolean;
   typewriter: boolean;
   spellCheck: boolean;
   customCSS: string;
@@ -26,6 +27,7 @@ const defaults: Preferences = {
   font: "sans",
   width: 880,
   autoSave: false,
+  autoCheckUpdates: true,
   typewriter: false,
   spellCheck: false,
   customCSS: "",
@@ -76,6 +78,7 @@ function initial(): Preferences {
       font: value.font === "serif" ? "serif" : "sans",
       width: Math.min(1040, Math.max(620, Number(value.width) || 880)),
       autoSave: value.autoSave === true,
+      autoCheckUpdates: value.autoCheckUpdates !== false,
       typewriter: value.typewriter === true,
       spellCheck: value.spellCheck === true,
       customCSS:

@@ -3,13 +3,22 @@ import { useRef, useState } from "react";
 import { Dialog } from "./Dialog";
 import { themeCSSError, type Preferences } from "./preferences";
 import { download } from "./bridge";
+import type { UpdateStatus } from "./bridge";
 export function Settings({
   preferences,
   update,
+  updateStatus,
+  onCheckForUpdates,
+  onDownloadUpdate,
+  onInstallUpdate,
   onClose,
 }: {
   preferences: Preferences;
   update: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
+  updateStatus: UpdateStatus;
+  onCheckForUpdates: () => void;
+  onDownloadUpdate: () => void;
+  onInstallUpdate: () => void;
   onClose: () => void;
 }) {
   const themeFile = useRef<HTMLInputElement>(null);
@@ -50,7 +59,9 @@ export function Settings({
     if (!activeTheme) return;
     update(
       "savedThemes",
-      preferences.savedThemes.filter((theme) => theme.name !== activeTheme.name),
+      preferences.savedThemes.filter(
+        (theme) => theme.name !== activeTheme.name,
+      ),
     );
     update("activeSavedTheme", "");
     update("customCSS", "");
@@ -217,7 +228,8 @@ export function Settings({
               !preferences.customCSS.trim() ||
               (activeTheme
                 ? false
-                : !normalizedName || duplicateName ||
+                : !normalizedName ||
+                  duplicateName ||
                   preferences.savedThemes.length >= 20)
             }
             onClick={saveTheme}
@@ -239,7 +251,9 @@ export function Settings({
         {!activeTheme && preferences.savedThemes.length >= 20 && (
           <small>主题库已满；删除一个主题后才能保存新主题。</small>
         )}
-        <small>本地主题 {preferences.savedThemes.length}/20；每个主题最多 64 KB。</small>
+        <small>
+          本地主题 {preferences.savedThemes.length}/20；每个主题最多 64 KB。
+        </small>
         <small>
           样式仅保存在本机。为保护隐私，不允许 @import、url() 或动态表达式。
         </small>
@@ -337,6 +351,72 @@ export function Settings({
           onChange={(e) => update("spellCheck", e.target.checked)}
         />
       </label>
+      <section className="update-settings" aria-label="软件更新">
+        <h3>软件更新</h3>
+        <label className="toggle-setting">
+          <span>
+            自动检查更新
+            <small>启动桌面版时检查 GitHub Releases 中的稳定版本。</small>
+          </span>
+          <input
+            aria-label="自动检查更新"
+            type="checkbox"
+            checked={preferences.autoCheckUpdates}
+            onChange={(event) =>
+              update("autoCheckUpdates", event.target.checked)
+            }
+          />
+        </label>
+        <div
+          className="update-status"
+          role={updateStatus.status === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {updateStatus.status === "checking" && "正在检查更新…"}
+          {updateStatus.status === "idle" && "尚未检查更新。"}
+          {updateStatus.status === "unsupported" && updateStatus.message}
+          {updateStatus.status === "not-available" &&
+            `当前已是最新版本${updateStatus.version ? `（${updateStatus.version}）` : ""}。`}
+          {updateStatus.status === "available" &&
+            `发现新版本 ${updateStatus.version}。`}
+          {updateStatus.status === "downloading" &&
+            `正在下载更新 ${Math.round(updateStatus.percent || 0)}%。`}
+          {updateStatus.status === "downloaded" &&
+            `版本 ${updateStatus.version} 已下载，可重启安装。${updateStatus.message ? ` ${updateStatus.message}` : ""}`}
+          {updateStatus.status === "error" && updateStatus.message}
+        </div>
+        {updateStatus.status === "downloading" && (
+          <progress max="100" value={updateStatus.percent || 0} />
+        )}
+        <div className="update-actions">
+          <button
+            type="button"
+            onClick={onCheckForUpdates}
+            disabled={
+              !window.desktop ||
+              typeof window.desktop.checkForUpdates !== "function" ||
+              ["checking", "available", "downloading", "downloaded"].includes(
+                updateStatus.status,
+              )
+            }
+          >
+            立即检查更新
+          </button>
+          {updateStatus.status === "available" && (
+            <button type="button" onClick={onDownloadUpdate}>
+              下载更新
+            </button>
+          )}
+          {updateStatus.status === "downloaded" && (
+            <button type="button" onClick={onInstallUpdate}>
+              重启并安装
+            </button>
+          )}
+        </div>
+        <small>
+          macOS 自动安装需要 Developer ID 签名。未签名版本会提示改为手动下载。
+        </small>
+      </section>
       <p>
         恢复副本会自动更新。文件被其他程序修改时，自动保存会暂停，请手动保存处理冲突。
       </p>

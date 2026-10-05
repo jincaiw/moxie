@@ -218,6 +218,8 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByLabel("PDF 页面方向").selectOption("landscape");
   await page.getByLabel("PDF 页边距").fill("24");
   await page.getByLabel("PDF 页眉与页码").check();
+  await expect(page.getByLabel("自动检查更新")).toBeChecked();
+  await page.getByLabel("自动检查更新").uncheck();
   await page.getByLabel("打字机模式").check();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -230,6 +232,11 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.getByLabel("PDF 页面方向")).toHaveValue("landscape");
   await expect(page.getByLabel("PDF 页边距")).toHaveValue("24");
   await expect(page.getByLabel("PDF 页眉与页码")).toBeChecked();
+  await expect(page.getByLabel("自动检查更新")).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "立即检查更新" }),
+  ).toBeDisabled();
+  await expect(page.getByRole("status")).toContainText(/桌面版|桌面更新服务/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
   expect(
     await page.evaluate(() =>
@@ -380,7 +387,9 @@ test("自定义 CSS 可保存为具名本地主题并在重启后应用", async 
   await css.fill(":root { --bg: #123456; --accent: #ff00aa; }");
   await page.getByLabel("新主题名称").fill("深海");
   await page.getByRole("button", { name: "保存为本地主题" }).click();
-  await expect(page.getByRole("status")).toContainText("已保存");
+  await expect(page.locator(".theme-css-editor [role='status']")).toContainText(
+    "已保存",
+  );
   await page.reload();
   await page.getByRole("button", { name: "偏好设置" }).click();
   await expect(page.getByLabel("本地主题")).toHaveValue(/.+/);

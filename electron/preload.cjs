@@ -15,11 +15,20 @@ contextBridge.exposeInMainWorld("desktop", {
   readImage: (input) => ipcRenderer.invoke("image:read", input),
   previewPDF: (input) => ipcRenderer.invoke("pdf:preview", input),
   export: (input) => ipcRenderer.invoke("file:export", input),
+  getUpdateStatus: () => ipcRenderer.invoke("update:status"),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  downloadUpdate: () => ipcRenderer.invoke("update:download"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
   dirty: (value) => ipcRenderer.send("document:dirty", Boolean(value)),
   closeReady: () => ipcRenderer.send("window:close-ready"),
   onAction: (fn) => {
     const listener = (_event, action) => fn(action);
     ipcRenderer.on("menu:action", listener);
     return () => ipcRenderer.removeListener("menu:action", listener);
+  },
+  onUpdateStatus: (fn) => {
+    const listener = (_event, status) => fn(status);
+    ipcRenderer.on("update:status", listener);
+    return () => ipcRenderer.removeListener("update:status", listener);
   },
 });

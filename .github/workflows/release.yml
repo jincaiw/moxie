@@ -43,12 +43,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run package:mac -- --${{ matrix.arch }}
+        env:
+          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - uses: actions/upload-artifact@v4
+        name: Upload macOS packages
         with:
           name: macOS-${{ matrix.arch }}
           path: |
             release/Moxie-*-${{ matrix.arch }}.dmg
             release/Moxie-*-${{ matrix.arch }}.zip
+            release/Moxie-*-${{ matrix.arch }}.zip.blockmap
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        name: Upload update metadata
+        with:
+          name: update-info-${{ matrix.arch }}
+          path: release/latest-mac.yml
           if-no-files-found: error
 
   publish:
@@ -56,11 +70,31 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
           pattern: macOS-*
           path: release
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: update-info-arm64
+          path: release/update-info/arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: update-info-x64
+          path: release/update-info/x64
+      - name: Merge architecture update metadata
+        run: >-
+          node scripts/merge-mac-update-info.cjs
+          release/update-info/arm64/latest-mac.yml
+          release/update-info/x64/latest-mac.yml
+          release/latest-mac.yml
       - name: Generate checksums
         run: cd release && shasum -a 256 Moxie-*.dmg Moxie-*.zip > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
@@ -71,11 +105,13 @@ jobs:
           body: |
             macOS packages for Apple Silicon (arm64) and Intel (x64).
 
-            **Distribution status:** These packages are not signed with a Developer ID and are not notarized. macOS Gatekeeper may require users to approve the app manually. The first launch and signing behavior still need validation on physical Macs.
+            **Distribution status:** Developer ID signing and notarization run when the repository secrets `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured. Without them, packages remain unsigned and automatic installation is unavailable. Users on v0.16.35 and earlier must manually install a signed baseline before in-app updates can work. First launch and update behavior still need validation on physical Macs.
 
             See `SHA256SUMS.txt` to verify downloaded files.
           files: |
             release/Moxie-*.dmg
             release/Moxie-*.zip
+            release/Moxie-*.zip.blockmap
+            release/latest-mac.yml
             release/SHA256SUMS.txt
           fail_on_unmatched_files: true

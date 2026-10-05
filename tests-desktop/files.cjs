@@ -5,11 +5,17 @@ const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
 const { EventEmitter } = require("node:events");
+const { UpdateController } = require("../electron/updater.cjs");
+const { mergeMacUpdateInfo } = require("../electron/update-info.cjs");
 async function harness() {
   const handlers = new Map(),
     events = new Map();
   const windows = [],
     externalUrls = [];
+  const mockUpdater = new EventEmitter();
+  mockUpdater.checkForUpdates = async () => {};
+  mockUpdater.downloadUpdate = async () => {};
+  mockUpdater.quitAndInstall = () => {};
   let openResult = { canceled: true },
     saveResult = { canceled: true },
     messageResult = { response: 0 };
@@ -78,11 +84,13 @@ async function harness() {
     require: (name) =>
       name === "electron"
         ? electron
-        : require(
-            name.startsWith(".")
-              ? path.join(__dirname, "../electron", name)
-              : name,
-          ),
+        : name === "electron-updater"
+          ? { autoUpdater: mockUpdater }
+          : require(
+              name.startsWith(".")
+                ? path.join(__dirname, "../electron", name)
+                : name,
+            ),
     process: { env: {}, platform: "darwin" },
     __dirname: path.join(__dirname, "../electron"),
     Buffer,
@@ -467,6 +475,67 @@ test("文件夹授权重启恢复，目录版本只在内容变化时更新", as
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
+});
+
+test("自动更新检查、下载进度、未保存拦截和安装流程", async () => {
+  const updater = new EventEmitter();
+  let dirty = true;
+  let installed = false;
+  updater.checkForUpdates = async () => {
+    updater.emit("checking-for-update");
+    updater.emit("update-available", { version: "0.17.0" });
+  };
+  updater.downloadUpdate = async () => {
+    updater.emit("download-progress", { percent: 42 });
+    updater.emit("update-downloaded", { version: "0.17.0" });
+  };
+  updater.quitAndInstall = () => {
+    installed = true;
+  };
+  const statuses = [];
+  const controller = new UpdateController({
+    updater,
+    supported: true,
+    hasUnsavedChanges: () => dirty,
+    onStatus: (status) => statuses.push(status),
+  });
+  assert.equal(updater.autoDownload, false);
+  assert.deepEqual(await controller.check(), {
+    status: "available",
+    version: "0.17.0",
+  });
+  await controller.download();
+  assert.ok(statuses.some((status) => status.percent === 42));
+  assert.equal(controller.getStatus().status, "downloaded");
+  assert.throws(() => controller.install(), /文档尚未保存/);
+  assert.equal(controller.getStatus().status, "downloaded");
+  dirty = false;
+  controller.install();
+  assert.equal(installed, true);
+});
+
+test("arm64 与 x64 更新清单合并并拒绝缺失架构", () => {
+  const metadata = (arch) => ({
+    version: "0.17.0",
+    path: `Moxie-0.17.0-${arch}.zip`,
+    sha512: `${arch}-checksum`,
+    files: [{ url: `Moxie-0.17.0-${arch}.zip`, sha512: `${arch}-checksum` }],
+  });
+  const merged = mergeMacUpdateInfo(metadata("arm64"), metadata("x64"));
+  assert.equal(merged.files.length, 2);
+  assert.equal("path" in merged, false);
+  assert.throws(
+    () => mergeMacUpdateInfo(metadata("arm64"), metadata("arm64")),
+    /同时包含 arm64 和 x64/,
+  );
+  assert.throws(
+    () =>
+      mergeMacUpdateInfo(metadata("arm64"), {
+        ...metadata("x64"),
+        version: "0.18.0",
+      }),
+    /版本必须一致/,
+  );
 });
 
 test("链接打开关联文档及锚点，限制目录边界和协议", async () => {

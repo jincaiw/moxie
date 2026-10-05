@@ -10,8 +10,11 @@ const fs = require("node:fs/promises");
 const { URL } = require("node:url");
 const path = require("node:path");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
+const { autoUpdater } = require("electron-updater");
+const { UpdateController } = require("./updater.cjs");
 let main,
   store,
+  updates,
   dirty = false,
   allowClose = false,
   askingClose = false;
@@ -92,6 +95,10 @@ function setupIPC() {
       verify(event);
       return handler(input);
     });
+  handle("update:status", () => updates.getStatus());
+  handle("update:check", () => updates.check());
+  handle("update:download", () => updates.download());
+  handle("update:install", () => updates.install());
   handle("file:open", async () => {
     const result = await dialog.showOpenDialog(main, {
       properties: ["openFile"],
@@ -249,6 +256,9 @@ function createWindow() {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
+  main.webContents.once("did-finish-load", () => {
+    main.webContents.send("update:status", updates.getStatus());
+  });
   main.webContents.on("will-navigate", (event, url) => {
     const expected = isDev
       ? "http://127.0.0.1:5173/"
@@ -284,6 +294,17 @@ function createWindow() {
   });
   if (isDev) void main.loadURL("http://127.0.0.1:5173");
   else void main.loadFile(path.join(__dirname, "../dist/index.html"));
+}
+function setupUpdater() {
+  updates = new UpdateController({
+    updater: autoUpdater,
+    supported: app.isPackaged && process.platform === "darwin",
+    hasUnsavedChanges: () => dirty,
+    onStatus: (status) => {
+      if (main && !main.isDestroyed())
+        main.webContents.send("update:status", status);
+    },
+  });
 }
 function createMenu() {
   const command = (label, name, accelerator) => ({
@@ -369,6 +390,7 @@ app.whenReady().then(async () => {
     app.getPath ? path.join(app.getPath("userData"), "files.json") : undefined,
   );
   await store.init();
+  setupUpdater();
   setupIPC();
   createWindow();
   createMenu();

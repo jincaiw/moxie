@@ -31,6 +31,20 @@ export type SaveInput = {
   saveAs?: boolean;
   automatic?: boolean;
 };
+export type UpdateStatus = {
+  status:
+    | "idle"
+    | "checking"
+    | "available"
+    | "not-available"
+    | "downloading"
+    | "downloaded"
+    | "error"
+    | "unsupported";
+  version?: string;
+  percent?: number;
+  message?: string;
+};
 declare global {
   interface Window {
     desktop?: {
@@ -92,6 +106,11 @@ declare global {
           headerFooter: boolean;
         };
       }) => Promise<boolean>;
+      getUpdateStatus: () => Promise<UpdateStatus>;
+      checkForUpdates: () => Promise<UpdateStatus>;
+      downloadUpdate: () => Promise<UpdateStatus>;
+      installUpdate: () => Promise<UpdateStatus>;
+      onUpdateStatus: (fn: (status: UpdateStatus) => void) => () => void;
       onAction: (fn: (action: string) => void) => () => void;
       dirty: (dirty: boolean) => void;
       closeReady: () => void;

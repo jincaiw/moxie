@@ -37,6 +37,7 @@ import { Settings } from "./Settings";
 import { Dialog } from "./Dialog";
 import { headingTarget, usableLink } from "./links";
 import { documentStats } from "./stats";
+import type { UpdateStatus } from "./bridge";
 
 function Tool({
   label,
@@ -111,6 +112,11 @@ export default function App() {
   const [tab, setTab] = useState("files");
   const [menu, setMenu] = useState<"export" | "format" | null>(null);
   const [settings, setSettings] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(() =>
+    window.desktop?.checkForUpdates
+      ? { status: "idle" }
+      : { status: "unsupported", message: "自动更新仅适用于桌面版。" },
+  );
   const [pdfPreviewURL, setPdfPreviewURL] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
   const folderWorkspace = useFolder();
@@ -151,6 +157,47 @@ export default function App() {
   const autoError = workspace.autoErrors[current.id];
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
+  useEffect(() => {
+    const desktop = window.desktop;
+    if (
+      !desktop?.onUpdateStatus ||
+      !desktop.getUpdateStatus ||
+      !desktop.checkForUpdates
+    ) {
+      setUpdateStatus({
+        status: "unsupported",
+        message: "当前环境未启用桌面更新服务。",
+      });
+      return;
+    }
+    const unsubscribe = desktop.onUpdateStatus(setUpdateStatus);
+    let active = true;
+    void desktop.getUpdateStatus().then((status) => {
+      if (active) setUpdateStatus(status);
+    });
+    if (preferences.autoCheckUpdates)
+      void desktop.checkForUpdates().then((status) => {
+        if (active) setUpdateStatus(status);
+      });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [preferences.autoCheckUpdates]);
+
+  const runUpdateAction = async (
+    action: "checkForUpdates" | "downloadUpdate" | "installUpdate",
+  ) => {
+    if (!window.desktop || typeof window.desktop[action] !== "function") return;
+    try {
+      setUpdateStatus(await window.desktop[action]());
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (action === "installUpdate")
+        setUpdateStatus((status) => ({ ...status, message }));
+      else setUpdateStatus({ status: "error", message });
+    }
+  };
   useEffect(() => {
     const timer = setTimeout(
       () => setCountSnapshot({ id: current.id, text: current.text }),
@@ -690,6 +737,18 @@ export default function App() {
         ).catch((error) => setMessage(String(error)));
       }}
     >
+      {!settings &&
+        ["available", "downloaded"].includes(updateStatus.status) && (
+          <button
+            className="update-notice"
+            onClick={() => setSettings(true)}
+            aria-label="打开软件更新设置"
+          >
+            {updateStatus.status === "available"
+              ? `发现新版本 ${updateStatus.version || ""}，点击查看更新。`
+              : `版本 ${updateStatus.version || "新版本"} 已下载，点击完成安装。`}
+          </button>
+        )}
       {visibleSidebar && (
         <aside className="sidebar">
           <div className="window-space">
@@ -1210,6 +1269,10 @@ export default function App() {
         <Settings
           preferences={preferences}
           update={update}
+          updateStatus={updateStatus}
+          onCheckForUpdates={() => void runUpdateAction("checkForUpdates")}
+          onDownloadUpdate={() => void runUpdateAction("downloadUpdate")}
+          onInstallUpdate={() => void runUpdateAction("installUpdate")}
           onClose={() => setSettings(false)}
         />
       )}

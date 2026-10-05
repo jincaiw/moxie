@@ -741,6 +741,21 @@ p {
   z-index: 30;
   max-width: 85vw;
 }
+.update-notice {
+  position: fixed;
+  z-index: 25;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(620px, calc(100vw - 32px));
+  padding: 9px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--bg);
+  background: var(--accent);
+  box-shadow: 0 4px 16px #0002;
+  font-size: 12px;
+}
 .recovery-banner {
   font-size: 12px;
   display: flex;
@@ -761,6 +776,8 @@ p {
 }
 .settings {
   width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
   background: var(--bg);
   padding: 24px;
   border: 1px solid var(--border);
@@ -874,6 +891,44 @@ p {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+.update-settings {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.update-settings h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.update-settings .toggle-setting {
+  margin: 0 0 6px;
+}
+.update-settings small,
+.update-status {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.update-settings .update-status[role="alert"] {
+  color: #b74343;
+}
+.update-settings progress {
+  width: 100%;
+}
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.update-actions button {
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 11px;
 }
 .theme-library-actions input {
   flex: 1 1 140px;
