@@ -523,6 +523,15 @@ export default function App() {
     if (action === "focus") setFocus((value) => !value);
     if (action === "image") imageUpload.current?.click();
     if (action === "close-document") requestClose();
+    if (action === "previous-document" || action === "next-document") {
+      if (docs.length > 1) {
+        const index = docs.findIndex((document) => document.id === current.id);
+        const offset = action === "previous-document" ? -1 : 1;
+        workspace.setActive(
+          docs[(index + offset + docs.length) % docs.length].id,
+        );
+      }
+    }
     if (action === "keep-close") {
       void (async () => {
         editor.current?.flush();
@@ -562,6 +571,16 @@ export default function App() {
       )
         return;
       if (document.querySelector("dialog[open]")) return;
+      if (event.shiftKey && event.code === "BracketLeft") {
+        event.preventDefault();
+        actionRef.current("previous-document");
+        return;
+      }
+      if (event.shiftKey && event.code === "BracketRight") {
+        event.preventDefault();
+        actionRef.current("next-document");
+        return;
+      }
       const mapped: Record<string, string> = {
         s: event.shiftKey ? "saveAs" : "save",
         o: "open",
