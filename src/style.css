@@ -345,6 +345,10 @@ p {
 .document-tab-close:hover {
   color: var(--text);
 }
+.md-inline-html-paragraph-preview {
+  display: block;
+  white-space: normal;
+}
 .document-title {
   display: flex;
   align-items: center;

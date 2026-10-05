@@ -181,6 +181,42 @@ class InlineHTMLWidget extends WidgetType {
   }
 }
 
+class InlineHTMLParagraphWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly from: number,
+    readonly path: string | undefined,
+  ) {
+    super();
+  }
+  eq(other: InlineHTMLParagraphWidget) {
+    return (
+      this.source === other.source &&
+      this.from === other.from &&
+      this.path === other.path
+    );
+  }
+  toDOM(view: EditorView) {
+    const el = document.createElement("div");
+    el.className = "md-inline-html-paragraph-preview";
+    el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
+    el.title = "点击编辑原文";
+    el.innerHTML = DOMPurify.sanitize(
+      marked.parseInline(this.source, { async: false }) as string,
+    );
+    hydrateHTMLImages(el, view, this.path);
+    el.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      view.dispatch({ selection: { anchor: this.from } });
+      view.focus();
+    });
+    return el;
+  }
+  ignoreEvent() {
+    return false;
+  }
+}
+
 const voidHTMLTags = new Set([
   "area",
   "base",
@@ -237,7 +273,6 @@ function inlineHTMLRanges(
   pairs.sort((a, b) => a.from - b.from || b.to - a.to);
   const outermost: { from: number; to: number }[] = [];
   for (const pair of pairs) {
-    if (state.doc.sliceString(pair.from, pair.to).includes("\n")) continue;
     const previous = outermost.at(-1);
     if (previous && pair.from < previous.to) continue;
     outermost.push(pair);
@@ -342,10 +377,17 @@ function build(
     const inlineHTMLOpenings = new Map(
       inlineHTML.map((range) => [range.from, range.to]),
     );
+    const replacedParagraphs: { from: number; to: number }[] = [];
     tree.iterate({
       from: visible.from,
       to: visible.to,
       enter(node) {
+        if (
+          replacedParagraphs.some(
+            (range) => node.from >= range.from && node.to <= range.to,
+          )
+        )
+          return false;
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
         if (/^ATXHeading[1-6]$/.test(node.name)) {
@@ -509,19 +551,48 @@ function build(
           const inlineEnd = inlineHTMLOpenings.get(node.from);
           if (node.name === "HTMLTag" && inlineEnd !== undefined) {
             const inlineSource = state.doc.sliceString(node.from, inlineEnd);
-            add(
-              node.from,
-              inlineEnd,
-              Decoration.replace({
-                widget: new InlineHTMLWidget(
-                  inlineSource,
-                  node.from,
-                  state.facet(documentPath),
-                ),
-              }),
-            );
-            codeRanges.push({ from: node.from, to: inlineEnd });
-            return false;
+            if (inlineSource.includes("\n")) {
+              let paragraph = tree.resolveInner(node.from, 1);
+              while (paragraph.name !== "Paragraph" && paragraph.parent)
+                paragraph = paragraph.parent;
+              if (
+                paragraph.name === "Paragraph" &&
+                paragraph.from <= node.from &&
+                paragraph.to >= inlineEnd &&
+                !active(paragraph.from, paragraph.to)
+              ) {
+                const range = { from: paragraph.from, to: paragraph.to };
+                replacedParagraphs.push(range);
+                codeRanges.push(range);
+                add(
+                  range.from,
+                  range.to,
+                  Decoration.replace({
+                    widget: new InlineHTMLParagraphWidget(
+                      state.doc.sliceString(range.from, range.to),
+                      range.from,
+                      state.facet(documentPath),
+                    ),
+                    block: true,
+                  }),
+                );
+                return false;
+              }
+            } else if (!active(node.from, inlineEnd)) {
+              add(
+                node.from,
+                inlineEnd,
+                Decoration.replace({
+                  widget: new InlineHTMLWidget(
+                    inlineSource,
+                    node.from,
+                    state.facet(documentPath),
+                  ),
+                }),
+              );
+              codeRanges.push({ from: node.from, to: inlineEnd });
+              return false;
+            }
           }
           const image = htmlImage(raw);
           if (image) {
@@ -682,7 +753,9 @@ function build(
         add(
           start,
           end,
-          Decoration.replace({ widget: new InlineMathWidget(match.text, start) }),
+          Decoration.replace({
+            widget: new InlineMathWidget(match.text, start),
+          }),
         );
     }
     const highlightDelimiter = /==/g;
