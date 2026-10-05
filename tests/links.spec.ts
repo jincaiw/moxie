@@ -35,7 +35,7 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
     name: "链接.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n裸链接 https://bare.example/path\n\n`https://code.example/path` 和 `[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
+      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n裸链接 https://bare.example/path 和 www.example.net/guide\n\n邮箱 writer@example.org\n\n`https://code.example/path` 和 `[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
     ),
   });
   const website = page.getByRole("link", { name: "打开网站", exact: true });
@@ -52,6 +52,15 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
       exact: true,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", {
+      name: "www.example.net/guide",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", "http://www.example.net/guide");
+  await expect(
+    page.getByRole("link", { name: "writer@example.org", exact: true }),
+  ).toHaveAttribute("href", "mailto:writer@example.org");
   await expect(
     page.getByRole("link", { name: "代码示例", exact: true }),
   ).toHaveCount(0);
