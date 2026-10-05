@@ -586,7 +586,7 @@ test("链接打开关联文档及锚点，限制目录边界和协议", async ()
       documentPath: source,
       href: "../%E7%9B%AE%E6%A0%87%20%E6%96%87%E6%A1%A3.md#%E7%9B%AE%E6%A0%87",
     });
-    assert.equal(result.file.path, target);
+    assert.equal(result.file.path, await fs.realpath(target));
     assert.equal(result.anchor, "目标");
     await fs.symlink(
       path.join(outside, "secret.md"),
