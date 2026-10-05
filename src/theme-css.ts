@@ -11,7 +11,11 @@ export function themeCSSError(css: string): string | null {
     },
   );
   if (/@import\b/i.test(decoded)) return "为保护本地隐私，不支持 @import。";
-  if (/url\s*\(|expression\s*\(/i.test(decoded))
+  const withoutEmbeddedAssets = decoded.replace(
+    /url\(\s*(['"]?)data:(?:image\/(?:png|jpeg|gif|webp|avif)|font\/woff2|application\/font-woff);base64,[a-z\d+/=]+\1\s*\)/gi,
+    "",
+  );
+  if (/url\s*\(|expression\s*\(/i.test(withoutEmbeddedAssets))
     return "主题 CSS 不支持外部资源或动态表达式。";
   return null;
 }

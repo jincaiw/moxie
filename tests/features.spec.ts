@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { parseClipboardTable, parseTable } from "../src/table";
 import { inlineMathMatches } from "../src/math";
 const png = Buffer.from(
@@ -420,6 +422,44 @@ test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部
     .toBe("#557895");
   await page.getByRole("button", { name: "清除自定义样式" }).click();
   await expect(css).toHaveValue("");
+});
+
+test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", async ({ page }) => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-theme-"));
+  const theme = path.join(folder, "主题");
+  await fs.mkdir(path.join(theme, "assets"), { recursive: true });
+  await fs.writeFile(
+    path.join(theme, "theme.css"),
+    'body { background-image: url("assets/tile.png"); } :root { --accent: #117799; }',
+  );
+  await fs.writeFile(path.join(theme, "assets", "tile.png"), png);
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: "偏好设置" }).click();
+    await page.getByLabel("选择主题包文件夹").setInputFiles(theme);
+    const css = page.getByRole("textbox", { name: "自定义主题 CSS 内容" });
+    await expect(css).toContainText("data:image/png;base64,");
+    await expect(css).toContainText(png.toString("base64"));
+    await page.getByLabel("新主题名称").fill("纸纹");
+    await page.getByRole("button", { name: "保存为本地主题" }).click();
+    await expect(
+      page.locator(".theme-css-editor [role='status']"),
+    ).toContainText("已保存");
+    await page.reload();
+    await page.getByRole("button", { name: "偏好设置" }).click();
+    await expect(page.getByLabel("本地主题")).toHaveValue("纸纹");
+
+    await fs.writeFile(
+      path.join(theme, "theme.css"),
+      "body { background-image: url(../../outside.png); }",
+    );
+    await page.getByLabel("选择主题包文件夹").setInputFiles(theme);
+    await expect(
+      page.locator(".theme-css-editor [role='status']"),
+    ).toContainText("不能引用主题文件夹之外");
+  } finally {
+    await fs.rm(folder, { recursive: true, force: true });
+  }
 });
 
 test("自定义 CSS 可保存为具名本地主题并在重启后应用", async ({ page }) => {

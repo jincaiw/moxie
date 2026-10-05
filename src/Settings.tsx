@@ -4,6 +4,7 @@ import { Dialog } from "./Dialog";
 import { themeCSSError, type Preferences } from "./preferences";
 import { download } from "./bridge";
 import type { UpdateStatus } from "./bridge";
+import { importThemePackage } from "./theme-package";
 export function Settings({
   preferences,
   update,
@@ -22,6 +23,7 @@ export function Settings({
   onClose: () => void;
 }) {
   const themeFile = useRef<HTMLInputElement>(null);
+  const themePackage = useRef<HTMLInputElement>(null);
   const [themeName, setThemeName] = useState("");
   const [themeMessage, setThemeMessage] = useState("");
   const cssError = themeCSSError(preferences.customCSS);
@@ -167,6 +169,9 @@ export function Settings({
           </small>
         )}
         <div className="theme-css-actions">
+          <button type="button" onClick={() => themePackage.current?.click()}>
+            导入主题包文件夹
+          </button>
           <button type="button" onClick={() => themeFile.current?.click()}>
             导入 .css 文件
           </button>
@@ -208,6 +213,32 @@ export function Settings({
               if (!file) return;
               update("activeSavedTheme", "");
               update("customCSS", await file.text());
+            }}
+          />
+          <input
+            ref={(element) => {
+              themePackage.current = element;
+              element?.setAttribute("webkitdirectory", "");
+              element?.setAttribute("directory", "");
+            }}
+            aria-label="选择主题包文件夹"
+            type="file"
+            multiple
+            hidden
+            onChange={async (event) => {
+              const files = Array.from(event.target.files || []);
+              event.target.value = "";
+              if (!files.length) return;
+              try {
+                const css = await importThemePackage(files);
+                update("activeSavedTheme", "");
+                update("customCSS", css);
+                setThemeMessage("主题包已导入，请保存为本地主题以便下次使用。");
+              } catch (error) {
+                setThemeMessage(
+                  `主题包导入失败：${error instanceof Error ? error.message : "无法读取主题文件。"}`,
+                );
+              }
             }}
           />
         </div>
@@ -255,7 +286,9 @@ export function Settings({
           本地主题 {preferences.savedThemes.length}/20；每个主题最多 64 KB。
         </small>
         <small>
-          样式仅保存在本机。为保护隐私，不允许 @import、url() 或动态表达式。
+          样式仅保存在本机。主题包支持 CSS
+          与小型图片/字体资源，导入时会内嵌资源；不允许外部 URL、@import
+          或动态表达式。
         </small>
       </section>
       <section className="pdf-settings" aria-label="PDF 导出设置">
