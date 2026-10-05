@@ -1,0 +1,81 @@
+name: Publish macOS release
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+jobs:
+  verify:
+    name: Verify release source
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check tag matches package version
+        run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
+      - run: npm run build
+      - run: npm run test:desktop
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+  build:
+    name: Build ${{ matrix.arch }} macOS package
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run package:mac -- --${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-${{ matrix.arch }}
+          path: |
+            release/Moxie-*-${{ matrix.arch }}.dmg
+            release/Moxie-*-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: macOS-*
+          path: release
+          merge-multiple: true
+      - name: Generate checksums
+        run: cd release && shasum -a 256 Moxie-*.dmg Moxie-*.zip > SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Moxie ${{ github.ref_name }}
+          generate_release_notes: true
+          body: |
+            macOS packages for Apple Silicon (arm64) and Intel (x64).
+
+            **Distribution status:** These packages are not signed with a Developer ID and are not notarized. macOS Gatekeeper may require users to approve the app manually. The first launch and signing behavior still need validation on physical Macs.
+
+            See `SHA256SUMS.txt` to verify downloaded files.
+          files: |
+            release/Moxie-*.dmg
+            release/Moxie-*.zip
+            release/SHA256SUMS.txt
+          fail_on_unmatched_files: true

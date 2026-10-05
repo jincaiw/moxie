@@ -1,0 +1,30 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test:desktop
+      - run: npx playwright install --with-deps chromium
+      - name: Select Playwright Chromium
+        run: |
+          node --input-type=module <<'JS'
+          import {chromium} from '@playwright/test';
+          import {appendFileSync} from 'node:fs';
+          appendFileSync(process.env.GITHUB_ENV, `CHROMIUM_PATH=${chromium.executablePath()}\n`);
+          JS
+      - run: npm test

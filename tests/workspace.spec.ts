@@ -1,0 +1,397 @@
+import { test, expect } from "@playwright/test";
+import { Buffer } from "node:buffer";
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const state = window as unknown as {
+      desktop: object;
+      disk: { text: string; version: string; status: string };
+      opened: string[];
+      saves: object[];
+    };
+    state.disk = {
+      text: "# 磁盘笔记\n\n原内容\n",
+      version: "v1",
+      status: "changed",
+    };
+    state.opened = [];
+    state.saves = [];
+    const tree = {
+      path: "/notes",
+      name: "写作项目",
+      truncated: false,
+      entries: [
+        {
+          path: "/notes/章节",
+          name: "章节",
+          kind: "directory",
+          children: [
+            { path: "/notes/章节/note.md", name: "note.md", kind: "file" },
+          ],
+        },
+      ],
+    };
+    state.desktop = {
+      folder: async () => tree,
+      refreshFolder: async () => ({
+        ...tree,
+        entries: [
+          ...tree.entries,
+          { path: "/notes/new.md", name: "new.md", kind: "file" },
+        ],
+      }),
+      open: async () => ({
+        path: "/notes/note.md",
+        name: "note.md",
+        ...state.disk,
+      }),
+      reopen: async (path: string) => {
+        state.opened.push(path);
+        return {
+          path,
+          name: "note.md",
+          text: state.disk.text,
+          version: state.disk.version,
+        };
+      },
+      inspect: async (files: { path: string; version?: string }[]) =>
+        files
+          .filter((file) => file.version !== state.disk.version)
+          .map((file) => ({ path: file.path, ...state.disk })),
+      save: async (input: { path: string; text: string; saveAs: boolean }) => {
+        state.saves.push(input);
+        state.disk = { text: input.text, version: "saved", status: "changed" };
+        return {
+          path: input.saveAs ? "/notes/copy.md" : input.path,
+          name: input.saveAs ? "copy.md" : "note.md",
+          text: input.text,
+          version: "saved",
+        };
+      },
+      recent: async () => [],
+      dirty: () => {},
+      onAction: () => () => {},
+    };
+  });
+});
+
+test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾输入", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.goto("/");
+  const text = ("A".repeat(80) + "\n").repeat(19_000);
+  await page.locator(".md-input").setInputFiles({
+    name: "长文恢复.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(text),
+  });
+  await expect(page.locator(".document-title")).toContainText("长文恢复");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.insertText("恢复标记");
+  await page.waitForFunction(
+    async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("moxie.recovery.v1", 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      const snapshot = await new Promise<{
+        docs?: { name: string; text: string }[];
+      } | null>((resolve, reject) => {
+        const request = database
+          .transaction("snapshots")
+          .objectStore("snapshots")
+          .get("latest");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      database.close();
+      return snapshot?.docs?.some(
+        (document) =>
+          document.name === "长文恢复.md" && document.text.endsWith("恢复标记"),
+      );
+    },
+    null,
+    { timeout: 30_000 },
+  );
+  await page.waitForTimeout(500);
+  await page.reload();
+  await expect(page.locator(".document-title")).toContainText("长文恢复");
+  await page.keyboard.press("Control+s");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { saves: { text: string }[] }).saves.length,
+      ),
+    )
+    .toBe(1);
+  const saved = await page.evaluate(
+    () => (window as unknown as { saves: { text: string }[] }).saves[0].text,
+  );
+  expect(saved).toMatch(/恢复标记$/);
+});
+
+test("目录展开、按需打开、刷新和关闭目录", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "文件夹 章节" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { opened: string[] }).opened,
+    ),
+  ).toEqual([]);
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.getByRole("button", { name: "打开 note.md", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("原内容");
+  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await expect(
+    page.getByRole("button", { name: "打开 new.md", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "文件夹 章节" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "关闭文件夹" }).click();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
+  await expect(page.locator(".cm-content")).toContainText("原内容");
+});
+
+test("未编辑文档自动更新，有本地修改时保留并确认载入", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await page.evaluate(() => {
+    const w = window as unknown as { disk: { text: string; version: string } };
+    w.disk.text = "# 外部更新\n\n新的磁盘内容\n";
+    w.disk.version = "v2";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.locator(".cm-content")).toContainText("新的磁盘内容");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("我的修改");
+  await page.evaluate(() => {
+    const w = window as unknown as { disk: { text: string; version: string } };
+    w.disk.text = "# 第三个版本\n";
+    w.disk.version = "v3";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.locator(".external-warning")).toContainText(
+    "当前编辑已保留",
+  );
+  await expect(page.locator(".cm-content")).toContainText("我的修改");
+  await page.getByRole("button", { name: "载入磁盘版本", exact: true }).click();
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("我的修改");
+  await page.getByRole("button", { name: "载入磁盘版本", exact: true }).click();
+  await page.getByRole("button", { name: "替换当前编辑", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("第三个版本");
+  await expect(page.locator(".external-warning")).toHaveCount(0);
+});
+
+test("磁盘删除后保留编辑并另存为，自动保存暂停", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("自动保存到原文件").check();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      disk: { version: string; status: string };
+    };
+    w.disk.version = "missing";
+    w.disk.status = "missing";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.locator(".external-warning")).toContainText(
+    "已删除或无法读取",
+  );
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("保留我");
+  await page.waitForTimeout(1500);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { saves: object[] }).saves.length,
+    ),
+  ).toBe(0);
+  await page.getByRole("button", { name: "另存为保留编辑" }).click();
+  await expect(
+    page.getByRole("button", { name: "copy.md", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".cm-content")).toContainText("保留我");
+  await expect(page.locator(".external-warning")).toHaveCount(0);
+});
+
+test("检查结果晚于手动保存时不会回滚已保存内容", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await expect(page.locator(".cm-content")).toContainText("原内容");
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      desktop: { inspect: (files: object[]) => Promise<object[]> };
+      pendingCheck?: () => void;
+      checking: boolean;
+    };
+    const original = w.desktop.inspect;
+    let delayed = false;
+    w.desktop.inspect = async (files) => {
+      if (delayed) return original(files);
+      delayed = true;
+      w.checking = true;
+      return new Promise((resolve) => {
+        w.pendingCheck = () =>
+          resolve([
+            {
+              path: "/notes/note.md",
+              version: "old-result",
+              status: "changed",
+              text: "# 过期的检查结果\n",
+            },
+          ]);
+      });
+    };
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { checking: boolean }).checking,
+      ),
+    )
+    .toBe(true);
+  await page.keyboard.press("Control+s");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { saves: object[] }).saves.length,
+      ),
+    )
+    .toBe(1);
+  await page.evaluate(() =>
+    (window as unknown as { pendingCheck: () => void }).pendingCheck(),
+  );
+  await page.waitForTimeout(100);
+  await expect(page.locator(".cm-content")).toContainText("原内容");
+  await expect(page.locator(".cm-content")).not.toContainText("过期的检查结果");
+});
+
+test("重启恢复文件夹、展开状态和上次活动文档", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.getByRole("button", { name: "打开 note.md", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("moxie.recovery.v1")))
+    .toContain("原内容");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "文件夹 章节" }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".cm-content")).toContainText("原内容");
+  await expect(
+    page.getByRole("button", { name: "打开 note.md", exact: true }),
+  ).toBeVisible();
+});
+
+test("目录内容自动更新，关闭目录不被延迟刷新重新打开", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const w = window as unknown as {
+      desktop: {
+        folder: () => Promise<object>;
+        refreshFolder: (
+          root: string,
+          version?: string,
+        ) => Promise<object | null>;
+      };
+      revision: string;
+      pendingRefresh?: () => void;
+      delay: boolean;
+    };
+    w.revision = "v1";
+    w.delay = false;
+    const tree = () => ({
+      path: "/notes",
+      name: "写作项目",
+      truncated: false,
+      version: w.revision,
+      entries:
+        w.revision === "v1"
+          ? []
+          : [{ path: "/notes/new.md", name: "自动新增.md", kind: "file" }],
+    });
+    w.desktop.folder = async () => tree();
+    w.desktop.refreshFolder = async (_root, version) => {
+      if (w.delay)
+        return new Promise((resolve) => {
+          w.pendingRefresh = () => resolve(tree());
+        });
+      return version === w.revision ? null : tree();
+    };
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "没有 Markdown 文档",
+  );
+  await page.evaluate(() => {
+    (window as unknown as { revision: string }).revision = "v2";
+  });
+  await expect(
+    page.getByRole("button", { name: "打开 自动新增.md", exact: true }),
+  ).toBeVisible({ timeout: 6000 });
+  await page.evaluate(() => {
+    (window as unknown as { delay: boolean }).delay = true;
+  });
+  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Boolean(
+          (window as unknown as { pendingRefresh?: () => void }).pendingRefresh,
+        ),
+      ),
+    )
+    .toBe(true);
+  await page.getByRole("button", { name: "关闭文件夹" }).click();
+  await page.evaluate(() =>
+    (window as unknown as { pendingRefresh: () => void }).pendingRefresh(),
+  );
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
+});
+
+test("目录恢复失败时保留文档，重试后恢复目录", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.evaluate(() => localStorage.setItem("restore-fail", "yes"));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("restore-fail")) return;
+    let fail = true;
+    const w = window as unknown as {
+      desktop: { refreshFolder: () => Promise<object> };
+      allowRestore: () => void;
+    };
+    const original = w.desktop.refreshFolder;
+    w.allowRestore = () => {
+      fail = false;
+    };
+    w.desktop.refreshFolder = async () => {
+      if (fail) throw Error("offline");
+      return original();
+    };
+  });
+  await page.reload();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "暂时无法读取",
+  );
+  await expect(page.locator(".cm-content")).toContainText("欢迎使用墨写");
+  await page.evaluate(() =>
+    (window as unknown as { allowRestore: () => void }).allowRestore(),
+  );
+  await page.getByRole("button", { name: "重试读取文件夹" }).click();
+  await expect(page.getByRole("button", { name: "文件夹 章节" })).toBeVisible();
+});

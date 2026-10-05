@@ -1,0 +1,749 @@
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import { Compartment, EditorState, Transaction } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  drawSelection,
+  highlightActiveLine,
+} from "@codemirror/view";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  indentMore,
+  indentLess,
+  undo,
+  redo,
+} from "@codemirror/commands";
+import { markdown } from "@codemirror/lang-markdown";
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { GFM } from "@lezer/markdown";
+import { tags } from "@lezer/highlight";
+import { languages } from "@codemirror/language-data";
+import {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+  HighlightStyle,
+  syntaxTree,
+} from "@codemirror/language";
+import { searchKeymap, search, openSearchPanel } from "@codemirror/search";
+import { livePreview, documentPath, previewTheme } from "./live";
+import { imageTypes } from "./assets";
+import { linkHandler } from "./link-widget";
+import { markdownLink } from "./links";
+
+const sessions = new Map<string, EditorState>();
+export type Format =
+  | "bold"
+  | "italic"
+  | "highlight"
+  | "superscript"
+  | "subscript"
+  | "strike"
+  | "code"
+  | "heading"
+  | "heading1"
+  | "heading2"
+  | "heading3"
+  | "heading4"
+  | "heading5"
+  | "heading6"
+  | "paragraph"
+  | "quote"
+  | "codeblock"
+  | "bulletList"
+  | "orderedList"
+  | "task"
+  | "table"
+  | "link";
+export type EditorHandle = {
+  flush: () => void;
+  go: (pos: number) => void;
+  find: () => void;
+  undo: () => void;
+  redo: () => void;
+  format: (kind: Format) => void;
+  images: (files: File[]) => Promise<void>;
+  forget: (id: string) => void;
+};
+type Props = {
+  id: string;
+  text: string;
+  path?: string;
+  source: boolean;
+  typewriter?: boolean;
+  spellCheck?: boolean;
+  theme?: "light" | "dark";
+  onChange: (text: string) => void;
+  onDirty: () => void;
+  onCursorChange: (position: number, line: number, column: number) => void;
+  onLink: (href: string) => void;
+  onImages: (files: File[]) => Promise<string>;
+  onError: (message: string) => void;
+};
+
+function formatSelection(view: EditorView, kind: Format) {
+  const { from, to } = view.state.selection.main;
+  const selected = view.state.sliceDoc(from, to);
+  const wrappers: Partial<Record<Format, string>> = {
+    bold: "**",
+    italic: "*",
+    highlight: "==",
+    superscript: "^",
+    subscript: "~",
+    strike: "~~",
+    code: "`",
+  };
+  const wrapper = wrappers[kind];
+  if (wrapper) {
+    if (
+      view.state.sliceDoc(Math.max(0, from - wrapper.length), from) ===
+        wrapper &&
+      view.state.sliceDoc(to, to + wrapper.length) === wrapper
+    ) {
+      view.dispatch({
+        changes: [
+          { from: from - wrapper.length, to: from, insert: "" },
+          { from: to, to: to + wrapper.length, insert: "" },
+        ],
+        selection: { anchor: from - wrapper.length, head: to - wrapper.length },
+        annotations: Transaction.userEvent.of("input.format"),
+      });
+    } else {
+      const content = selected || "文字";
+      view.dispatch({
+        changes: { from, to, insert: wrapper + content + wrapper },
+        selection: {
+          anchor: from + wrapper.length,
+          head: from + wrapper.length + content.length,
+        },
+        annotations: Transaction.userEvent.of("input.format"),
+      });
+    }
+  } else if (kind === "codeblock") {
+    const lines = selected.split("\n");
+    const fenceSize = Math.max(
+      3,
+      ...lines.map((line) =>
+        (line.match(/`+/g) || []).reduce(
+          (max, part) => Math.max(max, part.length + 1),
+          0,
+        ),
+      ),
+    );
+    const fence = "`".repeat(fenceSize);
+    const content = selected || "代码";
+    const leading = from === view.state.doc.lineAt(from).from ? "" : "\n\n";
+    const trailing = to === view.state.doc.lineAt(to).to ? "" : "\n\n";
+    const block = `${leading}${fence}\n${content}\n${fence}${trailing}`;
+    view.dispatch({
+      changes: { from, to, insert: block },
+      selection: {
+        anchor: from + leading.length + fence.length + 1,
+        head: from + leading.length + fence.length + 1 + content.length,
+      },
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+  } else if (kind === "table") {
+    const text = "\n\n| 标题一 | 标题二 |\n| --- | --- |\n| 内容 | 内容 |\n\n";
+    view.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: from + text.length },
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+  } else if (kind === "link") {
+    let node = syntaxTree(view.state).resolveInner(from, 1);
+    while (node.parent && node.name !== "Link") node = node.parent;
+    const url =
+      node.name === "Link" && node.to >= to ? node.getChild("URL") : null;
+    if (url) {
+      view.dispatch({ selection: { anchor: url.from, head: url.to } });
+      view.focus();
+      return;
+    }
+    if (node.name === "Link" && node.to >= to) {
+      const link = markdownLink(
+        view.state.sliceDoc(node.from, node.to),
+        view.state.doc,
+      );
+      if (link) {
+        const prefix = `[${link.label}](<`;
+        const destination = link.href.replace(/</g, "%3C").replace(/>/g, "%3E");
+        view.dispatch({
+          changes: {
+            from: node.from,
+            to: node.to,
+            insert: prefix + destination + ">)",
+          },
+          selection: {
+            anchor: node.from + prefix.length,
+            head: node.from + prefix.length + destination.length,
+          },
+          annotations: Transaction.userEvent.of("input.format"),
+        });
+        view.focus();
+        return;
+      }
+    }
+    const text = `[${selected || "链接文字"}](https://)`;
+    const start = from + text.indexOf("https://");
+    view.dispatch({
+      changes: { from, to, insert: text },
+      selection: { anchor: start, head: start + 8 },
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+  } else {
+    const first = view.state.doc.lineAt(from).number;
+    const last = view.state.doc.lineAt(to > from ? to - 1 : to).number;
+    const lines = Array.from({ length: last - first + 1 }, (_, index) =>
+      view.state.doc.line(first + index),
+    );
+    const isHeading = kind === "heading" || kind.startsWith("heading");
+    const isList = kind === "bulletList" || kind === "orderedList";
+    const headingLevel =
+      kind === "heading" ? 2 : Number(kind.slice("heading".length));
+    const listPattern = /^(\s*)(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?/;
+    const expression =
+      isHeading || kind === "paragraph"
+        ? /^( {0,3})#{1,6}\s+/
+        : kind === "quote"
+          ? /^(\s*)> ?/
+          : isList
+            ? listPattern
+            : /^(\s*)[-*+]\s+\[[ xX]\]\s*/;
+    const eligible = lines.filter(
+      (line) => line.text.trim() || lines.length === 1,
+    );
+    const remove =
+      eligible.length > 0 &&
+      eligible.every((line) => {
+        const match = expression.exec(line.text);
+        if (!match) return false;
+        if (isHeading && kind !== "heading")
+          return match[0].match(/#/g)?.length === headingLevel;
+        if (isList) {
+          const marker = /^(\s*)([-*+]|\d+[.)])/.exec(line.text)?.[2] || "";
+          const hasTask = /^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]/.test(line.text);
+          return kind === "orderedList"
+            ? /^\d+[.)]$/.test(marker) && !hasTask
+            : /^[-*+]$/.test(marker) && !hasTask;
+        }
+        return true;
+      });
+    const prefix = isHeading
+      ? `${"#".repeat(headingLevel)} `
+      : kind === "paragraph"
+        ? ""
+        : kind === "quote"
+          ? "> "
+          : kind === "bulletList"
+            ? "- "
+            : "- [ ] ";
+    const changes = eligible.map((line, index) => {
+      const match = expression.exec(line.text);
+      const indent = match
+        ? match[1].length
+        : line.text.match(/^\s*/)?.[0].length || 0;
+      const bullet =
+        kind === "task" && !match
+          ? /^(\s*)(?:[-*+]|\d+[.)])\s+/.exec(line.text)
+          : null;
+      const listMarker = isList && !match ? listPattern.exec(line.text) : null;
+      const insert = remove
+        ? ""
+        : kind === "orderedList"
+          ? `${index + 1}. `
+          : isList
+            ? "- "
+            : prefix;
+      return {
+        from: line.from + indent,
+        to:
+          line.from +
+          (match?.[0].length ??
+            bullet?.[0].length ??
+            listMarker?.[0].length ??
+            indent),
+        insert,
+      };
+    });
+    view.dispatch({
+      changes,
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+  }
+  view.focus();
+}
+
+function indentList(view: EditorView, direction: 1 | -1) {
+  const selection = view.state.selection.main;
+  const first = view.state.doc.lineAt(selection.from).number;
+  const last = view.state.doc.lineAt(
+    selection.to > selection.from ? selection.to - 1 : selection.to,
+  ).number;
+  const lines = Array.from({ length: last - first + 1 }, (_, index) =>
+    view.state.doc.line(first + index),
+  );
+  const listPrefix = /^(\s*)(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s*)?/;
+  if (!lines.some((line) => listPrefix.test(line.text))) return false;
+
+  const changes: { from: number; to?: number; insert: string }[] = [];
+  let currentItem: { indent: number; contentIndent: number } | null = null;
+  for (const line of lines) {
+    const marker = listPrefix.exec(line.text);
+    if (marker) {
+      const indent = marker[1].length;
+      const markerWidth = marker[0].length - indent;
+      currentItem = { indent, contentIndent: indent + markerWidth };
+      if (direction > 0) {
+        changes.push({ from: line.from, insert: "  " });
+      } else {
+        const remove = Math.min(2, indent);
+        currentItem.indent -= remove;
+        currentItem.contentIndent -= remove;
+        if (remove)
+          changes.push({
+            from: line.from,
+            to: line.from + remove,
+            insert: "",
+          });
+      }
+      continue;
+    }
+    if (!currentItem || !line.text.trim()) continue;
+    const indentation = /^ */.exec(line.text)?.[0].length || 0;
+    if (indentation < currentItem.contentIndent) {
+      currentItem = null;
+      continue;
+    }
+    if (direction > 0) {
+      changes.push({ from: line.from, insert: "  " });
+    } else {
+      const remove = Math.min(
+        2,
+        indentation - currentItem.contentIndent + currentItem.indent,
+      );
+      if (remove)
+        changes.push({
+          from: line.from,
+          to: line.from + remove,
+          insert: "",
+        });
+    }
+  }
+  if (changes.length) {
+    const transaction = view.state.update({
+      changes,
+      selection: view.state.selection.map(view.state.changes(changes)),
+      annotations: Transaction.userEvent.of("input.indent"),
+    });
+    view.dispatch(transaction);
+  }
+  return true;
+}
+
+export const Editor = forwardRef<EditorHandle, Props>(
+  function Editor(props, ref) {
+    const { id, text, path, source, theme } = props;
+    const spellCheck = props.spellCheck ?? false;
+    const host = useRef<HTMLDivElement>(null);
+    const view = useRef<EditorView | null>(null);
+    const docSnapshot = useRef("");
+    const pendingChange = useRef<{
+      view: EditorView;
+      id: string;
+      onChange: Props["onChange"];
+      crlf: boolean;
+    } | null>(null);
+    const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latest = useRef(props);
+    latest.current = props;
+    const mode = useRef(new Compartment());
+    const assetMode = useRef(new Compartment());
+    const themeMode = useRef(new Compartment());
+    const pending = useRef(new Set<{ from: number; to: number }>());
+
+    const flushChange = () => {
+      if (changeTimer.current) clearTimeout(changeTimer.current);
+      changeTimer.current = null;
+      const change = pendingChange.current;
+      pendingChange.current = null;
+      if (!change || view.current !== change.view) return;
+      const value = change.view.state.doc.toString();
+      docSnapshot.current = value.replace(/\r\n?/g, "\n");
+      change.onChange(change.crlf ? value.replace(/\n/g, "\r\n") : value);
+    };
+    const flushChangeRef = useRef(flushChange);
+    flushChangeRef.current = flushChange;
+
+    const insertImages = async (files: File[]) => {
+      const instance = view.current;
+      if (!instance || !files.length) return;
+      const point = {
+        from: instance.state.selection.main.from,
+        to: instance.state.selection.main.to,
+      };
+      pending.current.add(point);
+      const handler = latest.current.onImages;
+      try {
+        const markdown = await handler(files);
+        if (view.current !== instance) return;
+        const insert = "\n\n" + markdown + "\n\n";
+        instance.dispatch({
+          changes: { from: point.from, to: point.to, insert },
+          selection: { anchor: point.from + insert.length },
+          annotations: Transaction.userEvent.of("input.image"),
+        });
+        instance.focus();
+      } catch (error) {
+        latest.current.onError(
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        pending.current.delete(point);
+      }
+    };
+    const insertRef = useRef(insertImages);
+    insertRef.current = insertImages;
+
+    useImperativeHandle(ref, () => ({
+      flush() {
+        flushChangeRef.current();
+      },
+      go(pos) {
+        const instance = view.current;
+        if (!instance) return;
+        pos = Math.min(instance.state.doc.length, Math.max(0, pos));
+        instance.dispatch({
+          selection: { anchor: pos },
+          effects: EditorView.scrollIntoView(pos, { y: "start" }),
+        });
+        instance.focus();
+      },
+      find() {
+        if (view.current) openSearchPanel(view.current);
+      },
+      undo() {
+        if (view.current) {
+          undo(view.current);
+          view.current.focus();
+        }
+      },
+      redo() {
+        if (view.current) {
+          redo(view.current);
+          view.current.focus();
+        }
+      },
+      format(kind) {
+        if (view.current) formatSelection(view.current, kind);
+      },
+      images: insertImages,
+      forget(key) {
+        sessions.delete(key);
+      },
+    }));
+
+    useEffect(() => {
+      if (!host.current) return;
+      const commands = keymap.of([
+        {
+          key: "Mod-b",
+          run: (v) => {
+            formatSelection(v, "bold");
+            return true;
+          },
+        },
+        {
+          key: "Mod-i",
+          run: (v) => {
+            formatSelection(v, "italic");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-h",
+          run: (v) => {
+            formatSelection(v, "highlight");
+            return true;
+          },
+        },
+        {
+          key: "Mod-k",
+          run: (v) => {
+            formatSelection(v, "link");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-5",
+          run: (v) => {
+            formatSelection(v, "strike");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-`",
+          run: (v) => {
+            formatSelection(v, "code");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-q",
+          run: (v) => {
+            formatSelection(v, "quote");
+            return true;
+          },
+        },
+        {
+          key: "Mod-*",
+          run: (v) => {
+            formatSelection(v, "bulletList");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-8",
+          run: (v) => {
+            formatSelection(v, "bulletList");
+            return true;
+          },
+        },
+        {
+          key: "Mod-&",
+          run: (v) => {
+            formatSelection(v, "orderedList");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-7",
+          run: (v) => {
+            formatSelection(v, "orderedList");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-l",
+          run: (v) => {
+            formatSelection(v, "task");
+            return true;
+          },
+        },
+        {
+          key: "Mod-Shift-k",
+          run: (v) => {
+            formatSelection(v, "codeblock");
+            return true;
+          },
+        },
+        ...([1, 2, 3, 4, 5, 6] as const).map((level) => ({
+          key: `Mod-${level}`,
+          run: (v: EditorView) => {
+            formatSelection(v, `heading${level}`);
+            return true;
+          },
+        })),
+        {
+          key: "Mod-0",
+          run: (v) => {
+            formatSelection(v, "paragraph");
+            return true;
+          },
+        },
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...searchKeymap,
+        {
+          ...indentWithTab,
+          run: (view) => indentList(view, 1) || indentMore(view),
+          shift: (view) => indentList(view, -1) || indentLess(view),
+        },
+      ]);
+      const cached = sessions.get(id);
+      const normalized = text.replace(/\r\n?/g, "\n");
+      const state =
+        cached?.doc.toString() === normalized
+          ? cached
+          : EditorState.create({
+              doc: text,
+              selection: { anchor: normalized.length },
+              extensions: [
+                history(),
+                linkHandler.of((href) => latest.current.onLink(href)),
+                drawSelection(),
+                highlightActiveLine(),
+                markdown({ codeLanguages: languages, extensions: [GFM] }),
+                EditorState.languageData.of(() => [
+                  {
+                    closeBrackets: { brackets: ["(", "[", "{", "'", '"', "`"] },
+                  },
+                ]),
+                closeBrackets(),
+                syntaxHighlighting(
+                  HighlightStyle.define([
+                    { tag: tags.keyword, color: "#a45292" },
+                    { tag: tags.string, color: "#548260" },
+                    { tag: tags.comment, color: "#7b8490" },
+                    { tag: tags.number, color: "#b5763c" },
+                    { tag: tags.function(tags.variableName), color: "#4b7eab" },
+                  ]),
+                ),
+                syntaxHighlighting(defaultHighlightStyle),
+                search({ top: true }),
+                commands,
+                EditorView.lineWrapping,
+                EditorView.contentAttributes.of({
+                  "aria-label": "Markdown 编辑区",
+                  lang: "zh-CN",
+                  spellcheck: String(spellCheck),
+                }),
+                mode.current.of(source ? [] : [livePreview]),
+                assetMode.current.of(documentPath.of(path)),
+                themeMode.current.of(
+                  previewTheme.of(latest.current.theme || "light"),
+                ),
+                EditorView.domEventHandlers({
+                  paste(event) {
+                    const files = Array.from(
+                      event.clipboardData?.files || [],
+                    ).filter((file) => imageTypes.has(file.type));
+                    if (!files.length) return false;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void insertRef.current(files);
+                    return true;
+                  },
+                  dragover(event) {
+                    if (event.dataTransfer?.types.includes("Files")) {
+                      event.preventDefault();
+                      return true;
+                    }
+                    return false;
+                  },
+                  drop(event, instance) {
+                    const files = Array.from(
+                      event.dataTransfer?.files || [],
+                    ).filter((file) => imageTypes.has(file.type));
+                    if (!files.length) return false;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const pos = instance.posAtCoords({
+                      x: event.clientX,
+                      y: event.clientY,
+                    });
+                    if (pos !== null)
+                      instance.dispatch({ selection: { anchor: pos } });
+                    void insertRef.current(files);
+                    return true;
+                  },
+                }),
+                EditorView.updateListener.of((update) => {
+                  if (update.selectionSet) {
+                    const position = update.state.selection.main.head;
+                    const line = update.state.doc.lineAt(position);
+                    latest.current.onCursorChange(
+                      position,
+                      line.number,
+                      Array.from(update.state.sliceDoc(line.from, position))
+                        .length + 1,
+                    );
+                  }
+                  if (!update.docChanged) return;
+                  latest.current.onDirty();
+                  window.desktop?.dirty(true);
+                  pending.current.forEach((point) => {
+                    point.from = update.changes.mapPos(point.from);
+                    point.to = update.changes.mapPos(point.to, 1);
+                  });
+                  pendingChange.current = {
+                    view: update.view,
+                    id,
+                    onChange: latest.current.onChange,
+                    crlf: latest.current.text.includes("\r\n"),
+                  };
+                  if (changeTimer.current) clearTimeout(changeTimer.current);
+                  changeTimer.current = setTimeout(
+                    () => flushChangeRef.current(),
+                    400,
+                  );
+                  if (latest.current.typewriter)
+                    requestAnimationFrame(() => {
+                      if (view.current === update.view)
+                        update.view.dispatch({
+                          effects: EditorView.scrollIntoView(
+                            update.view.state.selection.main.head,
+                            { y: "center" },
+                          ),
+                        });
+                    });
+                }),
+              ],
+            });
+      const instance = new EditorView({ parent: host.current, state });
+      view.current = instance;
+      const cursor = instance.state.selection.main.head;
+      const line = instance.state.doc.lineAt(cursor);
+      latest.current.onCursorChange(
+        cursor,
+        line.number,
+        Array.from(instance.state.sliceDoc(line.from, cursor)).length + 1,
+      );
+      docSnapshot.current = instance.state.doc
+        .toString()
+        .replace(/\r\n?/g, "\n");
+      return () => {
+        if (pendingChange.current?.id === id) flushChangeRef.current();
+        sessions.set(id, instance.state);
+        instance.destroy();
+        view.current = null;
+        pending.current.clear();
+      };
+    }, [id]);
+    useEffect(() => {
+      const beforeUnload = () => flushChangeRef.current();
+      window.addEventListener("beforeunload", beforeUnload, true);
+      return () =>
+        window.removeEventListener("beforeunload", beforeUnload, true);
+    }, []);
+    useEffect(() => {
+      view.current?.dispatch({
+        effects: mode.current.reconfigure(source ? [] : [livePreview]),
+      });
+    }, [id, source]);
+    useEffect(() => {
+      view.current?.dispatch({
+        effects: themeMode.current.reconfigure(
+          previewTheme.of(theme || "light"),
+        ),
+      });
+    }, [id, theme]);
+    useEffect(() => {
+      view.current?.dispatch({
+        effects: assetMode.current.reconfigure(documentPath.of(path)),
+      });
+    }, [id, path]);
+    useEffect(() => {
+      const content = view.current?.contentDOM;
+      if (content) content.setAttribute("spellcheck", String(spellCheck));
+    }, [id, spellCheck]);
+    useEffect(() => {
+      const instance = view.current;
+      const normalized = text.replace(/\r\n?/g, "\n");
+      if (!instance || docSnapshot.current === normalized) return;
+      instance.dispatch({
+        changes: { from: 0, to: instance.state.doc.length, insert: text },
+        annotations: Transaction.userEvent.of("input.external"),
+      });
+    }, [text, id]);
+    return (
+      <div
+        className={"editor-host " + (source ? "source-mode" : "")}
+        ref={host}
+      />
+    );
+  },
+);

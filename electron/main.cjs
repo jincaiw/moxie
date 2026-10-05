@@ -1,0 +1,381 @@
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  dialog,
+  ipcMain,
+  shell,
+} = require("electron");
+const fs = require("node:fs/promises");
+const { URL } = require("node:url");
+const path = require("node:path");
+const { FileStore, atomicWrite, validateText } = require("./files.cjs");
+let main,
+  store,
+  dirty = false,
+  allowClose = false,
+  askingClose = false;
+const isDev = process.env.MOXIE_DEV === "1";
+function action(name) {
+  main?.webContents.send("menu:action", name);
+}
+function verify(event) {
+  if (
+    !main ||
+    event.sender !== main.webContents ||
+    event.senderFrame !== main.webContents.mainFrame
+  )
+    throw Error("拒绝未知窗口的请求");
+}
+function pdfOptions(input) {
+  const pdf = input && typeof input === "object" ? input : {};
+  const pageSize = ["A4", "Letter", "Legal"].includes(pdf.pageSize)
+    ? pdf.pageSize
+    : "A4";
+  const landscape = pdf.landscape === true;
+  const headerFooter = pdf.headerFooter === true;
+  const margin = Number.isFinite(pdf.margin)
+    ? Math.min(40, Math.max(5, pdf.margin))
+    : 20;
+  return { pageSize, landscape, headerFooter, margin };
+}
+async function renderPDF(html, settings) {
+  const { pageSize, landscape, headerFooter, margin } = pdfOptions(settings);
+  const printStyle = `<style>@page { size: ${pageSize} ${landscape ? "landscape" : "portrait"}; margin: ${margin}mm; }</style>`;
+  const printHTML = html.includes("</head>")
+    ? html.replace("</head>", `${printStyle}</head>`)
+    : html.replace("</html>", `${printStyle}</html>`);
+  const print = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  try {
+    await print.loadURL(
+      "data:text/html;charset=utf-8," + encodeURIComponent(printHTML),
+    );
+    await print.webContents.executeJavaScript(`Promise.race([
+      Promise.all([
+        document.fonts?.ready.catch(() => {}),
+        ...Array.from(document.images, image => image.decode().catch(() => {})),
+      ]),
+      new Promise(resolve => setTimeout(resolve, 8000)),
+    ])`);
+    return await print.webContents.printToPDF({
+      printBackground: true,
+      pageSize,
+      landscape,
+      displayHeaderFooter: headerFooter,
+      headerTemplate: headerFooter
+        ? '<div style="width:100%;font:9px sans-serif;color:#666;text-align:center"><span class="title"></span></div>'
+        : undefined,
+      footerTemplate: headerFooter
+        ? '<div style="width:100%;font:9px sans-serif;color:#666;text-align:center"><span class="pageNumber"></span> / <span class="totalPages"></span></div>'
+        : undefined,
+      margins: {
+        top: Math.max(margin, headerFooter ? 12 : margin) / 25.4,
+        bottom: Math.max(margin, headerFooter ? 12 : margin) / 25.4,
+        left: margin / 25.4,
+        right: margin / 25.4,
+      },
+    });
+  } finally {
+    print.destroy();
+  }
+}
+function setupIPC() {
+  const handle = (name, handler) =>
+    ipcMain.handle(name, async (event, input) => {
+      verify(event);
+      return handler(input);
+    });
+  handle("file:open", async () => {
+    const result = await dialog.showOpenDialog(main, {
+      properties: ["openFile"],
+      filters: [
+        { name: "Markdown 文档", extensions: ["md", "markdown", "txt"] },
+      ],
+    });
+    return result.canceled ? null : store.read(result.filePaths[0]);
+  });
+  handle("file:folder", async () => {
+    const result = await dialog.showOpenDialog(main, {
+      properties: ["openDirectory"],
+    });
+    if (result.canceled) return null;
+    return store.folder(result.filePaths[0]);
+  });
+  handle("folder:refresh", (input) =>
+    store.folder(
+      typeof input === "string" ? input : input.path,
+      true,
+      input.version,
+    ),
+  );
+  handle("folder:search", (input) => store.searchFolder(input));
+  handle("link:open", async (input) => {
+    if (typeof input?.href !== "string" || input.href.length > 8192)
+      throw Error("链接无效");
+    if (/^(https?:|mailto:)/i.test(input.href)) {
+      const url = new URL(input.href);
+      if (!["https:", "http:", "mailto:"].includes(url.protocol))
+        throw Error("链接无效");
+      await shell.openExternal(url.href);
+      return {};
+    }
+    return store.openLinked(input.documentPath, input.href);
+  });
+  handle("file:inspect", (files) => store.inspect(files));
+  handle("file:recent", () =>
+    store.recent.map((file) => ({ path: file, name: path.basename(file) })),
+  );
+  handle("file:reopen", (file) => store.read(file, true));
+  handle("file:save", (input) =>
+    store.save(
+      input,
+      async (defaultPath) => {
+        const result = await dialog.showSaveDialog(main, {
+          defaultPath,
+          filters: [{ name: "Markdown 文档", extensions: ["md"] }],
+        });
+        return result.canceled ? null : result.filePath;
+      },
+      async () => {
+        const result = await dialog.showMessageBox(main, {
+          type: "warning",
+          message: "文件已被其他程序修改或删除",
+          detail: "覆盖将替换磁盘上的版本。可取消并使用“另存为”保留两个版本。",
+          buttons: ["取消", "覆盖"],
+          defaultId: 0,
+          cancelId: 0,
+        });
+        return result.response === 1;
+      },
+    ),
+  );
+  handle("image:store", (input) => store.storeImage(input));
+  handle("image:read", (input) => store.readImage(input));
+  handle("pdf:preview", async (input) => {
+    validateText(input.html);
+    const html = input.html.replace(
+      '<meta charset="utf-8">',
+      '<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data: https:; style-src \'unsafe-inline\'; font-src data:;">',
+    );
+    const buffer = await renderPDF(html, input.pdf);
+    return new Uint8Array(buffer);
+  });
+  handle("file:export", async (input) => {
+    validateText(input.html);
+    if (!["html", "pdf", "docx"].includes(input.format))
+      throw Error("不支持的导出格式");
+    const extension = input.format === "docx" ? "docx" : input.format;
+    const result = await dialog.showSaveDialog(main, {
+      defaultPath:
+        path.basename(String(input.name)).replace(/\.(md|markdown)$/i, "") +
+        "." +
+        extension,
+      filters: [
+        {
+          name:
+            input.format === "docx" ? "Word 文档" : input.format.toUpperCase(),
+          extensions: [extension],
+        },
+      ],
+    });
+    if (result.canceled) return false;
+    if (input.format === "docx") {
+      const htmlToDocx = require("html-to-docx");
+      const buffer = await htmlToDocx(input.html, null, {
+        title: path
+          .basename(String(input.name))
+          .replace(/\.(md|markdown)$/i, ""),
+        creator: "墨写 Moxie",
+        lang: "zh-CN",
+        font: "Arial",
+        fontSize: 24,
+        pageSize: { width: 11906, height: 16838 },
+        margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+      });
+      await atomicWrite(result.filePath, buffer);
+      return true;
+    }
+    const html = input.html.replace(
+      '<meta charset="utf-8">',
+      '<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src data: https:; style-src \'unsafe-inline\'; font-src data:;">',
+    );
+    if (input.format === "html") {
+      await atomicWrite(result.filePath, html);
+      return true;
+    }
+    const buffer = await renderPDF(html, input.pdf);
+    await atomicWrite(result.filePath, buffer);
+    return true;
+  });
+  ipcMain.on("document:dirty", (event, value) => {
+    verify(event);
+    dirty = Boolean(value);
+    main.setDocumentEdited(dirty);
+  });
+  ipcMain.on("window:close-ready", (event) => {
+    verify(event);
+    allowClose = true;
+    main.close();
+  });
+}
+function createWindow() {
+  dirty = false;
+  allowClose = false;
+  askingClose = false;
+  main = new BrowserWindow({
+    width: 1280,
+    height: 900,
+    minWidth: 760,
+    minHeight: 560,
+    title: "墨写",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    trafficLightPosition: { x: 17, y: 13 },
+    backgroundColor: "#ffffff",
+    webPreferences: {
+      preload: path.join(__dirname, "preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  main.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    return { action: "deny" };
+  });
+  main.webContents.on("will-navigate", (event, url) => {
+    const expected = isDev
+      ? "http://127.0.0.1:5173/"
+      : require("node:url").pathToFileURL(
+          path.join(__dirname, "../dist/index.html"),
+        ).href;
+    if (url !== expected) {
+      event.preventDefault();
+      if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    }
+  });
+  main.on("close", (event) => {
+    if (!dirty || allowClose) return;
+    event.preventDefault();
+    if (askingClose) return;
+    askingClose = true;
+    void dialog
+      .showMessageBox(main, {
+        type: "question",
+        message: "还有未保存的文档",
+        detail: "保存到文件，或保留恢复副本后关闭。",
+        buttons: ["取消", "保存全部", "保留恢复副本并关闭"],
+        defaultId: 1,
+        cancelId: 0,
+      })
+      .then((result) => {
+        if (result.response === 1) action("close-request");
+        if (result.response === 2) action("keep-close");
+      })
+      .finally(() => {
+        askingClose = false;
+      });
+  });
+  if (isDev) void main.loadURL("http://127.0.0.1:5173");
+  else void main.loadFile(path.join(__dirname, "../dist/index.html"));
+}
+function createMenu() {
+  const command = (label, name, accelerator) => ({
+    label,
+    accelerator,
+    click: () => action(name),
+  });
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(process.platform === "darwin"
+        ? [
+            {
+              label: "墨写",
+              submenu: [
+                { role: "about" },
+                command("偏好设置…", "settings", "CmdOrCtrl+,"),
+                { type: "separator" },
+                { role: "hide" },
+                { role: "hideOthers" },
+                { role: "unhide" },
+                { type: "separator" },
+                { role: "quit" },
+              ],
+            },
+          ]
+        : []),
+      {
+        label: "文件",
+        submenu: [
+          command("新建", "new", "CmdOrCtrl+N"),
+          command("打开…", "open", "CmdOrCtrl+O"),
+          command("打开文件夹…", "folder"),
+          { type: "separator" },
+          command("保存", "save", "CmdOrCtrl+S"),
+          command("另存为…", "saveAs", "CmdOrCtrl+Shift+S"),
+          command("导出…", "export"),
+          command("关闭当前文档", "close-document", "CmdOrCtrl+W"),
+          { type: "separator" },
+          { role: "close", accelerator: "CmdOrCtrl+Shift+W" },
+        ],
+      },
+      {
+        label: "编辑",
+        submenu: [
+          command("撤销", "undo", "CmdOrCtrl+Z"),
+          command("重做", "redo", "CmdOrCtrl+Shift+Z"),
+          { type: "separator" },
+          { role: "cut" },
+          { role: "copy" },
+          { role: "paste" },
+          { role: "selectAll" },
+          { type: "separator" },
+          command("查找与替换", "find", "CmdOrCtrl+F"),
+        ],
+      },
+      {
+        label: "格式",
+        submenu: [
+          command("粗体", "format-bold", "CmdOrCtrl+B"),
+          command("斜体", "format-italic", "CmdOrCtrl+I"),
+          command("链接", "format-link", "CmdOrCtrl+K"),
+          command("标题", "format-heading"),
+          command("引用", "format-quote"),
+          command("任务列表", "format-task"),
+          command("表格", "format-table"),
+          command("插入图片…", "image"),
+        ],
+      },
+      {
+        label: "视图",
+        submenu: [
+          command("切换源码模式", "source", "CmdOrCtrl+/"),
+          command("专注模式", "focus", "CmdOrCtrl+Shift+F"),
+          { role: "togglefullscreen" },
+        ],
+      },
+      { label: "窗口", submenu: [{ role: "minimize" }, { role: "zoom" }] },
+    ]),
+  );
+}
+app.whenReady().then(async () => {
+  store = new FileStore(
+    app.getPath ? path.join(app.getPath("userData"), "files.json") : undefined,
+  );
+  await store.init();
+  setupIPC();
+  createWindow();
+  createMenu();
+  app.on("activate", () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
