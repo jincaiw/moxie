@@ -608,6 +608,44 @@ test("CommonMark 列表续段、嵌套任务和惰性引用在预览与导出中
   await expect(content).toContainText("延续引用行");
 });
 
+test("GFM 引用内嵌套任务和 CommonMark 硬换行在预览与导出中一致", async ({
+  page,
+}) => {
+  const source =
+    "> - [x] 已完成任务\n>   续行 **强调**\n>   - [ ] 待办\n\n硬换行前两空格  \n硬换行后。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "gfm-nested-quote.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  const content = page.locator(".cm-content");
+  await content.press(documentStart);
+
+  const tasks = content.locator(".task-checkbox");
+  await expect(tasks).toHaveCount(2);
+  await expect(tasks.nth(0)).toBeChecked();
+  await expect(tasks.nth(1)).not.toBeChecked();
+  await expect(content.locator(".md-strong")).toHaveText("强调");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "gfm-nested-quote.md");
+  }, source);
+  expect(html).toContain("<blockquote>");
+  expect(html).toContain('<input checked="" disabled="" type="checkbox">');
+  expect(html).toContain('<input disabled="" type="checkbox">');
+  expect(html).toMatch(/硬换行前两空格\s*<br\s*\/?>(?:\s*)硬换行后/);
+
+  await tasks.nth(1).check();
+  await expect(tasks.nth(1)).toBeChecked();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(content).toContainText("- [x] 待办");
+});
+
 test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __moxieAttack?: number }).__moxieAttack = 0;
