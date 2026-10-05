@@ -187,3 +187,35 @@ test("编辑引用链接地址只影响当前链接，保留其他引用与定�
     "[manual]: https://old.example/guide",
   );
 });
+
+test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "gfm-autolinks.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "https://bare.example/path\n\nwww.example.net/guide\n\nwriter@example.org\n\n`https://code.example/path`",
+    ),
+  });
+  await page.evaluate(() => {
+    delete window.desktop;
+  });
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  const preview = await page.context().newPage();
+  await preview.setContent(html);
+  await expect(preview.locator("a")).toHaveCount(3);
+  await expect(
+    preview.getByRole("link", { name: "https://bare.example/path" }),
+  ).toHaveAttribute("href", "https://bare.example/path");
+  await expect(
+    preview.getByRole("link", { name: "www.example.net/guide" }),
+  ).toHaveAttribute("href", "http://www.example.net/guide");
+  await expect(
+    preview.getByRole("link", { name: "writer@example.org" }),
+  ).toHaveAttribute("href", "mailto:writer@example.org");
+  await expect(preview.locator("code")).toHaveText("https://code.example/path");
+  await preview.close();
+});
