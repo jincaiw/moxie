@@ -332,7 +332,8 @@
 - [x] 链接标签公式改用 Markdown inline tokenizer 识别，遵循 `\$` 转义与代码跨度规则。
 - [x] 浏览器回归验证转义美元符号仍显示字面文本，真实公式、行内代码和链接目标保持正确。
 - [x] GitHub Actions 源码验证和 arm64 包构建通过。
-- [ ] 等待 x64 macOS runner，发布 v0.16.42 并验证完整 Release 产物。
+- [x] arm64 与 x64 macOS 包构建通过。
+- [ ] 等待 Ubuntu 发布 runner，上传并验证 v0.16.42 Release 产物。
 
 ## v0.16.34 基线交付与剩余事项
 

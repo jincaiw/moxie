@@ -60,7 +60,7 @@ npm run package:mac
 
 - 链接标签里的公式改由 Markdown 解析器识别，保留 `\$` 转义语义，避免把字面美元符号误排版。
 - 代码片段、链接目标和 HTML 导出继续保持一致。
-- GitHub Actions 源码验证和 arm64 包构建通过；x64 runner 仍在排队，Release 附件未生成。
+- GitHub Actions 源码验证及 arm64/x64 包构建全部通过；Release 上传 job 正在等待 Ubuntu runner。
 
 ## v0.16.36 已实现
 
