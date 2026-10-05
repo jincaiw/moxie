@@ -35,7 +35,7 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
     name: "链接.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n`[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
+      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n裸链接 https://bare.example/path\n\n`https://code.example/path` 和 `[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
     ),
   });
   const website = page.getByRole("link", { name: "打开网站", exact: true });
@@ -47,7 +47,19 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
     page.getByRole("link", { name: "https://example.org", exact: true }),
   ).toBeVisible();
   await expect(
+    page.getByRole("link", {
+      name: "https://bare.example/path",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("link", { name: "代码示例", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", {
+      name: "https://code.example/path",
+      exact: true,
+    }),
   ).toHaveCount(0);
   await website.click({ modifiers: ["Control"] });
   expect(
@@ -143,15 +155,13 @@ test("HTML 导出的文内链接与重复标题锚点一致", async ({ page }) =
 
 test("编辑引用链接地址只影响当前链接，保留其他引用与定义", async ({ page }) => {
   await page.goto("/");
-  await page
-    .locator(".md-input")
-    .setInputFiles({
-      name: "引用编辑.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from(
-        "[第一个][manual]\n\n[第二个][manual]\n\n[manual]: https://old.example/guide\n\n",
-      ),
-    });
+  await page.locator(".md-input").setInputFiles({
+    name: "引用编辑.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "[第一个][manual]\n\n[第二个][manual]\n\n[manual]: https://old.example/guide\n\n",
+    ),
+  });
   await page.getByRole("link", { name: "第一个", exact: true }).click();
   await page.keyboard.press("Control+k");
   await page.keyboard.type("https://new.example/guide");

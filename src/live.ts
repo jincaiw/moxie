@@ -664,7 +664,17 @@ function build(
           add(node.from, node.to, Decoration.mark({ class: "md-strike" }));
         if (node.name === "InlineCode")
           add(node.from, node.to, Decoration.mark({ class: "md-inline-code" }));
-        if (node.name === "Link" || node.name === "Autolink") {
+        if (node.name === "URL") {
+          let parent = tree.resolveInner(node.from, 1).parent;
+          while (parent && parent.name !== "Link" && parent.name !== "Autolink")
+            parent = parent.parent;
+          if (parent) return false;
+        }
+        if (
+          node.name === "Link" ||
+          node.name === "Autolink" ||
+          node.name === "URL"
+        ) {
           if (!isActive) {
             const raw = state.doc.sliceString(node.from, node.to);
             if (/^\[TOC\]$/i.test(raw)) {
