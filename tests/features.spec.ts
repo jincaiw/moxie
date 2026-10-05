@@ -422,6 +422,29 @@ test("原始 HTML 区块在编辑器中净化预览并可回到源码", async ({
   await expect(page.locator(".cm-content")).toContainText("window.__unsafe");
 });
 
+test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-html.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "- 列表项\n\n  <div><strong>列表 HTML</strong></div>\n\n  列表后正文\n\n> 引用前正文\n>\n> <div><em>引用 HTML</em></div>\n>\n> 引用后正文",
+    ),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press("Control+Home");
+  const previews = page.locator(".html-block-preview");
+  await expect(previews).toHaveCount(2);
+  await expect(previews.nth(0)).toContainText("列表 HTML");
+  await expect(previews.nth(1)).toContainText("引用 HTML");
+  await expect(page.locator(".cm-content")).toContainText("列表后正文");
+  await expect(page.locator(".cm-content")).toContainText("引用后正文");
+  await previews.nth(0).click();
+  await expect(page.locator(".cm-content")).toContainText(
+    "<div><strong>列表 HTML",
+  );
+});
+
 test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({ page }) => {
   await page.addInitScript(() => {
     const state = window as unknown as {
