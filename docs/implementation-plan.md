@@ -309,6 +309,15 @@
 - [x] Release 附带 arm64/x64 DMG/ZIP、ZIP blockmap、`latest-mac.yml` 和 `SHA256SUMS.txt`。
 - [ ] Apple Developer 签名、公证、Gatekeeper 首次启动和应用内自动更新仍需真实凭据与 Mac 验收；当前产物未签名。
 
+## v0.16.40 发布候选
+
+- [x] HTML 块、行内 HTML 和跨行 HTML 预览支持键盘聚焦及 Enter/空格返回源码。
+- [x] GFM 裸网址、`www.` 和邮箱在即时预览中生成链接，代码 URL 保持原样。
+- [x] 跨文档搜索范围筛选与名称排序有浏览器回归；HTML 安全属性过滤、嵌套 HTML 和自动链接导出均有回归。
+- [x] 浏览器回归 57 项通过、3 项性能基准按设计跳过；桌面逻辑回归 15 项通过；生产构建及格式检查通过。
+- [ ] 创建 v0.16.40 标签并验证 macOS Release 产物。
+- [ ] Developer ID 签名、公证、Gatekeeper 首次启动及应用内更新仍需真实凭据与 Mac 验收。
+
 ## v0.16.34 基线交付与剩余事项
 
 - [x] 具名本地 CSS 主题库支持保存、应用、更新、删除、导出和重启恢复，保留资源及动态 CSS 安全限制。

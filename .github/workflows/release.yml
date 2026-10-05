@@ -118,7 +118,7 @@ jobs:
           body: |
             macOS packages for Apple Silicon (arm64) and Intel (x64).
 
-            **Distribution status:** Developer ID signing and notarization run when the repository secrets `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured. Without them, packages remain unsigned and automatic installation is unavailable. Users on v0.16.35 and earlier must manually install a signed baseline before in-app updates can work. First launch and update behavior still need validation on physical Macs.
+            **Distribution status:** Developer ID signing and notarization run when the repository secrets `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured. Without them, packages remain unsigned and automatic installation is unavailable. Users of unsigned builds must manually install a signed build before in-app updates can work. First launch and update behavior still need validation on physical Macs.
 
             See `SHA256SUMS.txt` to verify downloaded files.
           files: |

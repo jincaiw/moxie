@@ -43,6 +43,13 @@ npm run package:mac
 - 修复 macOS 发布流水线在签名 Secrets 为空时误把工作目录当作证书路径的问题。
 - GitHub Release 提供 arm64/x64 DMG 与 ZIP、更新 blockmap、合并后的 `latest-mac.yml` 和 `SHA256SUMS.txt`。当前包未签名/公证，不能用于应用内自动安装；需在真实 Mac 配置 Apple Developer 凭据并验收后启用。
 
+## v0.16.40 已发布
+
+- HTML 块、行内 HTML 和跨行 HTML 预览可通过键盘聚焦，按 Enter 或空格返回源码编辑。
+- GFM 裸网址、`www.` 网址和邮箱支持即时链接，并在 HTML 导出中保留正确协议；代码中的 URL 保持原样。
+- 补充嵌套 HTML 安全、跨文档搜索筛选/排序及自动链接的浏览器回归。
+- 此版本提供 arm64/x64 DMG 与 ZIP、更新 blockmap、合并后的 `latest-mac.yml` 和 SHA-256 校验文件；包未签名/公证，不能用于应用内自动安装。
+
 ## v0.16.36 已实现
 
 - 接入 electron-updater 和 GitHub Releases：启动/手动检查、按需下载、进度反馈与重启安装。
