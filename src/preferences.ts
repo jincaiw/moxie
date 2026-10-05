@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { themeCSSError } from "./theme-css";
+export { themeCSSError } from "./theme-css";
 export type ThemePreset =
   "light" | "dark" | "sepia" | "solarized-light" | "solarized-dark";
+export type SavedTheme = { name: string; css: string };
 export type Preferences = {
   theme: ThemePreset;
   fontSize: number;
@@ -10,6 +13,8 @@ export type Preferences = {
   typewriter: boolean;
   spellCheck: boolean;
   customCSS: string;
+  savedThemes: SavedTheme[];
+  activeSavedTheme: string;
   pdfPageSize: "A4" | "Letter" | "Legal";
   pdfLandscape: boolean;
   pdfMargin: number;
@@ -24,35 +29,34 @@ const defaults: Preferences = {
   typewriter: false,
   spellCheck: false,
   customCSS: "",
+  savedThemes: [],
+  activeSavedTheme: "",
   pdfPageSize: "A4",
   pdfLandscape: false,
   pdfMargin: 20,
   pdfHeaderFooter: false,
 };
 
-export function themeCSSError(css: string): string | null {
-  if (css.length > 65536) return "主题 CSS 超过 64 KB。";
-  const decoded = css.replace(
-    /\\([\da-f]{1,6})\s?|\\([^\r\n\f])/gi,
-    (_match, hex, char) => {
-      if (hex) {
-        const codePoint = Number.parseInt(hex, 16);
-        return String.fromCodePoint(codePoint > 0x10ffff ? 0xfffd : codePoint);
-      }
-      return char || "";
-    },
-  );
-  if (/@import\b/i.test(decoded)) return "为保护本地隐私，不支持 @import。";
-  if (/url\s*\(|expression\s*\(/i.test(decoded))
-    return "主题 CSS 不支持外部资源或动态表达式。";
-  return null;
-}
 function initial(): Preferences {
   try {
     const value = JSON.parse(
       localStorage.getItem("moxie.preferences.v2") || "{}",
     );
     const storedTheme = value.theme || localStorage.getItem("moxie.theme");
+    const savedThemes: SavedTheme[] = Array.isArray(value.savedThemes)
+      ? value.savedThemes
+          .filter(
+            (theme: unknown): theme is SavedTheme =>
+              !!theme &&
+              typeof theme === "object" &&
+              typeof (theme as SavedTheme).name === "string" &&
+              (theme as SavedTheme).name.trim().length > 0 &&
+              (theme as SavedTheme).name.length <= 40 &&
+              typeof (theme as SavedTheme).css === "string" &&
+              !themeCSSError((theme as SavedTheme).css),
+          )
+          .slice(0, 20)
+      : [];
     const themes: ThemePreset[] = [
       "light",
       "dark",
@@ -77,6 +81,12 @@ function initial(): Preferences {
       customCSS:
         typeof value.customCSS === "string" && value.customCSS.length <= 65536
           ? value.customCSS
+          : "",
+      savedThemes,
+      activeSavedTheme:
+        typeof value.activeSavedTheme === "string" &&
+        savedThemes.some((theme) => theme.name === value.activeSavedTheme)
+          ? value.activeSavedTheme
           : "",
       pdfPageSize: ["A4", "Letter", "Legal"].includes(value.pdfPageSize)
         ? value.pdfPageSize

@@ -22,7 +22,7 @@ import { headings } from "./data";
 import { LinkWidget } from "./link-widget";
 import { renderMermaid } from "./mermaid";
 import { highlightCodeElement } from "./code-highlight";
-import { renderMath } from "./math";
+import { inlineMathMatches, renderMath } from "./math";
 export const documentPath = Facet.define<
   string | undefined,
   string | undefined
@@ -30,6 +30,34 @@ export const documentPath = Facet.define<
 export const previewTheme = Facet.define<"light" | "dark", "light" | "dark">({
   combine: (values) => values[0] || "light",
 });
+
+function hydrateHTMLImages(
+  root: HTMLElement,
+  view: EditorView,
+  documentPath: string | undefined,
+) {
+  root.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+    const source = image.getAttribute("src") || "";
+    image.addEventListener("load", () => view.requestMeasure());
+    image.addEventListener("error", () => {
+      image.removeAttribute("src");
+      image.alt ||= "图片不可用";
+      view.requestMeasure();
+    });
+    void resolveImage(source, documentPath).then(
+      (resolved) => {
+        if (!root.isConnected) return;
+        image.src = resolved;
+        view.requestMeasure();
+      },
+      () => {
+        image.removeAttribute("src");
+        image.alt ||= "图片不可用";
+        view.requestMeasure();
+      },
+    );
+  });
+}
 
 class RenderWidget extends WidgetType {
   constructor(
@@ -79,6 +107,142 @@ class RenderWidget extends WidgetType {
   ignoreEvent() {
     return false;
   }
+}
+
+class RawHTMLWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly from: number,
+    readonly path: string | undefined,
+  ) {
+    super();
+  }
+  eq(other: RawHTMLWidget) {
+    return (
+      this.source === other.source &&
+      this.from === other.from &&
+      this.path === other.path
+    );
+  }
+  toDOM(view: EditorView) {
+    const el = document.createElement("div");
+    el.className = "render-block html-block-preview";
+    el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
+    el.title = "点击编辑原文";
+    el.innerHTML = DOMPurify.sanitize(
+      marked.parse(this.source, { async: false }) as string,
+    );
+    hydrateHTMLImages(el, view, this.path);
+    el.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      view.dispatch({ selection: { anchor: this.from } });
+      view.focus();
+    });
+    return el;
+  }
+  ignoreEvent() {
+    return false;
+  }
+}
+
+class InlineHTMLWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly from: number,
+    readonly path: string | undefined,
+  ) {
+    super();
+  }
+  eq(other: InlineHTMLWidget) {
+    return (
+      this.source === other.source &&
+      this.from === other.from &&
+      this.path === other.path
+    );
+  }
+  toDOM(view: EditorView) {
+    const el = document.createElement("span");
+    el.className = "md-inline-html-preview";
+    el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
+    el.innerHTML = DOMPurify.sanitize(
+      marked.parseInline(this.source, { async: false }) as string,
+    );
+    hydrateHTMLImages(el, view, this.path);
+    el.title = "点击编辑原文";
+    el.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      view.dispatch({ selection: { anchor: this.from } });
+      view.focus();
+    });
+    return el;
+  }
+  ignoreEvent() {
+    return false;
+  }
+}
+
+const voidHTMLTags = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+function isVoidHTMLTag(source: string) {
+  const match = /^<\s*([\w:-]+)\b[\s\S]*>$/.exec(source);
+  return !!match && voidHTMLTags.has(match[1].toLowerCase());
+}
+
+function inlineHTMLRanges(
+  state: import("@codemirror/state").EditorState,
+  from: number,
+  to: number,
+) {
+  const stack: { name: string; from: number; to: number }[] = [];
+  const pairs: { from: number; to: number }[] = [];
+  syntaxTree(state).iterate({
+    from,
+    to,
+    enter(node) {
+      if (node.name !== "HTMLTag") return;
+      const raw = state.doc.sliceString(node.from, node.to);
+      const closing = /^<\/\s*([\w:-]+)\s*>$/.exec(raw);
+      if (closing) {
+        const name = closing[1].toLowerCase();
+        let openIndex = stack.length - 1;
+        while (openIndex >= 0 && stack[openIndex].name !== name) openIndex--;
+        if (openIndex < 0) return;
+        const opening = stack[openIndex];
+        stack.length = openIndex;
+        pairs.push({ from: opening.from, to: node.to });
+        return;
+      }
+      const opening = /^<\s*([\w:-]+)\b[\s\S]*>$/.exec(raw);
+      if (!opening) return;
+      const name = opening[1].toLowerCase();
+      if (voidHTMLTags.has(name) || /\/\s*>$/.test(raw)) return;
+      stack.push({ name, from: node.from, to: node.to });
+    },
+  });
+  pairs.sort((a, b) => a.from - b.from || b.to - a.to);
+  const outermost: { from: number; to: number }[] = [];
+  for (const pair of pairs) {
+    if (state.doc.sliceString(pair.from, pair.to).includes("\n")) continue;
+    const previous = outermost.at(-1);
+    if (previous && pair.from < previous.to) continue;
+    outermost.push(pair);
+  }
+  return outermost;
 }
 
 class CodeBlockWidget extends WidgetType {
@@ -174,6 +338,10 @@ function build(
   }
   for (const visible of regions) {
     const tree = ensureSyntaxTree(state, visible.to, 12) || syntaxTree(state);
+    const inlineHTML = inlineHTMLRanges(state, visible.from, visible.to);
+    const inlineHTMLOpenings = new Map(
+      inlineHTML.map((range) => [range.from, range.to]),
+    );
     tree.iterate({
       from: visible.from,
       to: visible.to,
@@ -338,6 +506,23 @@ function build(
         ) {
           const source = state.doc.sliceString(node.from, node.to);
           const raw = source.trim();
+          const inlineEnd = inlineHTMLOpenings.get(node.from);
+          if (node.name === "HTMLTag" && inlineEnd !== undefined) {
+            const inlineSource = state.doc.sliceString(node.from, inlineEnd);
+            add(
+              node.from,
+              inlineEnd,
+              Decoration.replace({
+                widget: new InlineHTMLWidget(
+                  inlineSource,
+                  node.from,
+                  state.facet(documentPath),
+                ),
+              }),
+            );
+            codeRanges.push({ from: node.from, to: inlineEnd });
+            return false;
+          }
           const image = htmlImage(raw);
           if (image) {
             const leading = source.indexOf(raw);
@@ -357,6 +542,36 @@ function build(
               }),
             );
             codeRanges.push({ from, to });
+            return false;
+          }
+          if (node.name === "HTMLTag" && isVoidHTMLTag(raw)) {
+            add(
+              node.from,
+              node.to,
+              Decoration.replace({
+                widget: new InlineHTMLWidget(
+                  raw,
+                  node.from,
+                  state.facet(documentPath),
+                ),
+              }),
+            );
+            codeRanges.push({ from: node.from, to: node.to });
+            return false;
+          }
+          if (node.name === "HTMLBlock" && raw && !/^<img\b/i.test(raw)) {
+            add(
+              node.from,
+              node.to,
+              Decoration.replace({
+                widget: new RawHTMLWidget(
+                  source,
+                  node.from,
+                  state.facet(documentPath),
+                ),
+              }),
+            );
+            codeRanges.push({ from: node.from, to: node.to });
             return false;
           }
         }
@@ -457,10 +672,9 @@ function build(
         );
       }
     }
-    const inline = /(?<!\\)\$(?!\$)([^\s$](?:[^$\n]*?[^\s$])?)\$(?!\$)/g;
-    while ((m = inline.exec(text))) {
-      const start = from + m.index;
-      const end = start + m[0].length;
+    for (const match of inlineMathMatches(text)) {
+      const start = from + match.from;
+      const end = from + match.to;
       if (
         !activeLine(start, end) &&
         !codeRanges.some((r) => start < r.to && end > r.from)
@@ -468,7 +682,7 @@ function build(
         add(
           start,
           end,
-          Decoration.replace({ widget: new InlineMathWidget(m[1], start) }),
+          Decoration.replace({ widget: new InlineMathWidget(match.text, start) }),
         );
     }
     const highlightDelimiter = /==/g;

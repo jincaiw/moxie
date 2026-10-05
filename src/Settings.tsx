@@ -1,7 +1,8 @@
 import { X } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Dialog } from "./Dialog";
 import { themeCSSError, type Preferences } from "./preferences";
+import { download } from "./bridge";
 export function Settings({
   preferences,
   update,
@@ -12,7 +13,49 @@ export function Settings({
   onClose: () => void;
 }) {
   const themeFile = useRef<HTMLInputElement>(null);
+  const [themeName, setThemeName] = useState("");
+  const [themeMessage, setThemeMessage] = useState("");
   const cssError = themeCSSError(preferences.customCSS);
+  const activeTheme = preferences.savedThemes.find(
+    (theme) => theme.name === preferences.activeSavedTheme,
+  );
+  const normalizedName = themeName.trim();
+  const duplicateName = preferences.savedThemes.some(
+    (theme) => theme.name.toLowerCase() === normalizedName.toLowerCase(),
+  );
+  const saveTheme = () => {
+    if (cssError) return;
+    if (activeTheme) {
+      update(
+        "savedThemes",
+        preferences.savedThemes.map((theme) =>
+          theme.name === activeTheme.name
+            ? { ...theme, css: preferences.customCSS }
+            : theme,
+        ),
+      );
+      setThemeMessage(`已更新“${activeTheme.name}”。`);
+      return;
+    }
+    if (!normalizedName || duplicateName) return;
+    update("savedThemes", [
+      ...preferences.savedThemes,
+      { name: normalizedName, css: preferences.customCSS },
+    ]);
+    update("activeSavedTheme", normalizedName);
+    setThemeName("");
+    setThemeMessage(`已保存“${normalizedName}”。`);
+  };
+  const deleteActiveTheme = () => {
+    if (!activeTheme) return;
+    update(
+      "savedThemes",
+      preferences.savedThemes.filter((theme) => theme.name !== activeTheme.name),
+    );
+    update("activeSavedTheme", "");
+    update("customCSS", "");
+    setThemeMessage(`已删除“${activeTheme.name}”。`);
+  };
   return (
     <Dialog title="偏好设置" onClose={onClose}>
       <header>
@@ -75,6 +118,28 @@ export function Settings({
       </label>
       <section className="theme-css-editor" aria-label="自定义主题 CSS">
         <label htmlFor="theme-css">自定义主题 CSS</label>
+        <label htmlFor="saved-theme">本地主题</label>
+        <select
+          id="saved-theme"
+          aria-label="本地主题"
+          value={preferences.activeSavedTheme}
+          onChange={(event) => {
+            const name = event.target.value;
+            const selected = preferences.savedThemes.find(
+              (theme) => theme.name === name,
+            );
+            update("activeSavedTheme", name);
+            update("customCSS", selected?.css || "");
+            setThemeMessage(selected ? `已应用“${name}”。` : "");
+          }}
+        >
+          <option value="">自定义 CSS（未保存）</option>
+          {preferences.savedThemes.map((theme) => (
+            <option key={theme.name} value={theme.name}>
+              {theme.name}
+            </option>
+          ))}
+        </select>
         <textarea
           id="theme-css"
           aria-label="自定义主题 CSS 内容"
@@ -94,7 +159,30 @@ export function Settings({
           <button type="button" onClick={() => themeFile.current?.click()}>
             导入 .css 文件
           </button>
-          <button type="button" onClick={() => update("customCSS", "")}>
+          <button
+            type="button"
+            disabled={!preferences.customCSS.trim() || !!cssError}
+            onClick={() => {
+              const baseName = (activeTheme?.name || "moxie-theme")
+                .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
+                .trim();
+              download(
+                preferences.customCSS,
+                `${baseName || "moxie-theme"}.css`,
+                "text/css",
+              );
+            }}
+          >
+            导出当前 CSS
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              update("activeSavedTheme", "");
+              update("customCSS", "");
+              setThemeMessage("");
+            }}
+          >
             清除自定义样式
           </button>
           <input
@@ -107,10 +195,51 @@ export function Settings({
               const file = event.target.files?.[0];
               event.target.value = "";
               if (!file) return;
+              update("activeSavedTheme", "");
               update("customCSS", await file.text());
             }}
           />
         </div>
+        <div className="theme-library-actions">
+          {!activeTheme && (
+            <input
+              aria-label="新主题名称"
+              maxLength={40}
+              placeholder="新主题名称"
+              value={themeName}
+              onChange={(event) => setThemeName(event.target.value)}
+            />
+          )}
+          <button
+            type="button"
+            disabled={
+              !!cssError ||
+              !preferences.customCSS.trim() ||
+              (activeTheme
+                ? false
+                : !normalizedName || duplicateName ||
+                  preferences.savedThemes.length >= 20)
+            }
+            onClick={saveTheme}
+          >
+            {activeTheme ? "更新已保存主题" : "保存为本地主题"}
+          </button>
+          {activeTheme && (
+            <button type="button" onClick={deleteActiveTheme}>
+              删除主题
+            </button>
+          )}
+        </div>
+        {themeMessage && <small role="status">{themeMessage}</small>}
+        {!activeTheme && duplicateName && (
+          <small className="theme-css-error" role="alert">
+            已有同名主题，请更换名称或先选择该主题进行更新。
+          </small>
+        )}
+        {!activeTheme && preferences.savedThemes.length >= 20 && (
+          <small>主题库已满；删除一个主题后才能保存新主题。</small>
+        )}
+        <small>本地主题 {preferences.savedThemes.length}/20；每个主题最多 64 KB。</small>
         <small>
           样式仅保存在本机。为保护隐私，不允许 @import、url() 或动态表达式。
         </small>

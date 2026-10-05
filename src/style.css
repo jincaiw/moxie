@@ -869,6 +869,33 @@ p {
   color: var(--text);
   font-size: 11px;
 }
+.theme-library-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.theme-library-actions input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--code);
+  font-size: 12px;
+}
+.theme-library-actions button {
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 11px;
+}
+.theme-library-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .primary-button {
   background: var(--text);
   color: var(--bg);

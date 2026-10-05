@@ -362,6 +362,8 @@ export default function App() {
         document.text,
         document.name,
         document.path,
+        preferences.customCSS,
+        preferences.theme,
       );
       if (window.desktop) {
         if (
@@ -419,7 +421,13 @@ export default function App() {
       const document =
         workspace.docsRef.current.find((item) => item.id === current.id) ||
         current;
-      const html = await exportHTML(document.text, document.name, document.path);
+      const html = await exportHTML(
+        document.text,
+        document.name,
+        document.path,
+        preferences.customCSS,
+        preferences.theme,
+      );
       if (!window.desktop?.previewPDF) return;
       const bytes = await window.desktop.previewPDF({
         html,

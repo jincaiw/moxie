@@ -3,7 +3,9 @@ import DOMPurify from "dompurify";
 import { resolveImage } from "./assets";
 import { headingSlug } from "./links";
 import { renderMermaid } from "./mermaid";
-import { renderMath } from "./math";
+import { inlineMathMatches, renderMath } from "./math";
+import { themeCSSError } from "./theme-css";
+import type { ThemePreset } from "./preferences";
 type FootnoteState = {
   definitions: Map<string, string>;
   numbers: Map<string, number>;
@@ -159,10 +161,14 @@ const mathExtensions: NonNullable<MarkedExtension["extensions"]> = [
   {
     name: "inlineMath",
     level: "inline",
-    start: (src) => src.indexOf("$"),
+    start(src) {
+      const match = inlineMathMatches(src)[0];
+      return match?.from;
+    },
     tokenizer(src) {
-      const match = /^\$(?!\$)([^\s$](?:[^$\n]*?[^\s$])?)\$(?!\$)/.exec(src);
-      if (match) return { type: "inlineMath", raw: match[0], text: match[1] };
+      const match = inlineMathMatches(src)[0];
+      if (match?.from === 0)
+        return { type: "inlineMath", raw: match.raw, text: match.text };
     },
     renderer(token) {
       return token.raw;
@@ -267,8 +273,59 @@ export async function exportHTML(
   text: string,
   name: string,
   documentPath?: string,
+  customThemeCSS = "",
+  theme: ThemePreset = "light",
 ) {
   const title = name.replace(/[&<>"']/g, "");
+  const palettes: Record<
+    ThemePreset,
+    { bg: string; text: string; muted: string; border: string; code: string; accent: string }
+  > = {
+    light: {
+      bg: "#fff",
+      text: "#22262c",
+      muted: "#737b88",
+      border: "#e5e7eb",
+      code: "#f5f6f8",
+      accent: "#557895",
+    },
+    dark: {
+      bg: "#202226",
+      text: "#e3e5e9",
+      muted: "#9da4af",
+      border: "#36393f",
+      code: "#292c32",
+      accent: "#91bad8",
+    },
+    sepia: {
+      bg: "#fbf5e9",
+      text: "#40382d",
+      muted: "#81735e",
+      border: "#dfd3bf",
+      code: "#f1e8d8",
+      accent: "#936538",
+    },
+    "solarized-light": {
+      bg: "#fdf6e3",
+      text: "#586e75",
+      muted: "#839496",
+      border: "#e4ddc8",
+      code: "#eee8d5",
+      accent: "#268bd2",
+    },
+    "solarized-dark": {
+      bg: "#002b36",
+      text: "#93a1a1",
+      muted: "#657b83",
+      border: "#214750",
+      code: "#073642",
+      accent: "#2aa198",
+    },
+  };
+  const palette = palettes[theme];
+  const safeThemeCSS = themeCSSError(customThemeCSS)
+    ? ""
+    : customThemeCSS.replace(/</g, "\\3C ");
   const extracted = extractFootnotes(text);
   const footnotes: FootnoteState = {
     definitions: extracted.definitions,
@@ -330,5 +387,29 @@ export async function exportHTML(
       image.src = await resolveImage(src, documentPath);
     }),
   );
-  return `<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>${title}</title><style>body{font:17px/1.8 -apple-system,BlinkMacSystemFont,sans-serif;max-width:760px;margin:50px auto;padding:0 28px;color:#20242a}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px;text-align:left}pre{padding:20px;background:#f4f5f6;white-space:pre-wrap}blockquote{border-left:3px solid #bbb;margin-left:0;padding-left:24px;color:#666}img{max-width:100%;height:auto}svg{max-width:100%;height:auto}.mermaid-diagram{overflow-x:auto;text-align:center;margin:24px 0}.moxie-toc{border:1px solid #ddd;padding:14px 20px;margin:24px 0}.moxie-toc ol{margin:0;padding-left:24px}.moxie-toc li{margin:4px 0}math[display=block]{margin:24px 0}a{color:#42779c}@media print{body{margin:0;max-width:none}h1,h2,h3,h4,h5,h6{break-after:avoid;page-break-after:avoid}pre,blockquote,table,tr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes{break-inside:avoid;page-break-inside:avoid}thead{display:table-header-group}tfoot{display:table-footer-group}p{orphans:3;widows:3}}</style>${content.innerHTML}</html>`;
+  const styles = `:root{--bg:${palette.bg};--text:${palette.text};--muted:${palette.muted};--border:${palette.border};--code:${palette.code};--accent:${palette.accent}}
+body{font:17px/1.8 -apple-system,BlinkMacSystemFont,sans-serif;max-width:760px;margin:50px auto;padding:0 28px;color:var(--text);background:var(--bg)}
+table{border-collapse:collapse;width:100%}
+td,th{border:1px solid var(--border);padding:8px;text-align:left;overflow-wrap:anywhere}
+pre{padding:20px;background:var(--code);white-space:pre-wrap;overflow-wrap:anywhere}
+blockquote{border-left:3px solid var(--border);margin-left:0;padding-left:24px;color:var(--muted)}
+img{max-width:100%;height:auto}
+svg{max-width:100%;height:auto}
+.mermaid-diagram{overflow-x:auto;text-align:center;margin:24px 0}
+.moxie-toc{border:1px solid var(--border);padding:14px 20px;margin:24px 0}
+.moxie-toc ol{margin:0;padding-left:24px}.moxie-toc li{margin:4px 0}
+math[display=block]{margin:24px 0}a{color:var(--accent)}
+@media print{
+  body{margin:0;max-width:none}
+  h1,h2,h3,h4,h5,h6{break-after:avoid;page-break-after:avoid}
+  table,tr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes{break-inside:avoid;page-break-inside:avoid}
+  pre,table{break-inside:auto;page-break-inside:auto}
+  pre{white-space:pre-wrap;overflow-wrap:anywhere}
+  thead{display:table-header-group}tfoot{display:table-footer-group}
+  p{orphans:3;widows:3}
+}`;
+  const customStyle = safeThemeCSS
+    ? `<style id="moxie-export-theme">${safeThemeCSS}</style>`
+    : "";
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${title}</title><style>${styles}</style>${customStyle}</head><body>${content.innerHTML}</body></html>`;
 }

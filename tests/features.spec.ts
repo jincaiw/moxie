@@ -365,6 +365,44 @@ test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部
   await expect(css).toHaveValue("");
 });
 
+test("自定义 CSS 可保存为具名本地主题并在重启后应用", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  const css = page.getByRole("textbox", { name: "自定义主题 CSS 内容" });
+  await css.fill(":root { --bg: #123456; --accent: #ff00aa; }");
+  await page.getByLabel("新主题名称").fill("深海");
+  await page.getByRole("button", { name: "保存为本地主题" }).click();
+  await expect(page.getByRole("status")).toContainText("已保存");
+  await page.reload();
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await expect(page.getByLabel("本地主题")).toHaveValue(/.+/);
+  await expect(page.locator(".app")).toHaveCSS(
+    "background-color",
+    "rgb(18, 52, 86)",
+  );
+  await page.getByRole("button", { name: "删除主题" }).click();
+  await expect(page.getByLabel("本地主题")).toHaveValue("");
+});
+
+test("原始 HTML 区块在编辑器中净化预览并可回到源码", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "html-preview.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# HTML 安全预览\n\n<div>\n<strong>安全预览</strong>\n<script>window.__unsafe = true</script>\n</div>",
+    ),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press("Control+Home");
+  const preview = page.locator(".html-block-preview");
+  await expect(preview).toContainText("安全预览");
+  await expect(preview.locator("script")).toHaveCount(0);
+  await preview.click();
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await expect(page.locator(".cm-content")).toContainText("window.__unsafe");
+});
+
 test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({ page }) => {
   await page.addInitScript(() => {
     const state = window as unknown as {

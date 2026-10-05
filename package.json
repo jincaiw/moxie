@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.33",
+  "version": "0.16.34",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -61,6 +61,7 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
       "target": [
         {
           "target": "dmg",
