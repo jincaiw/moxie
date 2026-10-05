@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs/promises";
 import { parseClipboardTable, parseTable } from "../src/table";
+import { inlineMathMatches } from "../src/math";
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
@@ -36,6 +37,13 @@ test("表格直接编辑、转义竖线、撤销重做与增删行列", async ({
   );
   expect(saved).toContain("计划 \\| 已修改");
   expect(errors).toEqual([]);
+});
+
+test("行内公式扫描遵循转义、空白、相邻公式和双美元边界", () => {
+  const matches = inlineMathMatches(
+    "$unfinished $x$ and \\$literal; $a\\$b$ then \\\\$c$ $d$ $$block$$",
+  );
+  expect(matches.map(({ text }) => text)).toEqual(["x", "a\\$b", "c", "d"]);
 });
 
 test("从电子表格粘贴 TSV 会扩展表格并正确转义单元格", async ({ page }) => {

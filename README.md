@@ -37,6 +37,10 @@ npm run package:mac
 
 推送 `v*` 格式的 Git tag 会由 GitHub Actions 在 macOS Runner 上构建 arm64/x64 DMG 与 ZIP，并创建 GitHub Release、附上 SHA-256 校验文件。没有 Apple Developer 凭据时，产物仍为未签名、未公证版本。
 
+## v0.16.35 已实现
+
+- 修复行内公式扫描在无效关闭符后吞并后续公式的问题；新增边界回归覆盖单/双反斜杠、空白、相邻公式和双美元块。
+
 ## v0.16.34 已实现
 
 - 增加净化后的原始 HTML 块、成对行内标签及独立空元素即时预览；桌面文档中的本地图片沿用授权路径解析，点击预览可回到源码。

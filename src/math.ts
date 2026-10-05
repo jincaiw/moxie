@@ -34,15 +34,19 @@ export function inlineMathMatches(source: string): InlineMathMatch[] {
       if (source[index + 1] && !/\s/.test(source[index + 1])) opening = index;
       continue;
     }
-    if (index === opening + 1 || /\s/.test(source[index - 1])) continue;
-    const to = index + 1;
-    matches.push({
-      from: opening,
-      to,
-      raw: source.slice(opening, to),
-      text: source.slice(opening + 1, index),
-    });
-    opening = -1;
+    if (index !== opening + 1 && !/\s/.test(source[index - 1])) {
+      const to = index + 1;
+      matches.push({
+        from: opening,
+        to,
+        raw: source.slice(opening, to),
+        text: source.slice(opening + 1, index),
+      });
+      opening = -1;
+      continue;
+    }
+    // A delimiter that cannot close the current span may begin a later formula.
+    opening = source[index + 1] && !/\s/.test(source[index + 1]) ? index : -1;
   }
   return matches;
 }
