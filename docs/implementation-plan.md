@@ -334,7 +334,13 @@
 - [x] GitHub Actions 源码验证和 arm64 包构建通过。
 - [x] arm64 与 x64 macOS 包构建通过。
 - [x] Ubuntu 发布 runner 排队超时，上传 job 被取消，未生成 Release。
-- [ ] v0.16.43 改用 macOS runner 执行上传，验证 Release 产物。
+- [ ] v0.16.43 的源码验证仍等待 Ubuntu runner，任务尚未开始。
+
+## v0.16.44 macOS 发布队列
+
+- [x] 发布验证、arm64/x64 打包和上传统一使用 macOS runner。
+- [x] Playwright 在 macOS 使用 `npx playwright install chromium`，不再调用 Linux 专用 `--with-deps`。
+- [ ] 通过 GitHub Actions 完整验证 v0.16.44 源码、两架构产物和 Release 附件。
 
 ## v0.16.34 基线交付与剩余事项
 

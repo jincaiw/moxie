@@ -8,7 +8,7 @@ permissions:
 jobs:
   verify:
     name: Verify release source
-    runs-on: ubuntu-latest
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
         run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
       - run: npm run build
       - run: npm run test:desktop
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium
       - run: npm test
   build:
     name: Build ${{ matrix.arch }} macOS package

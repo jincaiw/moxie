@@ -50,7 +50,7 @@
 | 进行中 | 高     | macOS 更新发布与端到端验收          | 客户端和 GitHub 更新元数据/ZIP 发布已接入；需配置 Developer ID 与公证密钥，真机验证 arm64/x64 检查、下载、签名校验和安装。                                                                                                                                                                               |
 | 受阻   | 中     | Windows/Linux 正式安装包            | 当前 electron-builder 仅配置 macOS；完成平台文件对话框、路径、安全和对应更新渠道适配后再扩展。                                                                                                                                                                                                           |
 
-v0.16.39 是上一版已发布版本。v0.16.40 纳入 HTML 预览键盘操作、GFM 裸网址/邮箱预览与导出，以及搜索筛选/排序回归；源码验证及 arm64 打包通过，但 x64 任务被取消，未生成 Release 附件。v0.16.41 的验证任务也被后续版本任务取消。v0.16.42 使用 Markdown inline tokenizer 识别链接标签中的公式并保留 `\\$` 转义；浏览器回归 58 项通过、3 项性能基准跳过，桌面逻辑 15 项和生产构建通过。其源码验证和 arm64/x64 包构建全部通过，但 Release 上传 job 等待 Ubuntu runner 约 15 分钟后被取消。v0.16.43 将上传 job 改到 macOS runner，继续验证完整发布链路。Apple Developer 签名/公证 Secrets 与真实 Mac 未提供，因此 Gatekeeper 首次启动、签名更新和 PDF 分页仍待真机验收。
+v0.16.39 是上一版已发布版本。v0.16.40 纳入 HTML 预览键盘操作、GFM 裸网址/邮箱预览与导出，以及搜索筛选/排序回归；源码验证及 arm64 打包通过，但 x64 任务被取消，未生成 Release 附件。v0.16.41 的验证任务也被后续版本任务取消。v0.16.42 使用 Markdown inline tokenizer 识别链接标签中的公式并保留 `\\$` 转义；浏览器回归 58 项通过、3 项性能基准跳过，桌面逻辑 15 项和生产构建通过。其源码验证和 arm64/x64 包构建全部通过，但 Release 上传 job 等待 Ubuntu runner 约 15 分钟后被取消。v0.16.43 将上传任务迁到 macOS runner，但源码验证仍需要 Ubuntu。v0.16.44 将验证、打包和上传全部迁至 macOS runner；Apple Developer 签名/公证 Secrets 与真实 Mac 未提供，因此 Gatekeeper 首次启动、签名更新和 PDF 分页仍待真机验收。
 
 ### 已完成并从未完成清单移出
 

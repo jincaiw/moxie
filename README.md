@@ -64,7 +64,12 @@ npm run package:mac
 
 ## v0.16.43 发布候选
 
-- Release 合并清单和上传步骤改用 macOS runner，避免 Ubuntu 队列延迟取消发布。
+- Release 上传步骤改用 macOS runner；源码验证仍排在 Ubuntu 队列中，任务尚未启动。
+
+## v0.16.44 发布候选
+
+- 发布验证、arm64/x64 打包和 Release 上传全部改用 macOS runner。
+- Playwright 在 macOS runner 上直接安装 Chromium，移除 Linux 专用系统依赖安装步骤。
 
 ## v0.16.36 已实现
 
