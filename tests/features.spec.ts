@@ -646,6 +646,36 @@ test("GFM 引用内嵌套任务和 CommonMark 硬换行在预览与导出中一�
   await expect(content).toContainText("- [x] 待办");
 });
 
+test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ page }) => {
+  const source =
+    "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n文档结尾。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "html-comments.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  const content = page.locator(".cm-content");
+  await content.press(documentEnd);
+
+  await expect(content).toContainText("段前");
+  await expect(content).toContainText("段后");
+  await expect(content).not.toContainText("private note");
+
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(content).toContainText("inline private note");
+  await expect(content).toContainText("block private note");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "html-comments.md");
+  }, source);
+  expect(html).not.toContain("private note");
+});
+
 test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ page }) => {
   await page.addInitScript(() => {
     (window as Window & { __moxieAttack?: number }).__moxieAttack = 0;

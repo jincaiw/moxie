@@ -396,6 +396,14 @@ function build(
           return false;
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
+        if (
+          (node.name === "Comment" || node.name === "CommentBlock") &&
+          !isActive
+        ) {
+          codeRanges.push({ from: node.from, to: node.to });
+          add(node.from, node.to, Decoration.replace({}));
+          return false;
+        }
         if (/^ATXHeading[1-6]$/.test(node.name)) {
           add(
             line.from,
