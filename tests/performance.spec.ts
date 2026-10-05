@@ -77,7 +77,7 @@ for (const sizeMB of sizes) {
       return Math.round(performance.now() - started);
     });
 
-    await page.locator(".cm-content").press("Control+End");
+    await page.locator(".cm-content").press(documentEnd);
     const typingStarted = performance.now();
     await page.locator(".cm-content").pressSequentially("x", { delay: 0 });
     await expect(page.locator(".cm-content")).toContainText("x");

@@ -512,4 +512,12 @@
 
 - [x] CI 使用两个 Playwright worker，并允许失败用例自动重试一次，减少单次浏览器波动阻断验证。
 - [x] 首次重试保留 Playwright trace；CI 和 Release 工作流上传测试诊断产物。
-- [ ] 通过 macOS 发布工作流再次验证两个架构安装包、更新清单及 Release 附件。
+- [x] macOS 日志确认大量浏览器失败来自测试使用 Windows/Linux `Control`、`Home/End` 快捷键；诊断产物可下载并定位具体断言。
+- [x] 更新计划由 v0.16.52 修复测试快捷键的平台映射。
+
+## v0.16.52 macOS 浏览器快捷键兼容
+
+- [x] 浏览器回归在 macOS 使用 Meta 快捷键和 Meta+方向键文档导航，Windows/Linux 保持 Control+Home/End。
+- [x] 修复链接修饰键、撤销重做、全选、格式快捷键及长文恢复测试的平台差异。
+- [x] 本地 CI 模式浏览器回归 62 项通过，3 项性能基准按设计跳过。
+- [ ] macOS 发布工作流重新验证 arm64/x64 构建、更新清单和 Release 附件。

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { documentEnd, shortcut } from "./keyboard";
 import { Buffer } from "node:buffer";
 
 test.beforeEach(async ({ page }) => {
@@ -130,7 +131,7 @@ test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾�
   });
   await expect(page.locator(".document-title")).toContainText("长文恢复");
   await page.locator(".cm-content").click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.insertText("恢复标记");
   await page.waitForFunction(
     async () => {
@@ -185,9 +186,9 @@ test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾�
   await page.reload();
   await expect(page.locator(".document-title")).toContainText("长文恢复");
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
-  await editor.press("Control+End");
+  await editor.press(documentEnd);
   await expect(editor).toContainText("恢复标记", { timeout: 30_000 });
-  await page.keyboard.press("Control+s");
+  await page.keyboard.press(shortcut("s"));
   await expect
     .poll(() =>
       page.evaluate(
@@ -238,7 +239,7 @@ test("未编辑文档自动更新，有本地修改时保留并确认载入", as
   });
   await expect(page.locator(".cm-content")).toContainText("新的磁盘内容");
   await page.locator(".cm-content").click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.type("我的修改");
   await page.evaluate(() => {
     const w = window as unknown as { disk: { text: string; version: string } };
@@ -277,7 +278,7 @@ test("磁盘删除后保留编辑并另存为，自动保存暂停", async ({ pa
     "已删除或无法读取",
   );
   await page.locator(".cm-content").click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.type("保留我");
   await page.waitForTimeout(1500);
   expect(
@@ -330,7 +331,7 @@ test("检查结果晚于手动保存时不会回滚已保存内容", async ({ pa
       ),
     )
     .toBe(true);
-  await page.keyboard.press("Control+s");
+  await page.keyboard.press(shortcut("s"));
   await expect
     .poll(() =>
       page.evaluate(

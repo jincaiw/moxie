@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { documentEnd, shortcut, clickModifier } from "./keyboard";
 import fs from "node:fs/promises";
 
 test.beforeEach(async ({ page }) => {
@@ -70,7 +71,7 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
       exact: true,
     }),
   ).toHaveCount(0);
-  await website.click({ modifiers: ["Control"] });
+  await website.click({ modifiers: [clickModifier] });
   expect(
     await page.evaluate(() => (window as unknown as { links: string[] }).links),
   ).toEqual(["https://example.com"]);
@@ -78,7 +79,7 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
   await expect(page.locator(".cm-content")).toContainText(
     "[打开网站](https://example.com)",
   );
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press(shortcut("k"));
   await page.keyboard.type("https://new.example/path");
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText(
@@ -136,15 +137,15 @@ test("文内标题、重复标题和关联文档锚点跳转", async ({ page }) 
   });
   await page
     .getByRole("link", { name: "跳到标题", exact: true })
-    .click({ modifiers: ["Control"] });
+    .click({ modifiers: [clickModifier] });
   await expect(page.locator(".cm-activeLine")).toContainText("**目标标题**");
   await page
     .getByRole("link", { name: "第二个标题", exact: true })
-    .click({ modifiers: ["Control"] });
+    .click({ modifiers: [clickModifier] });
   await expect(page.locator(".cm-activeLine")).toHaveText("## 目标标题");
   await page
     .getByRole("link", { name: "子文档", exact: true })
-    .click({ modifiers: ["Control"] });
+    .click({ modifiers: [clickModifier] });
   await expect(
     page.getByRole("button", { name: "child.md", exact: true }),
   ).toBeVisible();
@@ -160,7 +161,7 @@ test("拒绝危险协议且不改变文档", async ({ page }) => {
   });
   await page
     .getByRole("link", { name: "危险链接", exact: true })
-    .click({ modifiers: ["Control"] });
+    .click({ modifiers: [clickModifier] });
   await expect(page.getByRole("status")).toContainText("不支持此链接");
   expect(
     await page.evaluate(() => (window as unknown as { links: string[] }).links),
@@ -210,9 +211,9 @@ test("编辑引用链接地址只影响当前链接，保留其他引用与定�
     ),
   });
   await page.getByRole("link", { name: "第一个", exact: true }).click();
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press(shortcut("k"));
   await page.keyboard.type("https://new.example/guide");
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await expect(
     page.getByRole("link", { name: "第一个", exact: true }),
   ).toHaveAttribute("href", "https://new.example/guide");

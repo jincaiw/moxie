@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { documentEnd, shortcut } from "./keyboard";
 import fs from "node:fs/promises";
 
 test("首屏、表格、大纲、模式切换和主题无运行错误", async ({ page }) => {
@@ -34,20 +35,20 @@ test("编辑、撤销重做、切换文档和恢复不丢失内容", async ({ pa
   await page.getByRole("button", { name: "新建文件", exact: true }).click();
   const content = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await content.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.insertText("中文写作与恢复验证");
   await expect(content).toContainText("中文写作与恢复验证");
-  await page.keyboard.press("Control+z");
+  await page.keyboard.press(shortcut("z"));
   await expect(content).not.toContainText("中文写作与恢复验证");
-  await page.keyboard.press("Control+Shift+z");
+  await page.keyboard.press(shortcut("Shift+z"));
   await expect(content).toContainText("中文写作与恢复验证");
   await page.getByRole("button", { name: "欢迎使用.md", exact: true }).click();
   await page.getByRole("button", { name: "未命名.md", exact: true }).click();
   await expect(content).toContainText("中文写作与恢复验证");
   await content.click();
-  await page.keyboard.press("Control+z");
+  await page.keyboard.press(shortcut("z"));
   await expect(content).not.toContainText("中文写作与恢复验证");
-  await page.keyboard.press("Control+Shift+z");
+  await page.keyboard.press(shortcut("Shift+z"));
   await expect(content).toContainText("中文写作与恢复验证");
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("moxie.recovery.v1")))

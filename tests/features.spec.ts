@@ -1,4 +1,10 @@
 import { test, expect } from "@playwright/test";
+import {
+  documentStart,
+  documentEnd,
+  lineEndSelection,
+  shortcut,
+} from "./keyboard";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,9 +22,9 @@ test("表格直接编辑、转义竖线、撤销重做与增删行列", async ({
   await page.locator(".editable-table td").first().click();
   const cell = page.getByRole("textbox", { name: "编辑第 2 行第 1 列" });
   await cell.fill("计划 | 已修改");
-  await cell.press("Control+z");
+  await cell.press(shortcut("z"));
   await expect(cell).toHaveValue("保存文档");
-  await cell.press("Control+Shift+z");
+  await cell.press(shortcut("Shift+z"));
   await expect(cell).toHaveValue("计划 | 已修改");
   await cell.press("Enter");
   await expect(page.locator(".editable-table td").first()).toHaveText(
@@ -119,8 +125,8 @@ test("任务勾选写回 Markdown，格式快捷键与关闭文档提示", async
   await page.getByRole("button", { name: "新建文件", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+End");
-  await page.keyboard.press("Control+b");
+  await page.keyboard.press(documentEnd);
+  await page.keyboard.press(shortcut("b"));
   await page.keyboard.insertText("强调段落");
   await expect(editor).toContainText("**强调段落**");
   await page
@@ -315,7 +321,7 @@ test("打字机模式在方向键移动光标后继续居中当前行", async ({
   });
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+Home");
+  await page.keyboard.press(documentStart);
   for (let index = 0; index < 80; index++)
     await page.keyboard.press("ArrowDown");
   await expect
@@ -513,7 +519,7 @@ test("原始 HTML 区块在编辑器中净化预览并可回到源码", async ({
     ),
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
-  await page.locator(".cm-content").press("Control+Home");
+  await page.locator(".cm-content").press(documentStart);
   const preview = page.locator(".html-block-preview");
   await expect(preview).toContainText("安全预览");
   await expect(preview.locator("script")).toHaveCount(0);
@@ -530,7 +536,7 @@ test("行内 HTML 预览可通过键盘聚焦并按空格编辑源码", async ({
     buffer: Buffer.from("# 键盘预览\n\n前文 <span>行内 HTML</span> 后文"),
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
-  await page.locator(".cm-content").press("Control+Home");
+  await page.locator(".cm-content").press(documentStart);
   const preview = page.locator(".md-inline-html-preview");
   await expect(preview).toHaveAttribute("role", "button");
   await expect(preview).toHaveAttribute("tabindex", "0");
@@ -552,7 +558,7 @@ test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async (
     ),
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
-  await page.locator(".cm-content").press("Control+Home");
+  await page.locator(".cm-content").press(documentStart);
   const previews = page.locator(".html-block-preview");
   await expect(previews).toHaveCount(2);
   await expect(previews.nth(0)).toContainText("列表 HTML");
@@ -577,7 +583,7 @@ test("CommonMark 列表续段、嵌套任务和惰性引用在预览与导出中
     buffer: Buffer.from(source),
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
-  await page.locator(".cm-content").press("Control+Home");
+  await page.locator(".cm-content").press(documentStart);
 
   const content = page.locator(".cm-content");
   await expect(content.locator(".md-strong")).toHaveText("强调");
@@ -615,7 +621,7 @@ test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ pag
     ),
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
-  await page.locator(".cm-content").press("Control+Home");
+  await page.locator(".cm-content").press(documentStart);
   const previews = page.locator(".html-block-preview");
   await expect(previews).toHaveCount(1);
   await expect(previews).toContainText("危险链接");
@@ -674,7 +680,7 @@ test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({
   await page.getByRole("button", { name: "完成", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.insertText("自动保存测试");
   await expect
     .poll(() => page.evaluate(() => (window as any).calls.length))
@@ -684,7 +690,7 @@ test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({
     (window as any).external = true;
   });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.insertText("冲突");
   await expect(page.locator(".save-warning")).toContainText("自动保存已暂停");
   await page.waitForTimeout(1500);
@@ -695,7 +701,7 @@ test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({
     (window as any).external = false;
   });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.insertText("恢复");
   await expect
     .poll(() => page.evaluate(() => (window as any).calls.length))
@@ -756,16 +762,16 @@ test("多行引用与任务格式应用到整个选区并可切换取消", async
   });
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await page.locator(".cm-content").click();
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式", exact: true }).click();
   await page.getByRole("menuitem", { name: /^引用/ }).click();
   await expect(page.locator(".cm-content")).toContainText("> 第一行");
   await expect(page.locator(".cm-content")).toContainText("> 第二行");
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式", exact: true }).click();
   await page.getByRole("menuitem", { name: /^引用/ }).click();
   await expect(page.locator(".cm-content")).not.toContainText(">");
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式", exact: true }).click();
   await page.getByRole("menuitem", { name: /^任务列表/ }).click();
   await expect(page.locator(".cm-content")).toContainText("- [ ] 第一行");
@@ -847,7 +853,7 @@ test("回车延续列表、任务项和引用，并在空项中退出", async ({
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.press("Enter");
   await page.keyboard.type("第二项");
   await expect
@@ -866,7 +872,7 @@ test("回车延续列表、任务项和引用，并在空项中退出", async ({
     buffer: Buffer.from("- [ ] 待办"),
   });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.press("Enter");
   await page.keyboard.type("下一项");
   await expect
@@ -879,7 +885,7 @@ test("回车延续列表、任务项和引用，并在空项中退出", async ({
     buffer: Buffer.from("> 引用"),
   });
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.press("Enter");
   await page.keyboard.type("续行");
   await expect
@@ -959,9 +965,9 @@ test("高亮快捷键与格式菜单可应用和取消", async ({ page }) => {
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.locator(".cm-content");
   await editor.click();
-  await page.keyboard.press("Control+Home");
-  await page.keyboard.press("Shift+End");
-  await page.keyboard.press("Control+Shift+h");
+  await page.keyboard.press(documentStart);
+  await page.keyboard.press(lineEndSelection);
+  await page.keyboard.press(shortcut("Shift+h"));
   await expect(editor).toContainText("==待标记==");
   await page.getByRole("button", { name: "格式", exact: true }).click();
   await page.getByRole("menuitem", { name: /高亮/ }).click();
@@ -979,7 +985,7 @@ test("格式菜单可为选中文本添加并移除上下标", async ({ page }) 
   const editor = page.locator(".cm-content");
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await editor.click();
-  await page.keyboard.press("Control+Home");
+  await page.keyboard.press(documentStart);
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("Shift+ArrowRight");
   await page.getByRole("button", { name: "格式", exact: true }).click();
@@ -990,7 +996,7 @@ test("格式菜单可为选中文本添加并移除上下标", async ({ page }) 
   await expect(editor).toContainText("H2O");
 
   await editor.click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(documentEnd);
   await page.keyboard.press("Shift+ArrowLeft");
   await page.getByRole("button", { name: "格式", exact: true }).click();
   await page.getByRole("menuitem", { name: "上标", exact: true }).click();
@@ -1170,7 +1176,7 @@ test("无序和有序列表支持多行切换、缩进保留与取消", async ({
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式" }).click();
   await page.getByRole("menuitem", { name: /有序列表/ }).click();
   await expect
@@ -1178,7 +1184,7 @@ test("无序和有序列表支持多行切换、缩进保留与取消", async ({
     .toEqual(["1. Alpha", "  2. Beta", "3. Gamma"]);
 
   await editor.click();
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式" }).click();
   await page.getByRole("menuitem", { name: /无序列表/ }).click();
   await expect
@@ -1186,7 +1192,7 @@ test("无序和有序列表支持多行切换、缩进保留与取消", async ({
     .toEqual(["- Alpha", "  - Beta", "- Gamma"]);
 
   await editor.click();
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press(shortcut("a"));
   await page.getByRole("button", { name: "格式" }).click();
   await page.getByRole("menuitem", { name: /无序列表/ }).click();
   await expect
@@ -1199,13 +1205,13 @@ test("无序和有序列表支持多行切换、缩进保留与取消", async ({
     buffer: Buffer.from("Bullets\nNumbers"),
   });
   await editor.click();
-  await page.keyboard.press("Control+a");
-  await page.keyboard.press("Control+Shift+8");
+  await page.keyboard.press(shortcut("a"));
+  await page.keyboard.press(shortcut("Shift+8"));
   await expect
     .poll(() => editor.locator(".cm-line").allInnerTexts())
     .toEqual(["- Bullets", "- Numbers"]);
-  await page.keyboard.press("Control+a");
-  await page.keyboard.press("Control+Shift+7");
+  await page.keyboard.press(shortcut("a"));
+  await page.keyboard.press(shortcut("Shift+7"));
   await expect
     .poll(() => editor.locator(".cm-line").allInnerTexts())
     .toEqual(["1. Bullets", "2. Numbers"]);
@@ -1221,7 +1227,7 @@ test("Tab 与 Shift+Tab 调整列表项层级并保留任务标记", async ({ pa
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+Home");
+  await page.keyboard.press(documentStart);
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Tab");
   await expect
@@ -1254,8 +1260,8 @@ test("Tab 缩进列表项时同步缩进续行，Shift+Tab 可完整还原", asy
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await editor.click();
-  await page.keyboard.press("Control+Home");
-  await page.keyboard.press("Shift+End");
+  await page.keyboard.press(documentStart);
+  await page.keyboard.press(lineEndSelection);
   await page.keyboard.press("Shift+ArrowDown");
   await page.keyboard.press("Tab");
   await expect
