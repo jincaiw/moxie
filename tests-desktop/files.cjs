@@ -477,6 +477,31 @@ test("文件夹授权重启恢复，目录版本只在内容变化时更新", as
   }
 });
 
+test("目录规范路径与文件选择器路径别名共享授权且保留边界检查", async () => {
+  const { FileStore } = require("../electron/files.cjs");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-path-identity-"));
+  const alias = `${root}-alias`;
+  try {
+    await fs.mkdir(path.join(root, "章节"));
+    const source = path.join(root, "章节", "source.md");
+    await fs.writeFile(source, "source");
+    await fs.writeFile(path.join(root, "章节", "target.md"), "# target");
+    await fs.symlink(root, alias, "dir");
+    const store = new FileStore(path.join(root, ".state", "files.json"));
+    await store.init();
+    const tree = await store.folder(root);
+    const selectedAlias = path.join(alias, "章节", "source.md");
+    assert.equal((await store.read(selectedAlias, true)).text, "source");
+    const linked = await store.openLinked(selectedAlias, "target.md#part");
+    assert.equal(linked.file.text, "# target");
+    assert.equal(linked.anchor, "part");
+    assert.equal(tree.path, await fs.realpath(alias));
+  } finally {
+    await fs.rm(alias, { force: true });
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("自动更新检查、下载进度、未保存拦截和安装流程", async () => {
   const updater = new EventEmitter();
   let dirty = true;

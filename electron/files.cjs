@@ -103,6 +103,12 @@ class FileStore {
     this.recent = [file, ...this.recent.filter((p) => p !== file)].slice(0, 12);
     await this.persist();
   }
+  async entryPath(file) {
+    return path.join(
+      await fs.realpath(path.dirname(file)),
+      path.basename(file),
+    );
+  }
   async persist() {
     if (this.stateFile) {
       const recent = new Set(this.recent);
@@ -213,7 +219,11 @@ class FileStore {
       try {
         if (!inside(selectedRoot, await fs.realpath(file))) continue;
         const stat = await fs.stat(file);
-        if (!stat.isFile() || stat.size > 10 * 1024 * 1024 || bytesRead + stat.size > 100 * 1024 * 1024) {
+        if (
+          !stat.isFile() ||
+          stat.size > 10 * 1024 * 1024 ||
+          bytesRead + stat.size > 100 * 1024 * 1024
+        ) {
           skipped++;
           continue;
         }
@@ -229,20 +239,34 @@ class FileStore {
           const newline = text.indexOf("\n", index);
           const end = newline < 0 ? text.length : newline;
           const line = text.slice(start, end).trim();
-          const excerpt = line.length > 180
-            ? `…${line.slice(Math.max(0, index - start - 70), index - start + query.length + 90)}…`
-            : line;
-          results.push({ path: file, name: path.basename(file), from: index, excerpt });
+          const excerpt =
+            line.length > 180
+              ? `…${line.slice(Math.max(0, index - start - 70), index - start + query.length + 90)}…`
+              : line;
+          results.push({
+            path: file,
+            name: path.basename(file),
+            from: index,
+            excerpt,
+          });
           from = index + Math.max(normalized.length, 1);
         }
       } catch (error) {
         if (error.code !== "ENOENT") skipped++;
       }
     }
-    return { results, scanned, skipped, truncated: results.length >= 200 || skipped > 0 };
+    return {
+      results,
+      scanned,
+      skipped,
+      truncated: results.length >= 200 || skipped > 0,
+    };
   }
   async openLinked(documentPath, href) {
-    if (!this.authorized.has(documentPath))
+    if (typeof documentPath !== "string" || !path.isAbsolute(documentPath))
+      throw Error("请先打开或保存当前文档");
+    const entry = await this.entryPath(documentPath);
+    if (!this.authorized.has(documentPath) && !this.authorized.has(entry))
       throw Error("请先打开或保存当前文档");
     if (
       typeof href !== "string" ||
@@ -263,8 +287,14 @@ class FileStore {
     )
       throw Error("仅支持相对路径的 Markdown 文档链接");
     const directory = await fs.realpath(path.dirname(documentPath));
-    const root = this.treeRoots.get(documentPath) || directory;
-    if (!inside(root, directory)) throw Error("文档位置已改变，请重新打开");
+    const realDocument = await fs.realpath(documentPath);
+    const root =
+      this.treeRoots.get(documentPath) ||
+      this.treeRoots.get(entry) ||
+      this.treeRoots.get(realDocument) ||
+      directory;
+    if (!inside(root, directory) || !inside(root, realDocument))
+      throw Error("文档位置已改变，请重新打开");
     const target = path.resolve(directory, relative);
     if (!inside(root, target) || !inside(root, await fs.realpath(target)))
       throw Error("链接必须位于已打开的文件夹内");
@@ -283,9 +313,13 @@ class FileStore {
     const changes = [];
     for (const input of files) {
       const file = input?.path;
-      if (!this.authorized.has(file)) throw Error("文档未获授权");
+      if (typeof file !== "string" || !path.isAbsolute(file))
+        throw Error("文档未获授权");
+      const entry = await this.entryPath(file).catch(() => file);
+      if (!this.authorized.has(file) && !this.authorized.has(entry))
+        throw Error("文档未获授权");
       try {
-        const root = this.treeRoots.get(file);
+        const root = this.treeRoots.get(file) || this.treeRoots.get(entry);
         if (root && !inside(root, await fs.realpath(file)))
           throw Error("文档不能指向文件夹之外");
         const version = await this.signature(file);
@@ -301,12 +335,21 @@ class FileStore {
     return changes;
   }
   async read(file, requirePermission = false) {
-    if (requirePermission && !this.authorized.has(file))
+    if (typeof file !== "string" || !path.isAbsolute(file))
+      throw Error("文档路径无效");
+    const entry = requirePermission
+      ? await this.entryPath(file).catch(() => file)
+      : file;
+    if (
+      requirePermission &&
+      !this.authorized.has(file) &&
+      !this.authorized.has(entry)
+    )
       throw Error("请先通过“打开文件”选择该文档");
     const stat = await fs.stat(file);
     if (!stat.isFile()) throw Error("请选择普通文件");
     if (stat.size > 30 * 1024 * 1024) throw Error("文档超出 30 MB 限制");
-    const root = this.treeRoots.get(file);
+    const root = this.treeRoots.get(file) || this.treeRoots.get(entry);
     if (root && !inside(root, await fs.realpath(file)))
       throw Error("文档不能指向文件夹之外");
     const signature = await this.signature(file);
@@ -348,7 +391,10 @@ class FileStore {
       throw Error("请先打开或保存文档，再访问图片");
     const directory = await fs.realpath(path.dirname(documentPath));
     const root = this.treeRoots.get(documentPath) || directory;
-    if (!inside(root, directory) || !inside(root, await fs.realpath(documentPath)))
+    if (
+      !inside(root, directory) ||
+      !inside(root, await fs.realpath(documentPath))
+    )
       throw Error("文档位置已改变，请重新打开");
     return { directory, root };
   }
