@@ -42,13 +42,26 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run package:mac -- --${{ matrix.arch }}
+      - name: Configure optional macOS signing credentials
         env:
-          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ -n "$MACOS_CERTIFICATE" ]]; then
+            echo "CSC_LINK=$MACOS_CERTIFICATE" >> "$GITHUB_ENV"
+            if [[ -n "$MACOS_CERTIFICATE_PASSWORD" ]]; then
+              echo "CSC_KEY_PASSWORD=$MACOS_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
+            fi
+          fi
+          if [[ -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+            echo "APPLE_ID=$APPLE_ID" >> "$GITHUB_ENV"
+            echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD" >> "$GITHUB_ENV"
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
+          fi
+      - run: npm run package:mac -- --${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         name: Upload macOS packages
         with:
