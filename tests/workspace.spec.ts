@@ -40,6 +40,19 @@ test.beforeEach(async ({ page }) => {
           { path: "/notes/new.md", name: "new.md", kind: "file" },
         ],
       }),
+      searchFolder: async () => ({
+        results: [
+          {
+            path: "/notes/folder-hit.md",
+            name: "folder-hit.md",
+            from: 0,
+            excerpt: "needle 在文件夹文档中",
+          },
+        ],
+        scanned: 1,
+        skipped: 0,
+        truncated: false,
+      }),
       open: async () => ({
         path: "/notes/note.md",
         name: "note.md",
@@ -73,6 +86,35 @@ test.beforeEach(async ({ page }) => {
       onAction: () => () => {},
     };
   });
+});
+
+test("跨文档搜索可按文档名排序并筛选已打开文档", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "zeta-search.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("needle 在 Zeta 文档中"),
+  });
+  await page.locator(".md-input").setInputFiles({
+    name: "alpha-search.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("needle 在 Alpha 文档中"),
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "搜索项目文件夹" }).click();
+  await page.getByLabel("搜索文件夹与已打开文档").fill("needle");
+  const resultNames = page.locator(".workspace-search-results button strong");
+  await expect(resultNames).toHaveCount(3);
+  await page.getByLabel("排序").selectOption("name");
+  await expect(resultNames).toHaveText([
+    "alpha-search.md",
+    "folder-hit.md",
+    "zeta-search.md",
+  ]);
+  await page.getByLabel("范围").selectOption("opened");
+  await expect(resultNames).toHaveCount(2);
+  await page.getByLabel("范围").selectOption("folder");
+  await expect(resultNames).toHaveText(["folder-hit.md"]);
 });
 
 test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾输入", async ({
