@@ -648,7 +648,7 @@ test("GFM 引用内嵌套任务和 CommonMark 硬换行在预览与导出中一�
 
 test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ page }) => {
   const source =
-    "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n文档结尾。";
+    "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n> 引用前 <!-- quote private note --> 引用后\n\n- 列表前 <!-- list private note --> 列表后\n\n行内代码 `<!-- code example -->`。\n\n```html\n<!-- fenced code example -->\n```\n\n文档结尾。";
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
     name: "html-comments.md",
@@ -662,10 +662,18 @@ test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ pag
   await expect(content).toContainText("段前");
   await expect(content).toContainText("段后");
   await expect(content).not.toContainText("private note");
+  await expect(content).toContainText("code example");
+  await expect(content).toContainText("fenced code example");
+
+  await content.press(documentStart);
+  await expect(content).toContainText("inline private note");
 
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(content).toContainText("inline private note");
   await expect(content).toContainText("block private note");
+  await expect(content).toContainText("quote private note");
+  await expect(content).toContainText("list private note");
+  await expect(content).toContainText("fenced code example");
 
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
@@ -674,6 +682,8 @@ test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ pag
     return module.exportHTML(markdown, "html-comments.md");
   }, source);
   expect(html).not.toContain("private note");
+  expect(html).toContain("code example");
+  expect(html).toContain("fenced code example");
 });
 
 test("HTML 预览和导出清除畸形事件属性与危险链接", async ({ page }) => {
