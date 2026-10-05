@@ -3,6 +3,7 @@ import { WidgetType, type EditorView } from "@codemirror/view";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { usableLink } from "./links";
+import { inlineMathMatches, renderMath } from "./math";
 export const linkHandler = Facet.define<
   (href: string) => void,
   (href: string) => void
@@ -32,6 +33,27 @@ export class LinkWidget extends WidgetType {
       marked.parseInline(this.label, { async: false }) as string,
       { ALLOWED_TAGS: ["strong", "em", "s", "code", "br"], ALLOWED_ATTR: [] },
     );
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(anchor, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+    for (const textNode of textNodes) {
+      if (textNode.parentElement?.closest("code")) continue;
+      const matches = inlineMathMatches(textNode.data);
+      for (const match of matches.reverse()) {
+        const formula = document.createElement("span");
+        formula.className = "inline-formula";
+        formula.textContent = match.text;
+        formula.title = "点击编辑公式";
+        textNode.splitText(match.to);
+        const source = textNode.splitText(match.from);
+        source.replaceWith(formula);
+        void renderMath(match.text, { throwOnError: false, trust: false })
+          .then((html) => {
+            if (formula.isConnected) formula.innerHTML = html;
+          })
+          .catch(() => {});
+      }
+    }
     if (!anchor.textContent?.trim()) anchor.textContent = this.label;
     const click = (event: MouseEvent) => {
       event.preventDefault();

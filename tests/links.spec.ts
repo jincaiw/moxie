@@ -87,6 +87,43 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
   expect(errors).toEqual([]);
 });
 
+test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "公式链接.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# 公式链接\n\n[公式 $x+1$ 与 `$code$`](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
+    ),
+  });
+
+  const link = page.getByRole("link", { name: /公式/ });
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://example.test/search?q=$query$",
+  );
+  await page.locator(".cm-line").filter({ hasText: "公式链接" }).click();
+  await expect(page.locator(".inline-formula")).toHaveCount(2);
+  await expect(page.locator(".rendered-link .inline-formula")).toContainText(
+    "x+1",
+  );
+  await expect(page.locator(".rendered-link code")).toHaveText("$code$");
+  await expect(page.locator(".inline-formula").last()).toContainText("a2+b2");
+
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(
+      "[公式 $x+1$ 与 `$code$`](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
+      "公式链接.md",
+    );
+  });
+  expect(html).toContain('href="https://example.test/search?q=$query$"');
+  expect(html).toContain("<code>$code$</code>");
+  expect(html.match(/<math/g)).toHaveLength(2);
+});
+
 test("文内标题、重复标题和关联文档锚点跳转", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

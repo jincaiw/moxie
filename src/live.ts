@@ -431,7 +431,8 @@ function build(
         if (
           node.name === "InlineCode" ||
           node.name === "FencedCode" ||
-          node.name === "CodeBlock"
+          node.name === "CodeBlock" ||
+          node.name === "URL"
         )
           codeRanges.push({ from: node.from, to: node.to });
         if (node.name === "FencedCode") {
