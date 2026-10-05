@@ -10,6 +10,7 @@
     "desktop": "npm run build && electron .",
     "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env MOXIE_DEV=1 electron .\"",
     "test": "playwright test",
+    "benchmark:long-doc": "MOXIE_PERF=1 playwright test tests/performance.spec.ts --workers=1",
     "package:mac": "npm run build && electron-builder --mac --publish never",
     "test:desktop": "node tests-desktop/files.cjs",
     "package:mac:zip": "npm run build && electron-builder --mac zip --publish never",
