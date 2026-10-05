@@ -652,6 +652,19 @@ export const Editor = forwardRef<EditorHandle, Props>(
                         .length + 1,
                     );
                   }
+                  if (
+                    latest.current.typewriter &&
+                    (update.docChanged || update.selectionSet)
+                  )
+                    requestAnimationFrame(() => {
+                      if (view.current === update.view)
+                        update.view.dispatch({
+                          effects: EditorView.scrollIntoView(
+                            update.view.state.selection.main.head,
+                            { y: "center" },
+                          ),
+                        });
+                    });
                   if (!update.docChanged) return;
                   latest.current.onDirty();
                   window.desktop?.dirty(true);
@@ -670,16 +683,6 @@ export const Editor = forwardRef<EditorHandle, Props>(
                     () => flushChangeRef.current(),
                     400,
                   );
-                  if (latest.current.typewriter)
-                    requestAnimationFrame(() => {
-                      if (view.current === update.view)
-                        update.view.dispatch({
-                          effects: EditorView.scrollIntoView(
-                            update.view.state.selection.main.head,
-                            { y: "center" },
-                          ),
-                        });
-                    });
                 }),
               ],
             });

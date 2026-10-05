@@ -274,6 +274,46 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toBeVisible();
 });
 
+test("打字机模式在方向键移动光标后继续居中当前行", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.preferences.v2",
+      JSON.stringify({ typewriter: true }),
+    );
+  });
+  await page.goto("/");
+  const source = Array.from(
+    { length: 120 },
+    (_, index) => `第 ${index + 1} 行`,
+  ).join("\n\n");
+  await page.locator("input.md-input").setInputFiles({
+    name: "打字机.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.click();
+  await page.keyboard.press("Control+Home");
+  for (let index = 0; index < 80; index++)
+    await page.keyboard.press("ArrowDown");
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const cursor = document.querySelector(".cm-cursor");
+        const viewport = document.querySelector(".document-area");
+        if (!cursor || !viewport) return Infinity;
+        const cursorRect = cursor.getBoundingClientRect();
+        const viewportRect = viewport.getBoundingClientRect();
+        return Math.abs(
+          cursorRect.top +
+            cursorRect.height / 2 -
+            (viewportRect.top + viewportRect.height / 2),
+        );
+      }),
+    )
+    .toBeLessThan(48);
+});
+
 test("浏览器 PDF 打印采用纸张方向和页边距设置", async ({ page }) => {
   await page.addInitScript(() => {
     const state = window as typeof window & {
