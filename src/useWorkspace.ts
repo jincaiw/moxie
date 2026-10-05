@@ -651,6 +651,18 @@ export function useWorkspace(
       return result;
     });
   }, []);
+  const moveDocument = useCallback((id: string, targetId: string) => {
+    if (id === targetId) return;
+    const currentDocs = docsRef.current;
+    const from = currentDocs.findIndex((document) => document.id === id);
+    const to = currentDocs.findIndex((document) => document.id === targetId);
+    if (from < 0 || to < 0) return;
+    const next = [...currentDocs];
+    const [document] = next.splice(from, 1);
+    next.splice(to, 0, document);
+    docsRef.current = next;
+    setDocs(next);
+  }, []);
   return {
     docs,
     recoveryReady,
@@ -673,5 +685,6 @@ export function useWorkspace(
     flush,
     flushAsync,
     remove,
+    moveDocument,
   };
 }

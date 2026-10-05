@@ -149,6 +149,7 @@ export default function App() {
   const searchGeneration = useRef(0);
   const [recovered, setRecovered] = useState(() => docs.some((d) => d.dirty));
   const editor = useRef<EditorHandle>(null);
+  const draggedDocument = useRef<string | null>(null);
   const workspaceSearchInput = useRef<HTMLInputElement>(null);
   const upload = useRef<HTMLInputElement>(null);
   const imageUpload = useRef<HTMLInputElement>(null);
@@ -1134,6 +1135,76 @@ export default function App() {
             </section>
           )}
         </header>
+        {docs.length > 1 && (
+          <nav className="document-tabs" role="tablist" aria-label="打开的文档">
+            {docs.map((document, index) => (
+              <div
+                className={
+                  "document-tab " +
+                  (document.id === current.id ? "selected" : "")
+                }
+                role="presentation"
+                key={document.id}
+                draggable
+                onDragStart={(event) => {
+                  draggedDocument.current = document.id;
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", document.id);
+                }}
+                onDragOver={(event) => {
+                  if (draggedDocument.current) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const moving = draggedDocument.current;
+                  if (moving) workspace.moveDocument(moving, document.id);
+                  draggedDocument.current = null;
+                }}
+                onDragEnd={() => {
+                  draggedDocument.current = null;
+                }}
+              >
+                <button
+                  className="document-tab-select"
+                  role="tab"
+                  aria-selected={document.id === current.id}
+                  aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
+                  title={`${document.name} · 拖动可排序；按 Alt+Shift+方向键可移动`}
+                  onClick={() => workspace.setActive(document.id)}
+                  onKeyDown={(event) => {
+                    if (!event.altKey || !event.shiftKey) return;
+                    const offset =
+                      event.key === "ArrowLeft"
+                        ? -1
+                        : event.key === "ArrowRight"
+                          ? 1
+                          : 0;
+                    const target = docs[index + offset];
+                    if (!target) return;
+                    event.preventDefault();
+                    workspace.moveDocument(document.id, target.id);
+                  }}
+                >
+                  {document.dirty && (
+                    <i className="document-tab-dirty" aria-label="未保存" />
+                  )}
+                  <span>{document.name}</span>
+                </button>
+                <button
+                  className="document-tab-close"
+                  aria-label={`关闭 ${document.name}`}
+                  title="关闭文档"
+                  onClick={() => requestClose(document)}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            ))}
+          </nav>
+        )}
         {recovered && (
           <div className="recovery-banner">
             已恢复上次会话的未保存文档。请保存到文件。

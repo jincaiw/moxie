@@ -274,6 +274,77 @@ p {
 .toolbar button {
   -webkit-app-region: no-drag;
 }
+.document-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+  flex: 0 0 38px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 12px 0;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+.document-tab {
+  display: flex;
+  align-items: center;
+  min-width: 90px;
+  max-width: 220px;
+  flex: 0 1 180px;
+  border-radius: 6px 6px 0 0;
+  color: var(--muted);
+  cursor: grab;
+}
+.document-tab:active {
+  cursor: grabbing;
+}
+.document-tab.selected {
+  color: var(--text);
+  background: var(--selected);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.document-tab-select {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+  height: 33px;
+  padding: 0 8px 0 11px;
+  text-align: left;
+  font-size: 12px;
+}
+.document-tab-select span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.document-tab-dirty {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.document-tab-close {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 3px;
+  border-radius: 4px;
+  opacity: 0;
+  flex-shrink: 0;
+}
+.document-tab:hover .document-tab-close,
+.document-tab:focus-within .document-tab-close,
+.document-tab.selected .document-tab-close {
+  opacity: 1;
+}
+.document-tab-close:hover {
+  color: var(--text);
+}
 .document-title {
   display: flex;
   align-items: center;
