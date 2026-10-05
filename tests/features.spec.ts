@@ -140,6 +140,26 @@ test("任务勾选写回 Markdown，格式快捷键与关闭文档提示", async
   ).toHaveCount(0);
 });
 
+test("标签中键关闭会保留未保存修改确认", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "新建文件", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.click();
+  await page.keyboard.type("未保存内容");
+
+  const tab = page
+    .getByRole("tablist", { name: "打开的文档" })
+    .getByRole("tab", { name: "未命名.md" });
+  await tab.click({ button: "middle" });
+  await expect(page.getByRole("dialog", { name: "关闭文档" })).toBeVisible();
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(editor).toContainText("未保存内容");
+
+  await tab.click({ button: "middle" });
+  await page.getByRole("button", { name: "放弃修改", exact: true }).click();
+  await expect(tab).toHaveCount(0);
+});
+
 test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

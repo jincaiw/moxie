@@ -1191,8 +1191,13 @@ export default function App() {
                   role="tab"
                   aria-selected={document.id === current.id}
                   aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
-                  title={`${document.name} · 拖动可排序；按 Alt+Shift+方向键可移动`}
+                  title={`${document.name} · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动`}
                   onClick={() => workspace.setActive(document.id)}
+                  onAuxClick={(event) => {
+                    if (event.button !== 1) return;
+                    event.preventDefault();
+                    requestClose(document);
+                  }}
                   onKeyDown={(event) => {
                     if (!event.altKey || !event.shiftKey) return;
                     const offset =
