@@ -44,7 +44,7 @@
 | 进行中 | 高     | macOS 更新发布与端到端验收          | 客户端和 GitHub 更新元数据/ZIP 发布已接入；需配置 Developer ID 与公证密钥，真机验证 arm64/x64 检查、下载、签名校验和安装。                                                                                                                                                                               |
 | 受阻   | 中     | Windows/Linux 正式安装包            | 当前 electron-builder 仅配置 macOS；完成平台文件对话框、路径、安全和对应更新渠道适配后再扩展。                                                                                                                                                                                                           |
 
-v0.16.38 已修复 IndexedDB 大文档恢复快照回退，但 macOS 打包工作流把空签名 Secrets 当作证书路径，未生成安装包。v0.16.39 修正为仅在凭据非空时注入签名变量；浏览器与桌面逻辑回归及生产构建通过，待新标签流水线确认安装包与 Release。
+v0.16.39 已发布 arm64/x64 DMG 与 ZIP、blockmap、合并后的 `latest-mac.yml` 和 SHA256 校验文件。浏览器 52 项、桌面逻辑 15 项、生产构建及两架构打包全部通过。因仓库未配置 Apple Developer 签名/公证 Secrets，当前包未签名；Gatekeeper 首次启动和应用内自动更新仍待真机验收。
 
 ### 已完成并从未完成清单移出
 

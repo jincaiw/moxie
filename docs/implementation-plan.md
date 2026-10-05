@@ -304,7 +304,9 @@
 ## v0.16.39 发布候选
 
 - [x] 发布工作流只在证书/公证 Secrets 非空时设置对应环境变量，允许缺少凭据时按配置生成未签名包。
-- [ ] 推送 v0.16.39 标签并确认 GitHub Actions 生成 arm64/x64 安装包与 Release；Apple 签名/公证仍取决于仓库密钥配置。
+- [x] 推送 v0.16.39 标签；GitHub Actions 验证、arm64/x64 构建、更新清单合并、校验和生成及 Release 上传全部成功。
+- [x] Release 附带 arm64/x64 DMG/ZIP、ZIP blockmap、`latest-mac.yml` 和 `SHA256SUMS.txt`。
+- [ ] Apple Developer 签名、公证、Gatekeeper 首次启动和应用内自动更新仍需真实凭据与 Mac 验收；当前产物未签名。
 
 ## v0.16.34 基线交付与剩余事项
 

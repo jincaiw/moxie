@@ -37,6 +37,12 @@ npm run package:mac
 
 推送 `v*` 格式的 Git tag 会由 GitHub Actions 在 macOS Runner 上构建 arm64/x64 DMG 与 ZIP，并创建 GitHub Release、附上 SHA-256 校验文件。没有 Apple Developer 凭据时，产物仍为未签名、未公证版本。
 
+## v0.16.39 已发布
+
+- 修复大文档 IndexedDB 恢复写队列以延迟旧快照覆盖新文本的问题。
+- 修复 macOS 发布流水线在签名 Secrets 为空时误把工作目录当作证书路径的问题。
+- GitHub Release 提供 arm64/x64 DMG 与 ZIP、更新 blockmap、合并后的 `latest-mac.yml` 和 `SHA256SUMS.txt`。当前包未签名/公证，不能用于应用内自动安装；需在真实 Mac 配置 Apple Developer 凭据并验收后启用。
+
 ## v0.16.36 已实现
 
 - 接入 electron-updater 和 GitHub Releases：启动/手动检查、按需下载、进度反馈与重启安装。
