@@ -544,14 +544,50 @@ test("arm64 与 x64 更新清单合并并拒绝缺失架构", () => {
     version: "0.17.0",
     path: `Moxie-0.17.0-${arch}.zip`,
     sha512: `${arch}-checksum`,
-    files: [{ url: `Moxie-0.17.0-${arch}.zip`, sha512: `${arch}-checksum` }],
+    files: [
+      {
+        url: "Moxie-0.17.0-x64.zip",
+        sha512: `${arch}-x64-zip`,
+        size: 100,
+      },
+      {
+        url: "Moxie-0.17.0-arm64.zip",
+        sha512: `${arch}-arm64-zip`,
+        size: 90,
+      },
+      {
+        url: "Moxie-0.17.0-x64.dmg",
+        sha512: `${arch}-x64-dmg`,
+        size: 110,
+      },
+      {
+        url: "Moxie-0.17.0-arm64.dmg",
+        sha512: `${arch}-arm64-dmg`,
+        size: 95,
+      },
+    ],
   });
   const merged = mergeMacUpdateInfo(metadata("arm64"), metadata("x64"));
-  assert.equal(merged.files.length, 2);
+  assert.equal(merged.files.length, 4);
+  assert.deepEqual(
+    merged.files.map(({ url, sha512, size }) => [url, sha512, size]),
+    [
+      ["Moxie-0.17.0-arm64.zip", "arm64-arm64-zip", 90],
+      ["Moxie-0.17.0-arm64.dmg", "arm64-arm64-dmg", 95],
+      ["Moxie-0.17.0-x64.zip", "x64-x64-zip", 100],
+      ["Moxie-0.17.0-x64.dmg", "x64-x64-dmg", 110],
+    ],
+  );
   assert.equal("path" in merged, false);
+  const arm64OnlyMetadata = {
+    ...metadata("arm64"),
+    files: metadata("arm64").files.filter((file) =>
+      file.url.includes("-arm64."),
+    ),
+  };
   assert.throws(
-    () => mergeMacUpdateInfo(metadata("arm64"), metadata("arm64")),
-    /同时包含 arm64 和 x64/,
+    () => mergeMacUpdateInfo(metadata("arm64"), arm64OnlyMetadata),
+    /包含唯一且正确架构的 arm64 和 x64/,
   );
   assert.throws(
     () =>
