@@ -1,6 +1,6 @@
 import { Facet } from "@codemirror/state";
 import { WidgetType, type EditorView } from "@codemirror/view";
-import { marked } from "marked";
+import { Marked } from "marked";
 import DOMPurify from "dompurify";
 import { usableLink } from "./links";
 import { inlineMathMatches, renderMath } from "./math";
@@ -29,25 +29,54 @@ export class LinkWidget extends WidgetType {
     anchor.href = usableLink(this.href) ? this.href : "#";
     anchor.dataset.mdLink = this.href;
     anchor.title = `${this.href}\n⌘/Ctrl + 单击打开，单击编辑`;
+    const formulas: string[] = [];
+    const labelParser = new Marked();
+    labelParser.use({
+      extensions: [
+        {
+          name: "linkLabelMath",
+          level: "inline",
+          start(source) {
+            return inlineMathMatches(source)[0]?.from;
+          },
+          tokenizer(source) {
+            const match = inlineMathMatches(source)[0];
+            if (match?.from === 0)
+              return {
+                type: "linkLabelMath",
+                raw: match.raw,
+                text: match.text,
+              };
+          },
+          renderer(token) {
+            const index = formulas.push(token.text) - 1;
+            return `\uE000${index}\uE001`;
+          },
+        },
+      ],
+    });
     anchor.innerHTML = DOMPurify.sanitize(
-      marked.parseInline(this.label, { async: false }) as string,
+      labelParser.parseInline(this.label, { async: false }) as string,
       { ALLOWED_TAGS: ["strong", "em", "s", "code", "br"], ALLOWED_ATTR: [] },
     );
     const textNodes: Text[] = [];
     const walker = document.createTreeWalker(anchor, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
     for (const textNode of textNodes) {
-      if (textNode.parentElement?.closest("code")) continue;
-      const matches = inlineMathMatches(textNode.data);
-      for (const match of matches.reverse()) {
+      const markers = [...textNode.data.matchAll(/\uE000(\d+)\uE001/g)];
+      for (const marker of markers.reverse()) {
+        const index = Number(marker[1]);
+        const math = formulas[index];
+        if (math === undefined) continue;
         const formula = document.createElement("span");
         formula.className = "inline-formula";
-        formula.textContent = match.text;
+        formula.textContent = math;
         formula.title = "点击编辑公式";
-        textNode.splitText(match.to);
-        const source = textNode.splitText(match.from);
+        const start = marker.index!;
+        const source = textNode.splitText(start);
+        source.splitText(marker[0].length);
         source.replaceWith(formula);
-        void renderMath(match.text, { throwOnError: false, trust: false })
+        void renderMath(math, { throwOnError: false, trust: false })
           .then((html) => {
             if (formula.isConnected) formula.innerHTML = html;
           })

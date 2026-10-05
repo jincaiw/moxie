@@ -93,7 +93,7 @@ test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
     name: "公式链接.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "# 公式链接\n\n[公式 $x+1$ 与 `$code$`](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
+      "# 公式链接\n\n[公式 $x+1$ 与 `$code$` 和 \\$literal$](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
     ),
   });
 
@@ -108,6 +108,7 @@ test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
     "x+1",
   );
   await expect(page.locator(".rendered-link code")).toHaveText("$code$");
+  await expect(link).toContainText("$literal$");
   await expect(page.locator(".inline-formula").last()).toContainText("a2+b2");
 
   const html = await page.evaluate(async () => {
@@ -115,7 +116,7 @@ test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
       "return import('/src/export.ts')",
     )()) as { exportHTML: (source: string, name: string) => Promise<string> };
     return module.exportHTML(
-      "[公式 $x+1$ 与 `$code$`](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
+      "[公式 $x+1$ 与 `$code$` 和 \\$literal$](https://example.test/search?q=$query$)\n\n独立公式 $a^2+b^2$。",
       "公式链接.md",
     );
   });
