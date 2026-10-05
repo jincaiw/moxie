@@ -109,6 +109,24 @@ class RenderWidget extends WidgetType {
   }
 }
 
+function enableHTMLSourceEditing(
+  element: HTMLElement,
+  view: EditorView,
+  from: number,
+) {
+  element.tabIndex = 0;
+  element.setAttribute("role", "button");
+  const editSource = (event: Event) => {
+    event.preventDefault();
+    view.dispatch({ selection: { anchor: from } });
+    view.focus();
+  };
+  element.addEventListener("mousedown", editSource);
+  element.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") editSource(event);
+  });
+}
+
 class RawHTMLWidget extends WidgetType {
   constructor(
     readonly source: string,
@@ -133,11 +151,7 @@ class RawHTMLWidget extends WidgetType {
       marked.parse(this.source, { async: false }) as string,
     );
     hydrateHTMLImages(el, view, this.path);
-    el.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.dispatch({ selection: { anchor: this.from } });
-      view.focus();
-    });
+    enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
   ignoreEvent() {
@@ -169,11 +183,7 @@ class InlineHTMLWidget extends WidgetType {
     );
     hydrateHTMLImages(el, view, this.path);
     el.title = "点击编辑原文";
-    el.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.dispatch({ selection: { anchor: this.from } });
-      view.focus();
-    });
+    enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
   ignoreEvent() {
@@ -205,11 +215,7 @@ class InlineHTMLParagraphWidget extends WidgetType {
       marked.parseInline(this.source, { async: false }) as string,
     );
     hydrateHTMLImages(el, view, this.path);
-    el.addEventListener("mousedown", (event) => {
-      event.preventDefault();
-      view.dispatch({ selection: { anchor: this.from } });
-      view.focus();
-    });
+    enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
   ignoreEvent() {

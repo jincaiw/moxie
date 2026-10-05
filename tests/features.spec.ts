@@ -422,6 +422,26 @@ test("原始 HTML 区块在编辑器中净化预览并可回到源码", async ({
   await expect(page.locator(".cm-content")).toContainText("window.__unsafe");
 });
 
+test("行内 HTML 预览可通过键盘聚焦并按空格编辑源码", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "inline-html-keyboard.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 键盘预览\n\n前文 <span>行内 HTML</span> 后文"),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press("Control+Home");
+  const preview = page.locator(".md-inline-html-preview");
+  await expect(preview).toHaveAttribute("role", "button");
+  await expect(preview).toHaveAttribute("tabindex", "0");
+  await preview.focus();
+  await preview.press("Space");
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await expect(page.locator(".cm-content")).toContainText(
+    "<span>行内 HTML</span>",
+  );
+});
+
 test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
