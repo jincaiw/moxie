@@ -167,10 +167,15 @@ export function useWorkspace(
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
   const recoveryWriteQueue = useRef<Promise<void>>(Promise.resolve());
-  const queueRecoveryWrite = useCallback((snapshot: RecoverySnapshot) => {
+  const queueRecoveryWrite = useCallback(() => {
     const next = recoveryWriteQueue.current
       .catch(() => {})
-      .then(() => writeIndexedRecovery(snapshot));
+      .then(() =>
+        writeIndexedRecovery({
+          docs: docsRef.current,
+          active: currentRef.current.id,
+        }),
+      );
     recoveryWriteQueue.current = next;
     return next;
   }, []);
@@ -191,10 +196,7 @@ export function useWorkspace(
       return true;
     } catch {
       setRecoveryStatus("正在保存大文档恢复副本");
-      void queueRecoveryWrite({
-        docs: docsRef.current,
-        active: currentRef.current.id,
-      })
+      void queueRecoveryWrite()
         .then(() => {
           try {
             localStorage.removeItem(recoveryKey);
@@ -229,7 +231,7 @@ export function useWorkspace(
     } catch {
       setRecoveryStatus("正在保存大文档恢复副本");
       try {
-        await queueRecoveryWrite(snapshot);
+        await queueRecoveryWrite();
         try {
           localStorage.removeItem(recoveryKey);
         } catch {}
@@ -429,10 +431,7 @@ export function useWorkspace(
         next.reduce((size, document) => size + document.text.length, 0) >
         localRecoveryLimit
       ) {
-        void queueRecoveryWrite({
-          docs: next,
-          active: currentRef.current.id,
-        })
+        void queueRecoveryWrite()
           .then(() => {
             try {
               localStorage.removeItem(recoveryKey);

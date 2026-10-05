@@ -117,8 +117,34 @@ test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾�
     { timeout: 30_000 },
   );
   await page.waitForTimeout(500);
+  const stableRecovery = await page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("moxie.recovery.v1", 1);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const snapshot = await new Promise<{
+      docs?: { name: string; text: string }[];
+    } | null>((resolve, reject) => {
+      const request = database
+        .transaction("snapshots")
+        .objectStore("snapshots")
+        .get("latest");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    database.close();
+    return snapshot?.docs?.some(
+      (document) =>
+        document.name === "长文恢复.md" && document.text.endsWith("恢复标记"),
+    );
+  });
+  expect(stableRecovery).toBe(true);
   await page.reload();
   await expect(page.locator(".document-title")).toContainText("长文恢复");
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.press("Control+End");
+  await expect(editor).toContainText("恢复标记", { timeout: 30_000 });
   await page.keyboard.press("Control+s");
   await expect
     .poll(() =>

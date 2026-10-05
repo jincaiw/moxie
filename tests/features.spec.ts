@@ -122,12 +122,14 @@ test("任务勾选写回 Markdown，格式快捷键与关闭文档提示", async
   await page.keyboard.insertText("强调段落");
   await expect(editor).toContainText("**强调段落**");
   await page
+    .getByRole("tablist", { name: "打开的文档" })
     .getByRole("button", { name: "关闭 未命名.md", exact: true })
     .click();
   await expect(page.getByRole("dialog", { name: "关闭文档" })).toBeVisible();
   await page.getByRole("button", { name: "取消", exact: true }).click();
   await expect(editor).toContainText("强调段落");
   await page
+    .getByRole("tablist", { name: "打开的文档" })
     .getByRole("button", { name: "关闭 未命名.md", exact: true })
     .click();
   await page.getByRole("button", { name: "放弃修改", exact: true }).click();
