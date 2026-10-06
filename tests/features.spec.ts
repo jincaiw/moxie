@@ -1562,6 +1562,14 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
     [1, "列表标题"],
     [1, "列表 Setext"],
   ]);
+  const tabSeparated =
+    ">\t# 制表符引用标题\n\n> -\t## 制表符列表标题\n\n\t# 缩进代码中的假标题";
+  expect(
+    headings(tabSeparated).map(({ level, title }) => [level, title]),
+  ).toEqual([
+    [1, "制表符引用标题"],
+    [2, "制表符列表标题"],
+  ]);
 });
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
