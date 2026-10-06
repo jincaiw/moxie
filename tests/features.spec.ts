@@ -197,6 +197,60 @@ test("图库版本更新必须明确确认，并保留来源版本", async ({ pa
     .toBe("1.1.0");
 });
 
+test("主题包处理中禁用重复安装操作并显示进度", async ({ page }) => {
+  const css = ":root { --accent: #426b91; }";
+  await page.addInitScript(
+    ({ catalogText, css }) => {
+      const originalFetch = window.fetch.bind(window);
+      (window as Window & { themeDownloadCount?: number }).themeDownloadCount =
+        0;
+      window.fetch = async (input, init) => {
+        const url = String(input);
+        if (url.endsWith("theme-catalog-v1.json"))
+          return new Response(catalogText, { status: 200 });
+        if (url.endsWith("theme-mist-blue.css")) {
+          const scope = window as Window & {
+            themeDownloadCount?: number;
+          };
+          scope.themeDownloadCount = (scope.themeDownloadCount || 0) + 1;
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          return new Response(css, { status: 200 });
+        }
+        return originalFetch(input, init);
+      };
+    },
+    { catalogText: JSON.stringify(themeCatalogFixture(css)), css },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await page.getByRole("button", { name: /雾蓝/ }).click();
+  const install = page.getByRole("button", { name: "确认安装并应用" });
+  await install.click();
+  await expect(
+    page.getByRole("button", { name: "正在下载并校验…" }),
+  ).toBeDisabled();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as Window & { themeDownloadCount?: number })
+            .themeDownloadCount,
+      ),
+    )
+    .toBe(1);
+  await expect(page.locator(".theme-css-editor [role='status']")).toContainText(
+    "已安装并应用",
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("moxie.preferences.v2")!).savedThemes
+          .length,
+    ),
+  ).toBe(1);
+});
+
 test("图库撤回主题时提示原因并保留本地副本", async ({ page }) => {
   const catalog = themeCatalogFixture(":root { --accent: #315f85; }");
   catalog.themes = [];

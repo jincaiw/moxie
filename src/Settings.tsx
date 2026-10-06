@@ -87,6 +87,9 @@ export function Settings({
   const [galleryAppearance, setGalleryAppearance] = useState("all");
   const [selectedGalleryTheme, setSelectedGalleryTheme] =
     useState<GalleryTheme | null>(null);
+  const [installingGalleryThemeId, setInstallingGalleryThemeId] = useState<
+    string | null
+  >(null);
   const cssError = themeCSSError(preferences.customCSS);
   const activeTheme = preferences.savedThemes.find(
     (theme) => theme.name === preferences.activeSavedTheme,
@@ -145,6 +148,7 @@ export function Settings({
     }
   };
   const installGalleryTheme = async (theme: GalleryTheme) => {
+    if (installingGalleryThemeId) return;
     const previous = preferences.savedThemes.find(
       (saved) => saved.gallery?.id === theme.id,
     );
@@ -164,6 +168,7 @@ export function Settings({
       setThemeMessage("本地主题库已满；删除一个主题后才能安装。");
       return;
     }
+    setInstallingGalleryThemeId(theme.id);
     try {
       const css = await downloadVerifiedTheme(theme);
       const total =
@@ -197,6 +202,8 @@ export function Settings({
       );
     } catch (error) {
       setGalleryError(themeRequestError(error, "主题下载或校验失败。"));
+    } finally {
+      setInstallingGalleryThemeId(null);
     }
   };
   const saveTheme = () => {
@@ -594,13 +601,14 @@ export function Settings({
                         <p role="status">
                           已安装版本 {installedGalleryTheme?.gallery?.version}
                           ，图库提供新版本 {selectedGalleryTheme.version}
-                          。确认后将替换该主题，更新不会自动应用到其他主题。
+                          。确认后将替换并应用这个本地主题，其他已保存主题不受影响。
                         </p>
                       )}
                       <button
                         type="button"
                         disabled={
                           galleryLoading ||
+                          Boolean(installingGalleryThemeId) ||
                           Boolean(
                             installedGalleryTheme && !galleryUpdateAvailable,
                           )
@@ -610,11 +618,15 @@ export function Settings({
                         }
                       >
                         <Check size={15} />{" "}
-                        {galleryUpdateAvailable
-                          ? "确认更新并应用"
-                          : installedGalleryTheme
-                            ? "已安装"
-                            : "确认安装并应用"}
+                        {installingGalleryThemeId === selectedGalleryTheme.id
+                          ? "正在下载并校验…"
+                          : installingGalleryThemeId
+                            ? "另一主题正在安装…"
+                            : galleryUpdateAvailable
+                              ? "确认更新并应用"
+                              : installedGalleryTheme
+                                ? "已安装"
+                                : "确认安装并应用"}
                       </button>
                     </div>
                   </div>
