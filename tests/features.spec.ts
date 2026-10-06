@@ -1574,11 +1574,12 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
   const source =
-    '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n<h3>\n多行 HTML 标题\n</h3>\n\n<h4>前半标题<br>后半标题</h4>\n\n```html\n<h1>代码示例</h1>\n```\n';
+    '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n<h3>\n多行 HTML 标题\n</h3>\n\n<h4>前半标题<br>后半标题</h4>\n\n<h5>可见<!-- 注释 --><script>隐藏脚本</script><style>.hidden {}</style>标题</h5>\n\n```html\n<h1>代码示例</h1>\n```\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [2, "HTML & 标题"],
     [3, "多行 HTML 标题"],
     [4, "前半标题 后半标题"],
+    [5, "可见标题"],
   ]);
   expect(headings("#title\n# title\n").map(({ title }) => title)).toEqual([
     "title",

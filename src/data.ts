@@ -100,6 +100,8 @@ function markdownContainerContent(line: string) {
 }
 function htmlHeadingTitle(source: string) {
   return source
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
     .replace(/<br\s*\/?>/gi, " ")
     .replace(/<[^>]*>/g, "")
     .replace(
