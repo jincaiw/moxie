@@ -9,26 +9,29 @@ const {
 const fs = require("node:fs/promises");
 const { URL } = require("node:url");
 const path = require("node:path");
+const { randomUUID } = require("node:crypto");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
 const { autoUpdater } = require("electron-updater");
 const { UpdateController } = require("./updater.cjs");
-let main,
-  store,
+let store,
   updates,
-  dirty = false,
-  allowClose = false,
-  askingClose = false;
+  windowSequence = 0;
+const windowSessionScope = randomUUID();
+const windowStates = new Map();
 const isDev = process.env.MOXIE_DEV === "1";
-function action(name) {
-  main?.webContents.send("menu:action", name);
+function action(name, target) {
+  const window =
+    target ||
+    BrowserWindow.getFocusedWindow?.() ||
+    [...windowStates.values()].at(-1)?.window;
+  if (window && !window.isDestroyed?.())
+    window.webContents.send("menu:action", name);
 }
 function verify(event) {
-  if (
-    !main ||
-    event.sender !== main.webContents ||
-    event.senderFrame !== main.webContents.mainFrame
-  )
+  const state = windowStates.get(event.sender);
+  if (!state || event.senderFrame !== event.sender.mainFrame)
     throw Error("拒绝未知窗口的请求");
+  return state;
 }
 function pdfOptions(input) {
   const pdf = input && typeof input === "object" ? input : {};
@@ -92,15 +95,15 @@ async function renderPDF(html, settings) {
 function setupIPC() {
   const handle = (name, handler) =>
     ipcMain.handle(name, async (event, input) => {
-      verify(event);
-      return handler(input);
+      const state = verify(event);
+      return handler(input, state);
     });
   handle("update:status", () => updates.getStatus());
   handle("update:check", () => updates.check());
   handle("update:download", () => updates.download());
   handle("update:install", () => updates.install());
-  handle("file:open", async () => {
-    const result = await dialog.showOpenDialog(main, {
+  handle("file:open", async (_input, { window }) => {
+    const result = await dialog.showOpenDialog(window, {
       properties: ["openFile"],
       filters: [
         { name: "Markdown 文档", extensions: ["md", "markdown", "txt"] },
@@ -108,8 +111,8 @@ function setupIPC() {
     });
     return result.canceled ? null : store.read(result.filePaths[0]);
   });
-  handle("file:folder", async () => {
-    const result = await dialog.showOpenDialog(main, {
+  handle("file:folder", async (_input, { window }) => {
+    const result = await dialog.showOpenDialog(window, {
       properties: ["openDirectory"],
     });
     if (result.canceled) return null;
@@ -140,18 +143,18 @@ function setupIPC() {
     store.recent.map((file) => ({ path: file, name: path.basename(file) })),
   );
   handle("file:reopen", (file) => store.read(file, true));
-  handle("file:save", (input) =>
+  handle("file:save", (input, { window }) =>
     store.save(
       input,
       async (defaultPath) => {
-        const result = await dialog.showSaveDialog(main, {
+        const result = await dialog.showSaveDialog(window, {
           defaultPath,
           filters: [{ name: "Markdown 文档", extensions: ["md"] }],
         });
         return result.canceled ? null : result.filePath;
       },
       async () => {
-        const result = await dialog.showMessageBox(main, {
+        const result = await dialog.showMessageBox(window, {
           type: "warning",
           message: "文件已被其他程序修改或删除",
           detail: "覆盖将替换磁盘上的版本。可取消并使用“另存为”保留两个版本。",
@@ -174,12 +177,12 @@ function setupIPC() {
     const buffer = await renderPDF(html, input.pdf);
     return new Uint8Array(buffer);
   });
-  handle("file:export", async (input) => {
+  handle("file:export", async (input, { window }) => {
     validateText(input.html);
     if (!["html", "pdf", "docx"].includes(input.format))
       throw Error("不支持的导出格式");
     const extension = input.format === "docx" ? "docx" : input.format;
-    const result = await dialog.showSaveDialog(main, {
+    const result = await dialog.showSaveDialog(window, {
       defaultPath:
         path.basename(String(input.name)).replace(/\.(md|markdown)$/i, "") +
         "." +
@@ -222,21 +225,20 @@ function setupIPC() {
     return true;
   });
   ipcMain.on("document:dirty", (event, value) => {
-    verify(event);
-    dirty = Boolean(value);
-    main.setDocumentEdited(dirty);
+    const state = verify(event);
+    state.dirty = Boolean(value);
+    state.window.setDocumentEdited(state.dirty);
   });
   ipcMain.on("window:close-ready", (event) => {
-    verify(event);
-    allowClose = true;
-    main.close();
+    const state = verify(event);
+    state.allowClose = true;
+    state.window.close();
   });
 }
-function createWindow() {
-  dirty = false;
-  allowClose = false;
-  askingClose = false;
-  main = new BrowserWindow({
+function createWindow(primary = false) {
+  const id = ++windowSequence;
+  const state = { dirty: false, allowClose: false, askingClose: false };
+  const window = new BrowserWindow({
     width: 1280,
     height: 900,
     minWidth: 760,
@@ -246,20 +248,25 @@ function createWindow() {
     trafficLightPosition: { x: 17, y: 13 },
     backgroundColor: "#ffffff",
     webPreferences: {
+      ...(!primary && {
+        partition: `moxie-workspace-${windowSessionScope}-${id}`,
+      }),
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
   });
-  main.webContents.setWindowOpenHandler(({ url }) => {
+  state.window = window;
+  windowStates.set(window.webContents, state);
+  window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
-  main.webContents.once("did-finish-load", () => {
-    main.webContents.send("update:status", updates.getStatus());
+  window.webContents.once("did-finish-load", () => {
+    window.webContents.send("update:status", updates.getStatus());
   });
-  main.webContents.on("will-navigate", (event, url) => {
+  window.webContents.on("will-navigate", (event, url) => {
     const expected = isDev
       ? "http://127.0.0.1:5173/"
       : require("node:url").pathToFileURL(
@@ -270,13 +277,13 @@ function createWindow() {
       if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     }
   });
-  main.on("close", (event) => {
-    if (!dirty || allowClose) return;
+  window.on("close", (event) => {
+    if (!state.dirty || state.allowClose) return;
     event.preventDefault();
-    if (askingClose) return;
-    askingClose = true;
+    if (state.askingClose) return;
+    state.askingClose = true;
     void dialog
-      .showMessageBox(main, {
+      .showMessageBox(window, {
         type: "question",
         message: "还有未保存的文档",
         detail: "保存到文件，或保留恢复副本后关闭。",
@@ -285,24 +292,28 @@ function createWindow() {
         cancelId: 0,
       })
       .then((result) => {
-        if (result.response === 1) action("close-request");
-        if (result.response === 2) action("keep-close");
+        if (result.response === 1) action("close-request", window);
+        if (result.response === 2) action("keep-close", window);
       })
       .finally(() => {
-        askingClose = false;
+        state.askingClose = false;
       });
   });
-  if (isDev) void main.loadURL("http://127.0.0.1:5173");
-  else void main.loadFile(path.join(__dirname, "../dist/index.html"));
+  window.on("closed", () => windowStates.delete(window.webContents));
+  if (isDev) void window.loadURL("http://127.0.0.1:5173");
+  else void window.loadFile(path.join(__dirname, "../dist/index.html"));
+  return window;
 }
 function setupUpdater() {
   updates = new UpdateController({
     updater: autoUpdater,
     supported: app.isPackaged && process.platform === "darwin",
-    hasUnsavedChanges: () => dirty,
+    hasUnsavedChanges: () =>
+      [...windowStates.values()].some((state) => state.dirty),
     onStatus: (status) => {
-      if (main && !main.isDestroyed())
-        main.webContents.send("update:status", status);
+      for (const state of windowStates.values())
+        if (!state.window.isDestroyed())
+          state.window.webContents.send("update:status", status);
     },
   });
 }
@@ -335,6 +346,11 @@ function createMenu() {
         label: "文件",
         submenu: [
           command("新建", "new", "CmdOrCtrl+N"),
+          {
+            label: "新建窗口",
+            accelerator: "CmdOrCtrl+Shift+N",
+            click: () => createWindow(),
+          },
           command("打开…", "open", "CmdOrCtrl+O"),
           command("打开文件夹…", "folder"),
           { type: "separator" },
@@ -381,7 +397,15 @@ function createMenu() {
           { role: "togglefullscreen" },
         ],
       },
-      { label: "窗口", submenu: [{ role: "minimize" }, { role: "zoom" }] },
+      {
+        label: "窗口",
+        role: "window",
+        submenu: [
+          { label: "新建窗口", click: () => createWindow() },
+          { role: "minimize" },
+          { role: "zoom" },
+        ],
+      },
     ]),
   );
 }
@@ -392,10 +416,10 @@ app.whenReady().then(async () => {
   await store.init();
   setupUpdater();
   setupIPC();
-  createWindow();
+  createWindow(true);
   createMenu();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) createWindow(true);
   });
 });
 app.on("window-all-closed", () => {

@@ -12,16 +12,20 @@ async function harness() {
     events = new Map();
   const windows = [],
     externalUrls = [];
+  let menuTemplate, dialogParent;
   const mockUpdater = new EventEmitter();
   mockUpdater.checkForUpdates = async () => {};
   mockUpdater.downloadUpdate = async () => {};
-  mockUpdater.quitAndInstall = () => {};
+  mockUpdater.quitAndInstall = () => {
+    mockUpdater.installed = true;
+  };
   let openResult = { canceled: true },
     saveResult = { canceled: true },
     messageResult = { response: 0 };
   class Window extends EventEmitter {
-    constructor() {
+    constructor(options) {
       super();
+      this.options = options;
       this.calls = [];
       this.webContents = new EventEmitter();
       this.webContents.mainFrame = {};
@@ -38,6 +42,9 @@ async function harness() {
         return Buffer.from("%PDF-test");
       };
       windows.push(this);
+    }
+    isDestroyed() {
+      return Boolean(this.destroyed);
     }
     loadFile() {
       return Promise.resolve();
@@ -56,13 +63,29 @@ async function harness() {
     static getAllWindows() {
       return windows;
     }
+    static getFocusedWindow() {
+      return windows.at(-1);
+    }
   }
   const electron = {
-    app: { whenReady: () => Promise.resolve(), on: () => {}, quit: () => {} },
+    app: {
+      isPackaged: true,
+      whenReady: () => Promise.resolve(),
+      on: () => {},
+      quit: () => {},
+    },
     BrowserWindow: Window,
-    Menu: { setApplicationMenu: () => {}, buildFromTemplate: (x) => x },
+    Menu: {
+      setApplicationMenu: (x) => {
+        menuTemplate = x;
+      },
+      buildFromTemplate: (x) => x,
+    },
     dialog: {
-      showOpenDialog: async () => openResult,
+      showOpenDialog: async (parent) => {
+        dialogParent = parent;
+        return openResult;
+      },
       showSaveDialog: async () => saveResult,
       showMessageBox: async () => messageResult,
     },
@@ -104,6 +127,14 @@ async function harness() {
     };
   return {
     call: (name, input) => handlers.get(name)(event, input),
+    callFor: (name, target, input) =>
+      handlers.get(name)(
+        {
+          sender: target.webContents,
+          senderFrame: target.webContents.mainFrame,
+        },
+        input,
+      ),
     foreign: (name, input) =>
       handlers.get(name)({ sender: {}, senderFrame: {} }, input),
     open: (file) => {
@@ -120,6 +151,11 @@ async function harness() {
     externalUrls,
     events,
     event,
+    mockUpdater,
+    menuTemplate,
+    get dialogParent() {
+      return dialogParent;
+    },
   };
 }
 test("打开、原子保存、外部修改取消和明确覆盖", async () => {
@@ -243,6 +279,58 @@ test("关闭脏文档时取消有效，保留副本先通知渲染层", async ()
   assert.equal(h.window.closed, undefined);
   h.events.get("window:close-ready")(h.event);
   assert.equal(h.window.closed, true);
+});
+test("新建窗口隔离工作区存储和未保存关闭状态", async () => {
+  const h = await harness();
+  const fileMenu = h.menuTemplate.find((menu) => menu.label === "文件");
+  fileMenu.submenu.find((item) => item.label === "新建窗口").click();
+  assert.equal(h.windows.length, 2);
+  const [first, second] = h.windows;
+  assert.notEqual(
+    first.options.webPreferences.partition,
+    second.options.webPreferences.partition,
+  );
+  assert.match(second.options.webPreferences.partition, /^moxie-workspace-/);
+  assert.equal(
+    second.options.webPreferences.partition.startsWith("persist:"),
+    false,
+  );
+
+  h.events.get("document:dirty")(
+    { sender: first.webContents, senderFrame: first.webContents.mainFrame },
+    true,
+  );
+  h.events.get("document:dirty")(
+    { sender: second.webContents, senderFrame: second.webContents.mainFrame },
+    false,
+  );
+  let firstPrevented = false;
+  first.emit("close", {
+    preventDefault() {
+      firstPrevented = true;
+    },
+  });
+  let secondPrevented = false;
+  second.emit("close", {
+    preventDefault() {
+      secondPrevented = true;
+    },
+  });
+  assert.equal(firstPrevented, true);
+  assert.equal(secondPrevented, false);
+
+  h.mockUpdater.emit("update-available", { version: "0.16.62" });
+  h.mockUpdater.emit("update-downloaded", { version: "0.16.62" });
+  await assert.rejects(() => h.call("update:install"), /文档尚未保存/);
+  h.events.get("document:dirty")(
+    { sender: first.webContents, senderFrame: first.webContents.mainFrame },
+    false,
+  );
+  await h.call("update:install");
+  assert.equal(h.mockUpdater.installed, true);
+
+  await h.callFor("file:open", second);
+  assert.equal(h.dialogParent, second);
 });
 const { FileStore } = require("../electron/files.cjs");
 const png = Buffer.from(
