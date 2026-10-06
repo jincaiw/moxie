@@ -78,6 +78,7 @@ export type DocumentFile = {
   diskText?: string;
   diskVersion?: string;
   dirty?: boolean;
+  group?: string;
 };
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];

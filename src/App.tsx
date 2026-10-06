@@ -121,6 +121,22 @@ export default function App() {
   const [pdfPreviewURL, setPdfPreviewURL] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
   const folderWorkspace = useFolder();
+  const [tabGroup, setTabGroup] = useState("全部");
+  const tabGroups = useMemo(
+    () =>
+      [
+        ...new Set(docs.map((document) => document.group).filter(Boolean)),
+      ] as string[],
+    [docs],
+  );
+  const visibleDocs =
+    tabGroup === "全部"
+      ? docs
+      : docs.filter((document) => document.group === tabGroup);
+  useEffect(() => {
+    if (tabGroup !== "全部" && !tabGroups.includes(tabGroup))
+      setTabGroup("全部");
+  }, [tabGroup, tabGroups]);
   const { tree, busy: folderBusy } = folderWorkspace;
   const [pendingAnchor, setPendingAnchor] = useState<{
     path?: string;
@@ -1156,79 +1172,159 @@ export default function App() {
           )}
         </header>
         {docs.length > 1 && (
-          <nav className="document-tabs" role="tablist" aria-label="打开的文档">
-            {docs.map((document, index) => (
-              <div
-                className={
-                  "document-tab " +
-                  (document.id === current.id ? "selected" : "")
-                }
-                role="presentation"
-                key={document.id}
-                draggable
-                onDragStart={(event) => {
-                  draggedDocument.current = document.id;
-                  event.dataTransfer.effectAllowed = "move";
-                  event.dataTransfer.setData("text/plain", document.id);
-                }}
-                onDragOver={(event) => {
-                  if (draggedDocument.current) {
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = "move";
+          <div className="document-tab-area">
+            <div className="document-group-bar" aria-label="文档分组">
+              <button
+                className={tabGroup === "全部" ? "selected" : ""}
+                onClick={() => setTabGroup("全部")}
+              >
+                全部 <small>{docs.length}</small>
+              </button>
+              {tabGroups.map((group) => (
+                <button
+                  key={group}
+                  className={tabGroup === group ? "selected" : ""}
+                  onClick={() => {
+                    setTabGroup(group);
+                    const first = docs.find(
+                      (document) => document.group === group,
+                    );
+                    if (first) workspace.setActive(first.id);
+                  }}
+                >
+                  {group}{" "}
+                  <small>
+                    {docs.filter((document) => document.group === group).length}
+                  </small>
+                </button>
+              ))}
+              <button
+                className="document-group-add"
+                aria-label="新建标签分组"
+                title="将当前文档加入新分组"
+                onClick={() => {
+                  const name = window.prompt("分组名称");
+                  const normalized = name?.trim().slice(0, 32);
+                  if (normalized) {
+                    workspace.setDocumentGroup(current.id, normalized);
+                    setTabGroup(normalized);
                   }
                 }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  const moving = draggedDocument.current;
-                  if (moving) workspace.moveDocument(moving, document.id);
-                  draggedDocument.current = null;
-                }}
-                onDragEnd={() => {
-                  draggedDocument.current = null;
-                }}
               >
-                <button
-                  className="document-tab-select"
-                  role="tab"
-                  aria-selected={document.id === current.id}
-                  aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
-                  title={`${document.name} · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动`}
-                  onClick={() => workspace.setActive(document.id)}
-                  onAuxClick={(event) => {
-                    if (event.button !== 1) return;
-                    event.preventDefault();
-                    requestClose(document);
-                  }}
-                  onKeyDown={(event) => {
-                    if (!event.altKey || !event.shiftKey) return;
-                    const offset =
-                      event.key === "ArrowLeft"
-                        ? -1
-                        : event.key === "ArrowRight"
-                          ? 1
-                          : 0;
-                    const target = docs[index + offset];
-                    if (!target) return;
-                    event.preventDefault();
-                    workspace.moveDocument(document.id, target.id);
-                  }}
-                >
-                  {document.dirty && (
-                    <i className="document-tab-dirty" aria-label="未保存" />
-                  )}
-                  <span>{document.name}</span>
-                </button>
-                <button
-                  className="document-tab-close"
-                  aria-label={`关闭 ${document.name}`}
-                  title="关闭文档"
-                  onClick={() => requestClose(document)}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ))}
-          </nav>
+                ＋ 分组
+              </button>
+            </div>
+            <nav
+              className="document-tabs"
+              role="tablist"
+              aria-label="打开的文档"
+            >
+              {visibleDocs.map((document) => {
+                const index = docs.findIndex((item) => item.id === document.id);
+                return (
+                  <div
+                    className={
+                      "document-tab " +
+                      (document.id === current.id ? "selected" : "")
+                    }
+                    role="presentation"
+                    key={document.id}
+                    draggable
+                    onDragStart={(event) => {
+                      draggedDocument.current = document.id;
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", document.id);
+                    }}
+                    onDragOver={(event) => {
+                      if (draggedDocument.current) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const moving = draggedDocument.current;
+                      if (moving) workspace.moveDocument(moving, document.id);
+                      draggedDocument.current = null;
+                    }}
+                    onDragEnd={() => {
+                      draggedDocument.current = null;
+                    }}
+                  >
+                    <button
+                      className="document-tab-select"
+                      role="tab"
+                      aria-selected={document.id === current.id}
+                      aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
+                      title={`${document.name} · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动`}
+                      onClick={() => workspace.setActive(document.id)}
+                      onAuxClick={(event) => {
+                        if (event.button !== 1) return;
+                        event.preventDefault();
+                        requestClose(document);
+                      }}
+                      onKeyDown={(event) => {
+                        if (!event.altKey || !event.shiftKey) return;
+                        const offset =
+                          event.key === "ArrowLeft"
+                            ? -1
+                            : event.key === "ArrowRight"
+                              ? 1
+                              : 0;
+                        const target = docs[index + offset];
+                        if (!target) return;
+                        event.preventDefault();
+                        workspace.moveDocument(document.id, target.id);
+                      }}
+                    >
+                      {document.dirty && (
+                        <i className="document-tab-dirty" aria-label="未保存" />
+                      )}
+                      <span>{document.name}</span>
+                    </button>
+                    <select
+                      className="document-tab-group"
+                      aria-label={`${document.name}所属分组`}
+                      title="所属分组"
+                      value={document.group || ""}
+                      onChange={(event) => {
+                        const nextGroup = event.target.value || undefined;
+                        workspace.setDocumentGroup(document.id, nextGroup);
+                        if (
+                          document.id === current.id &&
+                          tabGroup !== "全部" &&
+                          nextGroup !== tabGroup
+                        ) {
+                          const replacement = docs.find(
+                            (item) =>
+                              item.id !== document.id &&
+                              item.group === tabGroup,
+                          );
+                          if (replacement) workspace.setActive(replacement.id);
+                          else setTabGroup("全部");
+                        }
+                      }}
+                    >
+                      <option value="">未分组</option>
+                      {tabGroups.map((group) => (
+                        <option key={group} value={group}>
+                          {group}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="document-tab-close"
+                      aria-label={`关闭 ${document.name}`}
+                      title="关闭文档"
+                      onClick={() => requestClose(document)}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </nav>
+          </div>
         )}
         {recovered && (
           <div className="recovery-banner">

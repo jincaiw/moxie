@@ -662,6 +662,15 @@ export function useWorkspace(
     docsRef.current = next;
     setDocs(next);
   }, []);
+  const setDocumentGroup = useCallback((id: string, group?: string) => {
+    const next = docsRef.current.map((document) =>
+      document.id === id
+        ? { ...document, group: group || undefined }
+        : document,
+    );
+    docsRef.current = next;
+    setDocs(next);
+  }, []);
   return {
     docs,
     recoveryReady,
@@ -685,5 +694,6 @@ export function useWorkspace(
     flushAsync,
     remove,
     moveDocument,
+    setDocumentGroup,
   };
 }

@@ -274,6 +274,40 @@ p {
 .toolbar button {
   -webkit-app-region: no-drag;
 }
+.document-tab-area {
+  flex: 0 0 auto;
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+}
+.document-group-bar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  overflow-x: auto;
+  padding: 0 12px;
+  scrollbar-width: none;
+}
+.document-group-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 12px;
+  padding: 3px 9px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.document-group-bar button.selected {
+  color: var(--text);
+  background: var(--selected);
+}
+.document-group-bar small {
+  opacity: 0.7;
+}
+.document-group-bar .document-group-add {
+  color: var(--accent);
+}
 .document-tabs {
   display: flex;
   align-items: stretch;
@@ -283,7 +317,7 @@ p {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 4px 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 0;
   scrollbar-width: thin;
 }
 .document-tab {
@@ -336,6 +370,23 @@ p {
   border-radius: 4px;
   opacity: 0;
   flex-shrink: 0;
+}
+.document-tab-group {
+  width: 19px;
+  height: 22px;
+  border: 0;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.document-tab-group:hover,
+.document-tab-group:focus {
+  width: 94px;
+  font-size: 10px;
+  opacity: 1;
 }
 .document-tab:hover .document-tab-close,
 .document-tab:focus-within .document-tab-close,

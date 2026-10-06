@@ -197,6 +197,20 @@ test("标签中键关闭会保留未保存修改确认", async ({ page }) => {
   await expect(tab).toHaveCount(0);
 });
 
+test("标签分组可创建、筛选、移动文档并恢复显示", async ({ page }) => {
+  await page.goto("/");
+  page.on("dialog", (dialog) => void dialog.accept("研究"));
+  await page.getByRole("button", { name: "新建标签分组" }).click();
+  const tabs = page.getByRole("tablist", { name: "打开的文档" });
+  await expect(tabs.getByRole("tab", { name: "欢迎使用.md" })).toHaveCount(1);
+  await expect(tabs.getByRole("tab", { name: "写作指南.md" })).toHaveCount(0);
+  await page.getByRole("button", { name: /全部 2/ }).click();
+  await tabs.getByLabel("写作指南.md所属分组").selectOption("研究");
+  await page.getByRole("button", { name: /研究 2/ }).click();
+  await expect(tabs.getByRole("tab", { name: "欢迎使用.md" })).toHaveCount(1);
+  await expect(tabs.getByRole("tab", { name: "写作指南.md" })).toHaveCount(1);
+});
+
 test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
