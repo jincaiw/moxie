@@ -698,4 +698,6 @@
 - [x] 解析标题显示标签前先保护 Markdown 行内代码跨度，代码内的高亮、上下标和公式定界符作为字面文本保留。
 - [x] 浏览器回归覆盖 `` `==literal==` `` 和 `` `$x+1$` `` 标题；链接相关 10 项通过。
 - [x] 完整浏览器回归 75 项通过、3 项性能基准按设计跳过；桌面逻辑 17 项通过，生产构建成功。
-- [ ] GitHub Actions 验证、arm64/x64 包构建与 Release 发布待完成。
+- [x] GitHub Actions 源码验证及 arm64/x64 macOS 包构建成功；完整浏览器回归通过。
+- [x] v0.16.72 Release 已发布，含 arm64/x64 DMG、ZIP、blockmap、SHA256SUMS 与 `latest-mac.yml`。
+- [x] 线上更新清单版本为 0.16.72，含两架构各一条 ZIP/DMG 记录，文件名唯一。
