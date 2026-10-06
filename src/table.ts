@@ -83,13 +83,70 @@ export function parseClipboardTable(value: string): string[][] {
 }
 export function serializeTable(rows: string[][], separator?: string): string {
   const columns = rows[0].length;
+  const separatorLine = separator
+    ? resizeSeparator(separator, columns)
+    : undefined;
   const line = (row: string[]) =>
     "| " +
     Array.from({ length: columns }, (_, i) => row[i] || "").join(" | ") +
     " |";
   return [
     line(rows[0]),
-    separator || line(Array(columns).fill("---")),
+    separatorLine || line(Array(columns).fill("---")),
     ...rows.slice(1).map(line),
   ].join("\n");
+}
+
+function resizeSeparator(separator: string, columns: number) {
+  const cells = separator
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  while (cells.length < columns) cells.push("---");
+  return `| ${cells.slice(0, columns).join(" | ")} |`;
+}
+
+export type TableAlignment = "left" | "center" | "right";
+
+export function tableColumnAlignment(
+  separator: string,
+  column: number,
+): TableAlignment | undefined {
+  const cells = separator
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  const cell = cells[column] || "";
+  if (/^:-+:$/.test(cell)) return "center";
+  if (/^:-+$/.test(cell)) return "left";
+  if (/^-+:$/.test(cell)) return "right";
+  return undefined;
+}
+
+export function setTableColumnAlignment(
+  separator: string,
+  columns: number,
+  column: number,
+  alignment: TableAlignment,
+): string {
+  const cells = separator
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  while (cells.length < columns) cells.push("---");
+  const current = cells[column] || "---";
+  const dashes = Math.max(3, current.replace(/:/g, "").length);
+  cells[column] =
+    alignment === "left"
+      ? `:${"-".repeat(dashes)}`
+      : alignment === "center"
+        ? `:${"-".repeat(dashes)}:`
+        : `${"-".repeat(dashes)}:`;
+  return `| ${cells.slice(0, columns).join(" | ")} |`;
 }

@@ -8,7 +8,12 @@ import {
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { parseClipboardTable, parseTable } from "../src/table";
+import {
+  parseClipboardTable,
+  parseTable,
+  setTableColumnAlignment,
+  tableColumnAlignment,
+} from "../src/table";
 import { inlineMathMatches } from "../src/math";
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
@@ -864,6 +869,30 @@ test("表格解析保留转义和单元格原始位置", () => {
       ["One", "Two\tcolumns"],
       ["Three", "Four"],
     ],
+  );
+  expect(tableColumnAlignment("| :--- | ---: |", 0)).toBe("left");
+  expect(tableColumnAlignment("| :--- | ---: |", 1)).toBe("right");
+  expect(setTableColumnAlignment("| --- | ---: |", 2, 0, "center")).toBe(
+    "| :---: | ---: |",
+  );
+});
+
+test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) => {
+  await page.goto("/");
+  const table = page.locator(".editable-table").first();
+  await expect(table).toContainText("Cmd + S");
+  const secondColumn = table.locator('[data-cell="1:1"]');
+  await secondColumn.click();
+  await table.getByRole("button", { name: "居中对齐列" }).click();
+  await expect(table.locator('[data-cell="0:1"]')).toHaveCSS(
+    "text-align",
+    "center",
+  );
+  await table.getByRole("button", { name: "添加行" }).click();
+  await table.getByRole("button", { name: "添加列" }).click();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText(
+    "| --- | :---: | --- |",
   );
 });
 

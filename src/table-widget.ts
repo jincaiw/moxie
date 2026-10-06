@@ -9,6 +9,9 @@ import {
   escapeCell,
   serializeTable,
   parseClipboardTable,
+  setTableColumnAlignment,
+  tableColumnAlignment,
+  type TableAlignment,
 } from "./table";
 
 type Context = { widget: TableWidget; row: number; col: number };
@@ -46,6 +49,7 @@ export class TableWidget extends WidgetType {
       const [row, col] = cell.dataset.cell!.split(":").map(Number);
       const input = cell.querySelector("input");
       const value = after.rows[row]?.[col]?.text || "";
+      cell.style.textAlign = tableColumnAlignment(after.separator, col) || "";
       if (!input) cell.innerHTML = html(value);
       else if (input.value !== cellValue(value)) input.value = cellValue(value);
     });
@@ -94,7 +98,7 @@ export class TableWidget extends WidgetType {
         changes: {
           from: ctx.widget.from,
           to: ctx.widget.to,
-          insert: serializeTable(rows),
+          insert: serializeTable(rows, model.separator),
         },
         annotations: Transaction.userEvent.of("input.table"),
       });
@@ -133,6 +137,42 @@ export class TableWidget extends WidgetType {
         }
       }),
     );
+    const alignColumn = (alignment: TableAlignment) => {
+      (el.querySelector("input") as HTMLInputElement | null)?.blur();
+      const ctx = contexts.get(el)!;
+      const model = parseTable(ctx.widget.text);
+      const separator = setTableColumnAlignment(
+        model.separator,
+        model.columns,
+        ctx.col,
+        alignment,
+      );
+      selected!.set(ctx.widget.from, { row: ctx.row, col: ctx.col });
+      view.dispatch({
+        changes: {
+          from: ctx.widget.from,
+          to: ctx.widget.to,
+          insert: serializeTable(
+            model.rows.map((row) =>
+              Array.from(
+                { length: model.columns },
+                (_, col) => row[col]?.text || "",
+              ),
+            ),
+            separator,
+          ),
+        },
+        annotations: Transaction.userEvent.of("input.table"),
+      });
+      requestAnimationFrame(() => {
+        el.querySelector<HTMLElement>(
+          `[data-cell="${ctx.row}:${ctx.col}"]`,
+        )?.focus();
+      });
+    };
+    button("左对齐列", () => alignColumn("left"));
+    button("居中对齐列", () => alignColumn("center"));
+    button("右对齐列", () => alignColumn("right"));
     button("编辑原文", () => {
       const widget = contexts.get(el)!.widget;
       view.dispatch({ selection: { anchor: widget.from } });
@@ -146,6 +186,7 @@ export class TableWidget extends WidgetType {
       Array.from({ length: model.columns }, (_, c) => {
         const cell = document.createElement(r === 0 ? "th" : "td");
         cell.dataset.cell = `${r}:${c}`;
+        cell.style.textAlign = tableColumnAlignment(model.separator, c) || "";
         cell.innerHTML = html(row[c]?.text || "");
         cell.tabIndex = 0;
         cell.setAttribute("aria-label", `表格第 ${r + 1} 行第 ${c + 1} 列`);
