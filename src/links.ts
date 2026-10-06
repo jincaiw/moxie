@@ -124,15 +124,18 @@ export function headingSlug(title: string) {
     .replace(/\s+/g, "-");
 }
 export function headingLabel(source: string) {
-  const codeSpans: string[] = [];
+  const codeSpans = new Map<string, string>();
   const protectedSource = source.replace(
     /(`+)([\s\S]*?)(?<!`)\1(?!`)/g,
     (raw) => {
       const tokens = Lexer.lexInline(raw);
       const code = tokens.find((token) => token.type === "codespan");
       if (!code || code.type !== "codespan") return raw;
-      const placeholder = `MOXIECODESPAN${codeSpans.length}TOKEN`;
-      codeSpans.push(code.text);
+      let placeholder = `MOXIECODESPAN${codeSpans.size}TOKEN`;
+      while (source.includes(placeholder) || codeSpans.has(placeholder)) {
+        placeholder = placeholder.replace("TOKEN", "XTOKEN");
+      }
+      codeSpans.set(placeholder, code.text);
       return placeholder;
     },
   );
@@ -149,12 +152,11 @@ export function headingLabel(source: string) {
   );
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
-    walker.currentNode.textContent = (
-      walker.currentNode.textContent || ""
-    ).replace(
-      /MOXIECODESPAN(\d+)TOKEN/g,
-      (placeholder, index: string) => codeSpans[Number(index)] ?? placeholder,
-    );
+    let text = walker.currentNode.textContent || "";
+    for (const [placeholder, code] of codeSpans) {
+      text = text.split(placeholder).join(code);
+    }
+    walker.currentNode.textContent = text;
   }
   return element.textContent || "";
 }
