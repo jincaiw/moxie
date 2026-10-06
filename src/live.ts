@@ -1243,6 +1243,8 @@ class ImageWidget extends WidgetType {
     el.setAttribute("aria-label", `编辑图片：${this.alt || this.src}`);
     const status = document.createElement("span");
     status.className = "image-status";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
     status.textContent = "正在载入图片…";
     el.append(status);
     void resolveImage(this.src, this.path)

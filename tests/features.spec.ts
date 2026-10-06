@@ -588,6 +588,24 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   await expect(page.locator(".cm-content")).toContainText("pixel.png");
 });
 
+test("图片加载失败时状态消息会通知辅助技术", async ({ page }) => {
+  await page.route("https://image.test/missing.png", (route) =>
+    route.abort(),
+  );
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "图片失败.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("![示例图片](https://image.test/missing.png)\n\n"),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+
+  const status = page.locator(".image-status");
+  await expect(status).toHaveAttribute("role", "status");
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  await expect(status).toContainText("无法显示图片：示例图片");
+});
+
 test("设置持久化、专注模式和对话框键盘退出", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "偏好设置" }).click();
