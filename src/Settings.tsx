@@ -24,6 +24,15 @@ function themeRequestError(error: unknown, fallback: string) {
   return message || fallback;
 }
 
+function isNewerVersion(candidate: string, installed: string) {
+  const next = candidate.split(".").map(Number);
+  const current = installed.split(".").map(Number);
+  for (let index = 0; index < 3; index++) {
+    if (next[index] !== current[index]) return next[index] > current[index];
+  }
+  return false;
+}
+
 function ThemePreview({ theme, alt }: { theme: GalleryTheme; alt: string }) {
   const [unavailable, setUnavailable] = useState(false);
   return (
@@ -109,6 +118,19 @@ export function Settings({
       galleryAppearance === "all" || theme.appearance === galleryAppearance;
     return matchesQuery && matchesAppearance;
   });
+  const installedGalleryTheme = selectedGalleryTheme
+    ? preferences.savedThemes.find(
+        (saved) => saved.gallery?.id === selectedGalleryTheme.id,
+      )
+    : undefined;
+  const galleryUpdateAvailable = Boolean(
+    installedGalleryTheme &&
+    selectedGalleryTheme &&
+    isNewerVersion(
+      selectedGalleryTheme.version,
+      installedGalleryTheme.gallery!.version,
+    ),
+  );
   const loadGallery = async () => {
     setGalleryLoading(true);
     setGalleryError("");
@@ -123,7 +145,11 @@ export function Settings({
     }
   };
   const installGalleryTheme = async (theme: GalleryTheme) => {
+    const previous = preferences.savedThemes.find(
+      (saved) => saved.gallery?.id === theme.id,
+    );
     if (
+      !previous &&
       preferences.savedThemes.some(
         (saved) =>
           saved.name.toLocaleLowerCase() === theme.name.toLocaleLowerCase(),
@@ -134,7 +160,7 @@ export function Settings({
       );
       return;
     }
-    if (preferences.savedThemes.length >= 20) {
+    if (!previous && preferences.savedThemes.length >= 20) {
       setThemeMessage("本地主题库已满；删除一个主题后才能安装。");
       return;
     }
@@ -144,17 +170,31 @@ export function Settings({
         preferences.savedThemes.reduce(
           (sum, saved) => sum + saved.css.length,
           0,
-        ) + css.length;
+        ) -
+        (previous?.css.length || 0) +
+        css.length;
       if (total > THEME_LIBRARY_CSS_LIMIT)
         throw new Error("本地主题库总大小不能超过 1.5 MB；请先删除其他主题。");
-      update("savedThemes", [
-        ...preferences.savedThemes,
-        { name: theme.name, css },
-      ]);
-      update("activeSavedTheme", theme.name);
+      const saved = {
+        name: previous?.name || theme.name,
+        css,
+        gallery: { id: theme.id, version: theme.version },
+      };
+      update(
+        "savedThemes",
+        previous
+          ? preferences.savedThemes.map((item) =>
+              item === previous ? saved : item,
+            )
+          : [...preferences.savedThemes, saved],
+      );
+      update("activeSavedTheme", saved.name);
       update("customCSS", css);
-      setThemeMessage(`已安装并应用“${theme.name}”。`);
-      setSelectedGalleryTheme(null);
+      setThemeMessage(
+        previous
+          ? `已更新并应用“${saved.name}”至版本 ${theme.version}。`
+          : `已安装并应用“${theme.name}”。`,
+      );
     } catch (error) {
       setGalleryError(themeRequestError(error, "主题下载或校验失败。"));
     }
@@ -502,11 +542,20 @@ export function Settings({
                         <span className="theme-gallery-card-copy">
                           <strong>{theme.name}</strong>
                           <small>
-                            {theme.appearance === "dark"
-                              ? "深色"
-                              : theme.appearance === "paper"
-                                ? "纸感"
-                                : "浅色"}
+                            {preferences.savedThemes.some(
+                              (saved) =>
+                                saved.gallery?.id === theme.id &&
+                                isNewerVersion(
+                                  theme.version,
+                                  saved.gallery.version,
+                                ),
+                            )
+                              ? "有更新"
+                              : theme.appearance === "dark"
+                                ? "深色"
+                                : theme.appearance === "paper"
+                                  ? "纸感"
+                                  : "浅色"}
                           </small>
                         </span>
                       </button>
@@ -536,21 +585,64 @@ export function Settings({
                       >
                         查看主题来源
                       </a>
+                      {installedGalleryTheme && !galleryUpdateAvailable && (
+                        <small>
+                          已安装版本 {installedGalleryTheme.gallery?.version}
+                        </small>
+                      )}
+                      {galleryUpdateAvailable && (
+                        <p role="status">
+                          已安装版本 {installedGalleryTheme?.gallery?.version}
+                          ，图库提供新版本 {selectedGalleryTheme.version}
+                          。确认后将替换该主题，更新不会自动应用到其他主题。
+                        </p>
+                      )}
                       <button
                         type="button"
-                        disabled={galleryLoading}
+                        disabled={
+                          galleryLoading ||
+                          Boolean(
+                            installedGalleryTheme && !galleryUpdateAvailable,
+                          )
+                        }
                         onClick={() =>
                           void installGalleryTheme(selectedGalleryTheme)
                         }
                       >
-                        <Check size={15} /> 确认安装并应用
+                        <Check size={15} />{" "}
+                        {galleryUpdateAvailable
+                          ? "确认更新并应用"
+                          : installedGalleryTheme
+                            ? "已安装"
+                            : "确认安装并应用"}
                       </button>
                     </div>
                   </div>
                 )}
                 <small>
-                  安装会另存为本地主题并立即应用，不会覆盖已有主题；离线时可重试，已安装主题不受影响。
+                  新主题会另存为本地主题；更新已有图库主题需确认后替换并应用。离线时可重试，现有主题仍可使用。
                 </small>
+                {gallery?.withdrawnThemes.length ? (
+                  <div className="theme-gallery-withdrawn" role="status">
+                    {preferences.savedThemes
+                      .filter((saved) =>
+                        gallery.withdrawnThemes.some(
+                          (withdrawn) => withdrawn.id === saved.gallery?.id,
+                        ),
+                      )
+                      .map((saved) => {
+                        const withdrawn = gallery.withdrawnThemes.find(
+                          (item) => item.id === saved.gallery?.id,
+                        )!;
+                        return (
+                          <p key={saved.name}>
+                            “{saved.name}”已从图库撤回（{withdrawn.reason}
+                            ）。本地副本保留，可继续使用或删除。
+                          </p>
+                        );
+                      })}
+                  </div>
+                ) : null}
               </>
             )}
           </div>

@@ -7,7 +7,11 @@ import {
 export { themeCSSError } from "./theme-css";
 export type ThemePreset =
   "light" | "dark" | "sepia" | "solarized-light" | "solarized-dark";
-export type SavedTheme = { name: string; css: string };
+export type SavedTheme = {
+  name: string;
+  css: string;
+  gallery?: { id: string; version: string };
+};
 export type Preferences = {
   theme: ThemePreset;
   fontSize: number;
@@ -66,7 +70,15 @@ function initial(): Preferences {
             THEME_LIBRARY_CSS_LIMIT
         )
           continue;
-        savedThemes.push(theme as SavedTheme);
+        const saved = theme as SavedTheme;
+        if (
+          saved.gallery &&
+          (typeof saved.gallery !== "object" ||
+            !/^[a-z0-9][a-z0-9-]{1,39}$/.test(saved.gallery.id) ||
+            !/^\d+\.\d+\.\d+$/.test(saved.gallery.version))
+        )
+          delete saved.gallery;
+        savedThemes.push(saved);
         savedThemeCSSSize += (theme as SavedTheme).css.length;
       }
     }

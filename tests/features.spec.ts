@@ -39,6 +39,7 @@ function themeCatalogFixture(css: string) {
         previewUrl:
           "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.svg",
         version: "1.0.0",
+        releaseVersion: "0.16.78",
         minimumAppVersion: "0.16.78",
         packageUrl:
           "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
@@ -144,6 +145,85 @@ test("精选主题完整性校验失败时不安装，并提供冲突提示", as
     "已有同名主题",
   );
   await expect(page.getByLabel("本地主题")).toHaveValue("");
+});
+
+test("图库版本更新必须明确确认，并保留来源版本", async ({ page }) => {
+  const css = ":root { --accent: #426b91; }";
+  const catalog = themeCatalogFixture(css);
+  catalog.themes[0].version = "1.1.0";
+  catalog.themes[0].releaseVersion = "0.16.79";
+  catalog.themes[0].packageUrl =
+    "https://github.com/jincaiw/moxie/releases/download/v0.16.79/theme-mist-blue.css";
+  catalog.themes[0].previewUrl =
+    "https://github.com/jincaiw/moxie/releases/download/v0.16.79/theme-mist-blue.svg";
+  await mockThemeGallery(page, catalog, css);
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.preferences.v2",
+      JSON.stringify({
+        savedThemes: [
+          {
+            name: "雾蓝",
+            css: ":root { --accent: #315f85; }",
+            gallery: { id: "mist-blue", version: "1.0.0" },
+          },
+        ],
+        activeSavedTheme: "雾蓝",
+      }),
+    );
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await page.getByRole("button", { name: /雾蓝/ }).click();
+  await expect(page.getByText(/图库提供新版本 1\.1\.0/)).toBeVisible();
+  const savedBefore = await page.evaluate(
+    () =>
+      JSON.parse(localStorage.getItem("moxie.preferences.v2")!).savedThemes[0],
+  );
+  expect(savedBefore.gallery.version).toBe("1.0.0");
+  await page.getByRole("button", { name: "确认更新并应用" }).click();
+  await expect(page.locator(".theme-css-editor [role='status']")).toContainText(
+    "已更新并应用",
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("moxie.preferences.v2")!)
+            .savedThemes[0].gallery.version,
+      ),
+    )
+    .toBe("1.1.0");
+});
+
+test("图库撤回主题时提示原因并保留本地副本", async ({ page }) => {
+  const catalog = themeCatalogFixture(":root { --accent: #315f85; }");
+  catalog.themes = [];
+  catalog.withdrawnThemes = [{ id: "mist-blue", reason: "作者请求撤回。" }];
+  await mockThemeGallery(page, catalog, "");
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.preferences.v2",
+      JSON.stringify({
+        savedThemes: [
+          {
+            name: "雾蓝",
+            css: ":root { --accent: #315f85; }",
+            gallery: { id: "mist-blue", version: "1.0.0" },
+          },
+        ],
+        activeSavedTheme: "雾蓝",
+      }),
+    );
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await expect(
+    page.getByRole("region", { name: "精选主题图库" }).getByRole("status"),
+  ).toContainText("作者请求撤回");
+  await expect(page.getByLabel("本地主题")).toHaveValue("雾蓝");
 });
 
 test("主题图库离线时保留重试入口并可在恢复后重新加载", async ({ page }) => {

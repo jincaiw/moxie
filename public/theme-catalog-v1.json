@@ -16,7 +16,8 @@
       "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
       "sha256": "293ba9314b13d76169e8bdf3a34563a58ffc50b01b402351d72ae7342e74a073",
       "size": 244,
-      "appearance": "light"
+      "appearance": "light",
+      "releaseVersion": "0.16.78"
     },
     {
       "id": "midnight-slate",
@@ -31,7 +32,8 @@
       "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-midnight-slate.css",
       "sha256": "d623aea0c44faa7c55cba73de630077061795daab0be1574d765c48272ac27fc",
       "size": 243,
-      "appearance": "dark"
+      "appearance": "dark",
+      "releaseVersion": "0.16.78"
     },
     {
       "id": "forest-paper",
@@ -46,7 +48,9 @@
       "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-forest-paper.css",
       "sha256": "ebbac8cf247bc45c42f0f496ea221d39b6476933247e217e2161bf7d170dfbf2",
       "size": 244,
-      "appearance": "paper"
+      "appearance": "paper",
+      "releaseVersion": "0.16.78"
     }
-  ]
+  ],
+  "withdrawnThemes": []
 }

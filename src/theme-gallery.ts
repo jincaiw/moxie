@@ -14,6 +14,7 @@ export type GalleryTheme = {
   sourceUrl: string;
   previewUrl: string;
   version: string;
+  releaseVersion: string;
   minimumAppVersion: string;
   packageUrl: string;
   sha256: string;
@@ -26,6 +27,7 @@ export type ThemeCatalog = {
   version: string;
   generatedAt: string;
   themes: GalleryTheme[];
+  withdrawnThemes: { id: string; reason: string }[];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -68,6 +70,7 @@ export function validateThemeCatalog(input: unknown): ThemeCatalog {
       "previewUrl",
       "version",
       "minimumAppVersion",
+      "releaseVersion",
       "packageUrl",
       "sha256",
     ] as const;
@@ -75,6 +78,7 @@ export function validateThemeCatalog(input: unknown): ThemeCatalog {
       fields.some((field) => typeof entry[field] !== "string") ||
       !validVersion(entry.version) ||
       !validVersion(entry.minimumAppVersion) ||
+      !validVersion(entry.releaseVersion) ||
       !/^[a-z0-9][a-z0-9-]{1,39}$/.test(entry.id as string) ||
       ids.has(entry.id as string) ||
       !(entry.name as string).trim() ||
@@ -93,7 +97,7 @@ export function validateThemeCatalog(input: unknown): ThemeCatalog {
       (entry.size as number) > THEME_CSS_LIMIT
     )
       throw new Error("主题目录包含字段无效或超出限制的条目。");
-    const versionPath = `${releaseBase}v${entry.minimumAppVersion}/theme-${entry.id}`;
+    const versionPath = `${releaseBase}v${entry.releaseVersion}/theme-${entry.id}`;
     if (
       entry.packageUrl !== `${versionPath}.css` ||
       entry.previewUrl !== `${versionPath}.svg`
@@ -103,11 +107,32 @@ export function validateThemeCatalog(input: unknown): ThemeCatalog {
     return entry as unknown as GalleryTheme;
   });
 
+  const withdrawnInput = input.withdrawnThemes ?? [];
+  if (!Array.isArray(withdrawnInput) || withdrawnInput.length > 50)
+    throw new Error("主题目录撤回列表无效。");
+  const withdrawnIds = new Set<string>();
+  const withdrawnThemes = withdrawnInput.map((entry) => {
+    if (
+      !isRecord(entry) ||
+      typeof entry.id !== "string" ||
+      !/^[a-z0-9][a-z0-9-]{1,39}$/.test(entry.id) ||
+      ids.has(entry.id) ||
+      withdrawnIds.has(entry.id) ||
+      typeof entry.reason !== "string" ||
+      !entry.reason.trim() ||
+      entry.reason.length > 180
+    )
+      throw new Error("主题目录撤回列表包含无效条目。");
+    withdrawnIds.add(entry.id);
+    return { id: entry.id, reason: entry.reason };
+  });
+
   return {
     schemaVersion: 1,
     version: input.version as string,
     generatedAt: input.generatedAt as string,
     themes,
+    withdrawnThemes,
   };
 }
 
