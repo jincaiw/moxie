@@ -373,6 +373,124 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toBeVisible();
 });
 
+test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  const more = page.getByRole("button", { name: "更多工具" });
+  await expect(more).toBeVisible();
+  await more.click();
+  const menu = page.getByRole("group", { name: "更多工具" });
+  await expect(menu.getByRole("button", { name: "查找与替换" })).toBeVisible();
+  await expect(
+    menu.getByRole("button", { name: "搜索项目文件夹" }),
+  ).toBeVisible();
+  await expect(menu.getByRole("button", { name: "偏好设置" })).toBeVisible();
+
+  await menu.getByRole("button", { name: "格式" }).click();
+  await expect(page.getByRole("menuitem", { name: "粗体" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menuitem", { name: "粗体" })).toHaveCount(0);
+
+  await more.click();
+  await page
+    .getByRole("group", { name: "更多工具" })
+    .getByRole("button", { name: "偏好设置" })
+    .click();
+  const settings = page.locator("dialog.settings");
+  await settings.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(
+    page.getByRole("button", { name: "完成", exact: true }),
+  ).toBeVisible();
+  const headerTop = await settings
+    .locator("header")
+    .evaluate((element) => element.getBoundingClientRect().top);
+  const dialogTop = await settings.evaluate(
+    (element) => element.getBoundingClientRect().top,
+  );
+  expect(headerTop).toBeGreaterThanOrEqual(dialogTop);
+  expect(headerTop).toBeLessThan(dialogTop + 80);
+});
+
+test("即时排版隐藏水平线 Markdown 定界符", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".md-rule-text")).toHaveText("---");
+  const color = await page
+    .locator(".md-rule-text > span")
+    .evaluate((element) => getComputedStyle(element).color);
+  expect(color).toBe("rgba(0, 0, 0, 0)");
+});
+
+test("内置主题的文字与焦点色对比度达标", async ({ page }) => {
+  await page.goto("/");
+  for (const theme of [
+    "light",
+    "dark",
+    "sepia",
+    "solarized-light",
+    "solarized-dark",
+  ]) {
+    await page.locator("html").evaluate((element, value) => {
+      element.setAttribute("data-theme", value);
+    }, theme);
+    const contrast = await page.evaluate(() => {
+      const style = getComputedStyle(document.documentElement);
+      const channels = (color: string) => {
+        let hex = color.trim().slice(1);
+        if (hex.length === 3)
+          hex = [...hex].map((value) => value + value).join("");
+        return hex
+          .match(/../g)!
+          .map((value) => Number.parseInt(value, 16) / 255)
+          .map((value) =>
+            value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+          );
+      };
+      const luminance = (color: string) => {
+        const [red, green, blue] = channels(color);
+        return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+      };
+      const surfaces = ["--bg", "--side", "--selected", "--code", "--panel"];
+      const minimumRatio = (
+        foregroundColor: string,
+        backgroundTokens: string[],
+      ) =>
+        Math.min(
+          ...backgroundTokens.map((surface) => {
+            const foreground = luminance(foregroundColor);
+            const background = luminance(style.getPropertyValue(surface));
+            return (
+              (Math.max(foreground, background) + 0.05) /
+              (Math.min(foreground, background) + 0.05)
+            );
+          }),
+        );
+      return {
+        muted: minimumRatio(style.getPropertyValue("--muted"), surfaces),
+        accent: minimumRatio(style.getPropertyValue("--accent"), [
+          "--bg",
+          "--side",
+          "--panel",
+        ]),
+        focus: minimumRatio(style.getPropertyValue("--focus"), [
+          "--bg",
+          "--side",
+          "--selected",
+        ]),
+      };
+    });
+    expect(contrast.muted, `${theme} 次级文字对比度`).toBeGreaterThanOrEqual(
+      4.5,
+    );
+    expect(contrast.accent, `${theme} 强调文字对比度`).toBeGreaterThanOrEqual(
+      4.5,
+    );
+    expect(contrast.focus, `${theme} 焦点轮廓对比度`).toBeGreaterThanOrEqual(3);
+  }
+});
+
 test("打字机模式在方向键移动光标后继续居中当前行", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem(
@@ -516,7 +634,7 @@ test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部
           .trim(),
       ),
     )
-    .toBe("#557895");
+    .toBe("#4f708e");
   await page.getByRole("button", { name: "清除自定义样式" }).click();
   await expect(css).toHaveValue("");
 });

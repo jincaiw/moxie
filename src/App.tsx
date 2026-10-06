@@ -23,6 +23,7 @@ import {
   Save,
   Clock,
   AlertCircle,
+  MoreHorizontal,
 } from "lucide-react";
 import { Editor, type EditorHandle, type Format } from "./Editor";
 import { headings, type DocumentFile } from "./data";
@@ -115,7 +116,7 @@ export default function App() {
   const [sidebar, setSidebar] = useState(() => window.innerWidth > 650);
   const [focus, setFocus] = useState(false);
   const [tab, setTab] = useState("files");
-  const [menu, setMenu] = useState<"export" | "format" | null>(null);
+  const [menu, setMenu] = useState<"export" | "format" | "more" | null>(null);
   const [settings, setSettings] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(() =>
     window.desktop?.checkForUpdates
@@ -1002,6 +1003,16 @@ export default function App() {
               <FolderSearch2 size={18} />
             </Tool>
             <button
+              className="tool mobile-more"
+              aria-label="更多工具"
+              aria-expanded={menu === "more"}
+              onClick={() =>
+                setMenu((value) => (value === "more" ? null : "more"))
+              }
+            >
+              <MoreHorizontal size={19} />
+            </button>
+            <button
               className="export-button"
               aria-label="导出"
               aria-expanded={menu === "export"}
@@ -1092,6 +1103,58 @@ export default function App() {
                   {format.shortcut && <kbd>{format.shortcut}</kbd>}
                 </button>
               ))}
+            </div>
+          )}
+          {menu === "more" && (
+            <div
+              className="export-menu mobile-more-menu"
+              role="group"
+              aria-label="更多工具"
+            >
+              <button onClick={() => setMenu("format")}>
+                <Type size={17} /> 格式
+              </button>
+              <button
+                onClick={() => {
+                  editor.current?.find();
+                  setMenu(null);
+                }}
+              >
+                <Search size={17} /> 查找与替换
+              </button>
+              <button
+                onClick={() => {
+                  setWorkspaceSearch((open) => !open);
+                  setMenu(null);
+                }}
+              >
+                <FolderSearch2 size={17} /> 搜索项目文件夹
+              </button>
+              <button
+                onClick={() => {
+                  setFocus((value) => !value);
+                  setMenu(null);
+                }}
+              >
+                <Maximize2 size={17} /> 专注模式
+              </button>
+              <button
+                onClick={() => {
+                  update("theme", darkTheme ? "light" : "dark");
+                  setMenu(null);
+                }}
+              >
+                {darkTheme ? <Moon size={17} /> : <Sun size={17} />}
+                {darkTheme ? "切换浅色主题" : "切换深色主题"}
+              </button>
+              <button
+                onClick={() => {
+                  setSettings(true);
+                  setMenu(null);
+                }}
+              >
+                <SettingsIcon size={17} /> 偏好设置
+              </button>
             </div>
           )}
           {workspaceSearch && (

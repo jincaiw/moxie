@@ -90,6 +90,7 @@ export function Settings({
           <X size={18} />
         </button>
       </header>
+      <h3 className="settings-section-title">编辑外观</h3>
       <label>
         正文字号 <span>{preferences.fontSize}px</span>
         <input
@@ -368,6 +369,7 @@ export function Settings({
           />
         </label>
       </section>
+      <h3 className="settings-section-title">写作体验</h3>
       <label className="toggle-setting">
         <span>
           自动保存到原文件
