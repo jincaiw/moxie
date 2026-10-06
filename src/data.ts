@@ -140,6 +140,29 @@ function htmlHeadingClose(source: string, level: number) {
   }
   return null;
 }
+type HtmlBlockState =
+  { close: RegExp; endsAtBlank: false } | { endsAtBlank: true };
+function htmlBlockOpening(content: string): HtmlBlockState | undefined {
+  const terminated = (close: RegExp): HtmlBlockState | undefined =>
+    close.test(content) ? undefined : { close, endsAtBlank: false };
+  if (/^<!--/.test(content)) return terminated(/-->/);
+  if (/^<\?/.test(content)) return terminated(/\?>/);
+  if (/^<!\[CDATA\[/i.test(content)) return terminated(/\]\]>/);
+  if (/^<![A-Z]/.test(content)) return terminated(/>/);
+
+  const raw =
+    /^<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b/i.exec(
+      content,
+    );
+  if (raw) return terminated(new RegExp(`</${raw[1]}\\s*>`, "i"));
+
+  if (
+    /^<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|head|header|hr|html|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|tr|track|ul)\b/i.test(
+      content,
+    )
+  )
+    return { endsAtBlank: true };
+}
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const lineAt = (from: number) => {
@@ -163,6 +186,7 @@ export function headings(text: string) {
   };
 
   let fence: RegExp | undefined;
+  let htmlBlock: HtmlBlockState | undefined;
   let htmlHeadingCapture:
     { level: number; from: number; content: string } | undefined;
   let line: ReturnType<typeof lineAt> | null = lineAt(0);
@@ -171,22 +195,34 @@ export function headings(text: string) {
       line.next <= text.length ? lineAt(line.next) : null;
     const content = markdownContainerContent(line.text);
     const nextContent = next ? markdownContainerContent(next.text) : "";
+    const insideHtmlHeading =
+      htmlBlock?.endsAtBlank &&
+      (htmlHeadingCapture || /^<h[1-6]\b/i.test(content));
+    if (htmlBlock && !insideHtmlHeading) {
+      if (htmlBlock.endsAtBlank && !content.trim()) {
+        htmlBlock = undefined;
+      } else {
+        if (!htmlBlock.endsAtBlank && htmlBlock.close.test(content))
+          htmlBlock = undefined;
+        line = line.next <= text.length ? lineAt(line.next) : null;
+        continue;
+      }
+    }
     if (htmlHeadingCapture && !fence) {
       if (!content.trim()) {
         htmlHeadingCapture = undefined;
       } else {
-        const close = htmlHeadingClose(content, htmlHeadingCapture.level);
+        const combined = `${htmlHeadingCapture.content}\n${content}`;
+        const close = htmlHeadingClose(combined, htmlHeadingCapture.level);
         if (close) {
           result.push({
             level: htmlHeadingCapture.level,
-            title: htmlHeadingTitle(
-              `${htmlHeadingCapture.content}\n${content.slice(0, close.index)}`,
-            ),
+            title: htmlHeadingTitle(combined.slice(0, close.index)),
             from: htmlHeadingCapture.from,
           });
           htmlHeadingCapture = undefined;
         } else {
-          htmlHeadingCapture.content += `\n${content}`;
+          htmlHeadingCapture.content = combined;
         }
       }
     } else if (fence) {
@@ -222,6 +258,8 @@ export function headings(text: string) {
               content: htmlHeadingOpening[2],
             };
           }
+        } else if (htmlBlockOpening(content)) {
+          htmlBlock = htmlBlockOpening(content);
         } else if (atx) {
           result.push({
             level: atx[1].length,
