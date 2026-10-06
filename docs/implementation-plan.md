@@ -664,4 +664,5 @@
 - [x] 回归覆盖多行 HTML 标题的编辑器目录和 HTML 导出目录一致性。
 - [x] 不闭合的 HTML 标题在空行处结束扫描，不吞掉后续 Markdown 标题。
 - [x] 浏览器回归 73 项通过、3 项性能用例按设计跳过；桌面逻辑 17 项通过，生产构建成功。
-- [ ] 双架构发布与线上更新清单核验待完成。
+- [x] GitHub Actions 源码验证及 arm64/x64 macOS 打包成功；Release 附件包含 DMG、ZIP、blockmap、SHA256SUMS 和 `latest-mac.yml`。
+- [x] v0.16.68 Release 已发布；线上更新清单版本为 0.16.68，含 arm64/x64 各一条 ZIP/DMG 记录。
