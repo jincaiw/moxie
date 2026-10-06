@@ -895,4 +895,4 @@
 - [x] HTML 标题扫描遇到 `<textarea>`、`<title>`、`<xmp>`、`<iframe>` 等原始文本元素时，跳过其中与外层标题同名的伪关闭标签。
 - [x] 浏览器回归覆盖 textarea 与 xmp 内容包含 `</hN>` 的标题导航边界。
 - [x] 生产构建成功；完整浏览器回归 99 项通过、3 项性能用例按配置跳过；桌面逻辑测试 20 项通过。
-- [ ] GitHub Actions 源码校验、arm64/x64 打包和 Release 发布待完成。
+- [x] GitHub Actions 源码校验、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 含四条双架构 DMG/ZIP 记录。
