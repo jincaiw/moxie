@@ -1715,6 +1715,16 @@ test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
   ).toEqual(["有效 Markdown 标题"]);
 });
 
+test("HTML 标题内脚本、样式和注释中的伪关闭标签不会截断标题", () => {
+  const source =
+    '<h2>可见前缀<script>const sample = "</h2>";</script>可见后缀</h2>\n\n<h3>跨行前缀\n<style>.example::after { content: "</h3>"; }</style>跨行后缀</h3>\n\n<h4>注释前缀<!-- </h4> -->注释后缀</h4>\n';
+  expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+    [2, "可见前缀可见后缀"],
+    [3, "跨行前缀 跨行后缀"],
+    [4, "注释前缀注释后缀"],
+  ]);
+});
+
 test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

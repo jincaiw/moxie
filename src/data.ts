@@ -129,6 +129,17 @@ function htmlHeadingTitle(source: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+function htmlHeadingClose(source: string, level: number) {
+  const tokens = new RegExp(
+    `<!--[\\s\\S]*?-->|<(script|style)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
+    "gi",
+  );
+  let match: RegExpExecArray | null;
+  while ((match = tokens.exec(source))) {
+    if (/^<\/h/i.test(match[0])) return match;
+  }
+  return null;
+}
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const lineAt = (from: number) => {
@@ -164,10 +175,7 @@ export function headings(text: string) {
       if (!content.trim()) {
         htmlHeadingCapture = undefined;
       } else {
-        const close = new RegExp(
-          `</h${htmlHeadingCapture.level}\\s*>`,
-          "i",
-        ).exec(content);
+        const close = htmlHeadingClose(content, htmlHeadingCapture.level);
         if (close) {
           result.push({
             level: htmlHeadingCapture.level,
@@ -195,9 +203,7 @@ export function headings(text: string) {
         const atx = /^(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/.exec(content);
         if (htmlHeadingOpening) {
           const level = Number(htmlHeadingOpening[1]);
-          const close = new RegExp(`</h${level}\\s*>`, "i").exec(
-            htmlHeadingOpening[2],
-          );
+          const close = htmlHeadingClose(htmlHeadingOpening[2], level);
           if (
             close &&
             !htmlHeadingOpening[2].slice(close.index + close[0].length).trim()
