@@ -1926,6 +1926,24 @@ test("脚注重复引用、大小写标签、多行内容与围栏隔离正确�
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
+  const source =
+    "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";
+  await page.goto("/");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "multiline-code-footnote-boundary.md");
+  }, source);
+
+  expect(html).toContain("[^fake]: 代码里的伪脚注");
+  expect(html).toContain("真正的脚注");
+  expect(html).toContain('id="fn-1"');
+  expect(html).not.toContain('id="fn-2"');
+});
+
 test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

@@ -16,6 +16,58 @@ function normalizeFootnote(label: string) {
   return label.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
+  const protectedLines = new Set<number>();
+  let fence: { character: string; length: number } | undefined;
+  let codeSpanTicks = 0;
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const line = lines[lineIndex];
+    if (excludedLines.has(lineIndex)) continue;
+    if (fence) {
+      const close = new RegExp(
+        `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
+      );
+      if (close.test(line)) fence = undefined;
+      continue;
+    }
+    if (!codeSpanTicks) {
+      const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+      if (openingFence) {
+        fence = {
+          character: openingFence[1][0],
+          length: openingFence[1].length,
+        };
+        continue;
+      }
+    } else {
+      protectedLines.add(lineIndex);
+    }
+
+    for (let index = 0; index < line.length;) {
+      if (line[index] !== "`") {
+        index++;
+        continue;
+      }
+      let slashCount = 0;
+      for (
+        let previous = index - 1;
+        previous >= 0 && line[previous] === "\\";
+        previous--
+      )
+        slashCount++;
+      let end = index + 1;
+      while (line[end] === "`") end++;
+      const runLength = end - index;
+      if (slashCount % 2 === 0) {
+        if (!codeSpanTicks) codeSpanTicks = runLength;
+        else if (codeSpanTicks === runLength) codeSpanTicks = 0;
+      }
+      index = end;
+    }
+  }
+  return protectedLines;
+}
+
 function stripMarkdownContainers(line: string) {
   let content = line;
   for (let depth = 0; depth < 12; depth++) {
@@ -111,6 +163,7 @@ function extractFootnotes(source: string) {
       markNestedHTMLLines(token, token.raw.split("\n"), startLine, htmlLines);
     }
   }
+  const codeLines = inlineCodeLines(lines, htmlLines);
   const remaining: string[] = [];
   const definitions = new Map<string, string>();
   let fence: { character: string; length: number } | undefined;
@@ -130,6 +183,10 @@ function extractFootnotes(source: string) {
       continue;
     }
     if (htmlLines.has(i)) {
+      remaining.push(lines[i]);
+      continue;
+    }
+    if (codeLines.has(i)) {
       remaining.push(lines[i]);
       continue;
     }
