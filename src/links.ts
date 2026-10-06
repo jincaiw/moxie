@@ -124,9 +124,16 @@ export function headingSlug(title: string) {
     .replace(/\s+/g, "-");
 }
 export function headingLabel(source: string) {
+  // Match the visible text produced by the Moxie inline extensions used by
+  // the HTML exporter. Keep the contents and remove only the syntax markers.
+  const visibleSource = source
+    .replace(/(?<![=])==(?=\S)(.+?\S)==(?![=])/g, "$1")
+    .replace(/(?<![\\^])\^(?=\S)([^\s^]+)\^(?!\^)/g, "$1")
+    .replace(/(?<![~\\])~(?=\S)([^\s~]+)~(?!~)/g, "$1")
+    .replace(/(?<!\\)\$(?!\$)([^\n$]+?)(?<!\\)\$(?!\$)/g, "$1");
   const element = document.createElement("span");
   element.innerHTML = DOMPurify.sanitize(
-    marked.parseInline(source, { async: false }) as string,
+    marked.parseInline(visibleSource, { async: false }) as string,
   );
   return element.textContent || "";
 }

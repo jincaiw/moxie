@@ -179,6 +179,28 @@ test("文内标题、重复标题和关联文档锚点跳转", async ({ page }) 
   await expect(page.locator(".cm-activeLine")).toHaveText("## 目标标题");
 });
 
+test("Moxie 行内格式标题的锚点与导出一致", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "格式标题.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "[高亮](#重点内容)\n\n[下标](#h2o)\n\n[上标](#x2)\n\n[公式](#x1)\n\n## ==重点内容==\n\n## H~2~O\n\n## x^2^\n\n## $x+1$\n\n",
+    ),
+  });
+  for (const [name, heading] of [
+    ["高亮", "==重点内容=="],
+    ["下标", "H~2~O"],
+    ["上标", "x^2^"],
+    ["公式", "$x+1$"],
+  ]) {
+    await page
+      .getByRole("link", { name, exact: true })
+      .click({ modifiers: [clickModifier] });
+    await expect(page.locator(".cm-activeLine")).toContainText(heading);
+  }
+});
+
 test("拒绝危险协议且不改变文档", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
