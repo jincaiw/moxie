@@ -2038,6 +2038,24 @@ test("GFM 列表中的围栏代码与缩进代码保留脚注样式文本", asyn
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("列表项同一行开启的围栏代码保留脚注样式文本", async ({ page }) => {
+  const source =
+    "- ```md\n  [^fake]: 列表围栏中的伪脚注\n  ```\n\n正文[^real]。\n\n[^real]: 真正的脚注";
+  await page.goto("/");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "list-fence-footnote-boundary.md");
+  }, source);
+
+  expect(html).toContain("列表围栏中的伪脚注");
+  expect(html).toContain("真正的脚注");
+  expect(html).toContain('id="fn-1"');
+  expect(html).not.toContain('id="fn-2"');
+});
+
 test("脚注标记可通过鼠标或键盘跳转到定义", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

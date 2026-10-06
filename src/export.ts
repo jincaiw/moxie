@@ -43,13 +43,15 @@ function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
       const close = new RegExp(
         `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
       );
-      if (close.test(line)) {
+      if (close.test(stripMarkdownContainers(line))) {
         fence = undefined;
         pairCodeSpans();
       }
       continue;
     }
-    const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(
+      stripMarkdownContainers(line),
+    );
     if (openingFence) {
       pairCodeSpans();
       fence = {
@@ -191,10 +193,12 @@ function extractFootnotes(source: string) {
       const close = new RegExp(
         `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
       );
-      if (close.test(lines[i])) fence = undefined;
+      if (close.test(stripMarkdownContainers(lines[i]))) fence = undefined;
       continue;
     }
-    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(lines[i]);
+    const opening = /^ {0,3}(`{3,}|~{3,})/.exec(
+      stripMarkdownContainers(lines[i]),
+    );
     if (opening) {
       fence = { character: opening[1][0], length: opening[1].length };
       remaining.push(lines[i]);
