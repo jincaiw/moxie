@@ -227,9 +227,11 @@ test("主题包处理中禁用重复安装操作并显示进度", async ({ page 
   await page.getByRole("button", { name: /雾蓝/ }).click();
   const install = page.getByRole("button", { name: "确认安装并应用" });
   await install.click();
-  await expect(
-    page.getByRole("button", { name: "正在下载并校验…" }),
-  ).toBeDisabled();
+  const progressButton = page.getByRole("button", {
+    name: "正在下载并校验…",
+  });
+  await expect(progressButton).toBeDisabled();
+  await expect(progressButton).toHaveAttribute("aria-busy", "true");
   await expect
     .poll(() =>
       page.evaluate(
@@ -1916,6 +1918,24 @@ test("引用内嵌套列表的 HTML 块不会把脚注样式文本提取为定�
 
   expect(html).toContain("[^fake]: HTML 中的普通文本");
   expect(html).toContain("真正的脚注");
+  expect(html).toContain('id="fn-1"');
+  expect(html).not.toContain('id="fn-2"');
+});
+
+test("GFM 列表中的围栏代码与缩进代码保留脚注样式文本", async ({ page }) => {
+  const source =
+    "- 围栏代码：\n\n  ```md\n  [^fenced]: 这不是脚注定义\n  ```\n\n- 缩进代码：\n\n      [^indented]: 这也不是脚注定义\n\n正文[^real]。\n\n[^real]: 真实脚注内容";
+  await page.goto("/");
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "nested-code-footnote-boundary.md");
+  }, source);
+
+  expect(html).toContain("[^fenced]: 这不是脚注定义");
+  expect(html).toContain("[^indented]: 这也不是脚注定义");
+  expect(html).toContain("真实脚注内容");
   expect(html).toContain('id="fn-1"');
   expect(html).not.toContain('id="fn-2"');
 });

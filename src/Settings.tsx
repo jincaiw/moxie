@@ -606,6 +606,9 @@ export function Settings({
                       )}
                       <button
                         type="button"
+                        aria-busy={
+                          installingGalleryThemeId === selectedGalleryTheme.id
+                        }
                         disabled={
                           galleryLoading ||
                           Boolean(installingGalleryThemeId) ||
