@@ -1684,6 +1684,32 @@ test("回车延续列表、任务项和引用，并在空项中退出", async ({
     .toEqual(["- [ ] 待办", "- [ ] 下一项"]);
 
   await page.locator(".md-input").setInputFiles({
+    name: "有序列表续行.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("4. 第四项\n5. 第五项"),
+  });
+  await editor.click();
+  await page.keyboard.press(documentEnd);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("第六项");
+  await expect
+    .poll(() => editor.locator(".cm-line").allInnerTexts())
+    .toEqual(["4. 第四项", "5. 第五项", "6. 第六项"]);
+
+  await page.locator(".md-input").setInputFiles({
+    name: "已完成任务后新建.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("- [x] 已完成"),
+  });
+  await editor.click();
+  await page.keyboard.press(documentEnd);
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("新任务");
+  await expect
+    .poll(() => editor.locator(".cm-line").allInnerTexts())
+    .toEqual(["- [x] 已完成", "- [ ] 新任务"]);
+
+  await page.locator(".md-input").setInputFiles({
     name: "引用.md",
     mimeType: "text/markdown",
     buffer: Buffer.from("> 引用"),
