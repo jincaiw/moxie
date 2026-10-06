@@ -82,7 +82,7 @@ export type DocumentFile = {
 };
 function markdownContainerContent(line: string) {
   let content = line;
-  for (let depth = 0; depth < 12; depth++) {
+  while (true) {
     const indentation = /^ {0,3}/.exec(content)?.[0].length || 0;
     content = content.slice(indentation);
     if (content.startsWith(">")) {
@@ -94,9 +94,8 @@ function markdownContainerContent(line: string) {
       content = content.slice(list[0].length);
       continue;
     }
-    break;
+    return content;
   }
-  return content;
 }
 function htmlHeadingTitle(source: string) {
   return source
