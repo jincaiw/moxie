@@ -1181,22 +1181,64 @@ export default function App() {
                 全部 <small>{docs.length}</small>
               </button>
               {tabGroups.map((group) => (
-                <button
+                <span
                   key={group}
-                  className={tabGroup === group ? "selected" : ""}
-                  onClick={() => {
-                    setTabGroup(group);
-                    const first = docs.find(
-                      (document) => document.group === group,
-                    );
-                    if (first) workspace.setActive(first.id);
-                  }}
+                  className={
+                    "document-group " + (tabGroup === group ? "selected" : "")
+                  }
                 >
-                  {group}{" "}
-                  <small>
-                    {docs.filter((document) => document.group === group).length}
-                  </small>
-                </button>
+                  <button
+                    className="document-group-select"
+                    onClick={() => {
+                      setTabGroup(group);
+                      const first = docs.find(
+                        (document) => document.group === group,
+                      );
+                      if (first) workspace.setActive(first.id);
+                    }}
+                  >
+                    {group}{" "}
+                    <small>
+                      {
+                        docs.filter((document) => document.group === group)
+                          .length
+                      }
+                    </small>
+                  </button>
+                  <button
+                    className="document-group-action"
+                    aria-label={`重命名分组 ${group}`}
+                    title="重命名分组"
+                    onClick={() => {
+                      const name = window.prompt("重命名分组", group);
+                      const normalized = name?.trim().slice(0, 32);
+                      if (!normalized || normalized === group) return;
+                      docs
+                        .filter((document) => document.group === group)
+                        .forEach((document) =>
+                          workspace.setDocumentGroup(document.id, normalized),
+                        );
+                      if (tabGroup === group) setTabGroup(normalized);
+                    }}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    className="document-group-action"
+                    aria-label={`移除分组 ${group}`}
+                    title="移除分组（文档保留为未分组）"
+                    onClick={() => {
+                      docs
+                        .filter((document) => document.group === group)
+                        .forEach((document) =>
+                          workspace.setDocumentGroup(document.id),
+                        );
+                      if (tabGroup === group) setTabGroup("全部");
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
               ))}
               <button
                 className="document-group-add"
