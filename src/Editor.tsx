@@ -56,7 +56,8 @@ export type Format =
   | "orderedList"
   | "task"
   | "table"
-  | "link";
+  | "link"
+  | "footnote";
 export type EditorHandle = {
   flush: () => void;
   go: (pos: number) => void;
@@ -86,6 +87,41 @@ type Props = {
 function formatSelection(view: EditorView, kind: Format) {
   const { from, to } = view.state.selection.main;
   const selected = view.state.sliceDoc(from, to);
+  if (kind === "footnote") {
+    const source = view.state.doc.toString();
+    let index = 1;
+    let label = `note-${index}`;
+    while (new RegExp(`\\[\\^${label}\\]`, "i").test(source)) {
+      index++;
+      label = `note-${index}`;
+    }
+    const definition = `[^${label}]: `;
+    const separator =
+      source.length === 0 || source.endsWith("\n\n")
+        ? ""
+        : source.endsWith("\n")
+          ? "\n"
+          : "\n\n";
+    const reference = selected ? `${selected}[^${label}]` : `[^${label}]`;
+    const appended = separator + definition;
+    const atEnd = to === source.length;
+    const changes = atEnd
+      ? [{ from, to, insert: reference + appended }]
+      : [
+          { from, to, insert: reference },
+          { from: source.length, insert: appended },
+        ];
+    const definitionStart = atEnd
+      ? from + reference.length + appended.length
+      : source.length + appended.length;
+    view.dispatch({
+      changes,
+      selection: { anchor: definitionStart },
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+    view.focus();
+    return;
+  }
   const wrappers: Partial<Record<Format, string>> = {
     bold: "**",
     italic: "*",

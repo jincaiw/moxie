@@ -1147,6 +1147,29 @@ test("格式菜单可为选中文本添加并移除上下标", async ({ page }) 
   await expect(editor).toContainText("x^2^");
 });
 
+test("格式菜单插入脚注引用和定义并聚焦注释正文", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "插入脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("这里有说明"),
+  });
+  const editor = page.locator(".cm-content");
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await editor.click();
+  await page.keyboard.press(documentStart);
+  for (let index = 0; index < 3; index++)
+    await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.getByRole("button", { name: "格式", exact: true }).click();
+  await page.getByRole("menuitem", { name: "插入脚注", exact: true }).click();
+  await expect(editor).toContainText("这里有说明[^note-1]");
+  await expect(editor).toContainText("[^note-1]: ");
+  await page.keyboard.type("补充解释");
+  await expect(editor).toContainText("[^note-1]: 补充解释");
+});
+
 test("上标下标即时预览、兼容删除线并隔离代码导出", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
