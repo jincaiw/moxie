@@ -689,4 +689,6 @@
 - [x] 标题锚点解析识别高亮、上标、下标和行内公式语法，目录跳转生成与 HTML 导出一致的可读 slug。
 - [x] 浏览器回归覆盖四种 Moxie 行内格式标题的文内锚点跳转；链接相关 9 项通过。
 - [x] 生产构建成功；完整浏览器回归 73 项通过、3 项性能用例按设计跳过（1 项表格用例首次因超时失败、自动重试通过）；桌面逻辑 17 项通过。
-- [ ] GitHub Actions 验证、arm64/x64 包构建与 Release 发布待完成。
+- [x] GitHub Actions 源码验证成功；arm64/x64 macOS 包构建成功（x64 首次遇到 runner `hdiutil Resource busy`，重跑后通过）。
+- [x] v0.16.71 Release 已发布，含 arm64/x64 DMG、ZIP、blockmap、SHA256SUMS 与 `latest-mac.yml`。
+- [x] 线上更新清单版本为 0.16.71，含两架构各一条 ZIP/DMG 记录，文件名唯一。
