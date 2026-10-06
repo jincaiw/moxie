@@ -1038,7 +1038,7 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
     name: "大纲.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "标题一\n====\n\n标题二\n----\n\n````md\n```\n# 代码中的标题\n````\n\n## 真正的标题 ##\n",
+      "标题一\n====\n\n标题二\n----\n\n````md\n```\n# 代码中的标题\n````\n\n## **真正的标题** `代码` ##\n",
     ),
   });
   await expect(page.locator(".md-h1")).toContainText("标题一");
@@ -1049,9 +1049,11 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
   await expect(page.locator(".outline-row")).toHaveText([
     "标题一",
     "标题二",
-    "真正的标题",
+    "真正的标题 代码",
   ]);
-  await page.getByRole("button", { name: "真正的标题", exact: true }).click();
+  await page
+    .getByRole("button", { name: "真正的标题 代码", exact: true })
+    .click();
   await expect(page.locator(".cm-focused")).toBeVisible();
 });
 
@@ -1089,13 +1091,16 @@ test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) 
     name: "目录.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "[TOC]\n\n# 第一章\n\n## 子章节\n\n<h2>\n<em>HTML</em> &amp; 标题\n</h2>\n\n正文\n",
+      "[TOC]\n\n# 第一章\n\n## **子章节** `代码`\n\n<h2>\n<em>HTML</em> &amp; 标题\n</h2>\n\n正文\n",
     ),
   });
   const toc = page.locator(".md-toc");
   await expect(toc).toBeVisible();
   await toc.locator("summary").click();
-  const section = toc.getByRole("button", { name: "子章节", exact: true });
+  const section = toc.getByRole("button", {
+    name: "子章节 代码",
+    exact: true,
+  });
   await expect(section).toBeVisible();
   const htmlHeading = toc.getByRole("button", {
     name: "HTML & 标题",
@@ -1114,7 +1119,7 @@ test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) 
       "return import('/src/export.ts')",
     )()) as { exportHTML: (source: string, name: string) => Promise<string> };
     return module.exportHTML(
-      "[TOC]\n\n# 第一章\n\n## 子章节\n\n<h2>\n<em>HTML</em> &amp; 标题\n</h2>",
+      "[TOC]\n\n# 第一章\n\n## **子章节** `代码`\n\n<h2>\n<em>HTML</em> &amp; 标题\n</h2>",
       "目录.md",
     );
   });

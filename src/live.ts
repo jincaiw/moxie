@@ -17,7 +17,7 @@ import DOMPurify from "dompurify";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
-import { htmlImage, markdownImage, markdownLink } from "./links";
+import { headingLabel, htmlImage, markdownImage, markdownLink } from "./links";
 import { headings } from "./data";
 import { LinkWidget } from "./link-widget";
 import { renderMermaid } from "./mermaid";
@@ -970,7 +970,7 @@ class TocWidget extends WidgetType {
         item.style.marginInlineStart = `${Math.max(0, heading.level - 1) * 14}px`;
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = heading.title || "（无标题）";
+        button.textContent = headingLabel(heading.title) || "（无标题）";
         button.addEventListener("mousedown", (event) => {
           event.preventDefault();
           view.dispatch({

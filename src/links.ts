@@ -123,14 +123,17 @@ export function headingSlug(title: string) {
     .trim()
     .replace(/\s+/g, "-");
 }
+export function headingLabel(source: string) {
+  const element = document.createElement("span");
+  element.innerHTML = DOMPurify.sanitize(
+    marked.parseInline(source, { async: false }) as string,
+  );
+  return element.textContent || "";
+}
 export function headingTarget(text: string, anchor: string) {
   const used = new Map<string, number>();
   return headings(text).find((heading) => {
-    const element = document.createElement("span");
-    element.innerHTML = DOMPurify.sanitize(
-      marked.parseInline(heading.title, { async: false }) as string,
-    );
-    const base = headingSlug(element.textContent || ""),
+    const base = headingSlug(headingLabel(heading.title)),
       number = used.get(base) || 0;
     used.set(base, number + 1);
     const id = number ? `${base}-${number}` : base;

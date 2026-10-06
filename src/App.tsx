@@ -35,7 +35,7 @@ import { useWorkspace } from "./useWorkspace";
 import { usePreferences } from "./preferences";
 import { Settings } from "./Settings";
 import { Dialog } from "./Dialog";
-import { headingTarget, usableLink } from "./links";
+import { headingLabel, headingTarget, usableLink } from "./links";
 import { documentStats } from "./stats";
 import type { UpdateStatus } from "./bridge";
 
@@ -90,7 +90,11 @@ export default function App() {
   const workspace = useWorkspace(preferences.autoSave, setMessage);
   const { docs, current, busy, recent } = workspace;
   const documentHeadings = useMemo(
-    () => headings(current.text),
+    () =>
+      headings(current.text).map((heading) => ({
+        ...heading,
+        title: headingLabel(heading.title),
+      })),
     [current.text],
   );
   const [cursor, setCursor] = useState({ position: 0, line: 1, column: 1 });
