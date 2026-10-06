@@ -707,4 +707,6 @@
 - [x] 行内 HTML 预览复用导出端的 Moxie Markdown 扩展解析器，支持 HTML 标签内部的高亮、上标、下标和行内公式。
 - [x] 回归对比即时预览与 HTML 导出，覆盖 `<span>` 内四种格式；完整浏览器回归 76 项通过、3 项性能用例按设计跳过。
 - [x] 桌面逻辑 17 项通过，生产构建成功。
-- [ ] GitHub Actions 验证、arm64/x64 包构建与 Release 发布待完成。
+- [x] GitHub Actions 源码验证及 arm64/x64 macOS 包构建成功；完整浏览器回归通过。
+- [x] v0.16.73 Release 已发布，含 arm64/x64 DMG、ZIP、blockmap、SHA256SUMS 与 `latest-mac.yml`。
+- [x] 线上更新清单版本为 0.16.73，含两架构各一条 ZIP/DMG 记录，文件名唯一。
