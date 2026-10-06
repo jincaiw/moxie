@@ -1,6 +1,6 @@
 import { themeCSSError } from "./theme-css";
 
-const packageLimit = 65536;
+const packageLimit = 96 * 1024;
 const mimeTypes: Record<string, string> = {
   avif: "image/avif",
   gif: "image/gif",
@@ -45,7 +45,7 @@ export async function importThemePackage(files: File[]) {
   if (!files.length) throw new Error("主题包为空。");
   if (files.length > 128) throw new Error("主题包文件数不能超过 128 个。");
   const totalSize = files.reduce((total, file) => total + file.size, 0);
-  if (totalSize > packageLimit) throw new Error("主题包总大小不能超过 64 KB。");
+  if (totalSize > packageLimit) throw new Error("主题包总大小不能超过 96 KB。");
 
   const paths = files.map((file) =>
     normalizedPath(file.webkitRelativePath || file.name),

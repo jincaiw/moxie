@@ -483,9 +483,75 @@ test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", as
     await expect(
       page.locator(".theme-css-editor [role='status']"),
     ).toContainText("不能引用主题文件夹之外");
+
+    await fs.writeFile(
+      path.join(theme, "oversized.bin"),
+      Buffer.alloc(97 * 1024),
+    );
+    await page.getByLabel("选择主题包文件夹").setInputFiles(theme);
+    await expect(
+      page.locator(".theme-css-editor [role='status']"),
+    ).toContainText("不能超过 96 KB");
   } finally {
     await fs.rm(folder, { recursive: true, force: true });
   }
+});
+
+test("主题包可导入并持久保存超过旧限制的字体资源", async ({ page }) => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-theme-font-"));
+  const theme = path.join(folder, "主题");
+  await fs.mkdir(path.join(theme, "assets"), { recursive: true });
+  await fs.writeFile(
+    path.join(theme, "theme.css"),
+    '@font-face { font-family: "ThemeFont"; src: url("assets/theme.woff2"); }',
+  );
+  const font = Buffer.alloc(80 * 1024, 7);
+  await fs.writeFile(path.join(theme, "assets", "theme.woff2"), font);
+  try {
+    await page.goto("/");
+    await page.getByRole("button", { name: "偏好设置" }).click();
+    const css = page.getByRole("textbox", { name: "自定义主题 CSS 内容" });
+    await page.getByLabel("选择主题包文件夹").setInputFiles(theme);
+    await expect(css).toContainText("data:font/woff2;base64,");
+    const expandedCSS = await css.inputValue();
+    expect(expandedCSS.length).toBeGreaterThan(65536);
+    expect(expandedCSS.length).toBeLessThanOrEqual(128 * 1024);
+
+    await page.getByLabel("新主题名称").fill("大字体主题");
+    await page.getByRole("button", { name: "保存为本地主题" }).click();
+    await expect(
+      page.locator(".theme-css-editor [role='status']"),
+    ).toContainText("已保存");
+    await page.reload();
+    await page.getByRole("button", { name: "偏好设置" }).click();
+    await expect(page.getByLabel("本地主题")).toHaveValue("大字体主题");
+    await expect(css).toHaveValue(expandedCSS);
+  } finally {
+    await fs.rm(folder, { recursive: true, force: true });
+  }
+});
+
+test("本地主题库总容量受限并在保存前告知", async ({ page }) => {
+  await page.addInitScript(() => {
+    const css = `/*${"x".repeat(128 * 1024 - 4)}*/`;
+    const savedThemes = Array.from({ length: 12 }, (_, index) => ({
+      name: `主题 ${index + 1}`,
+      css,
+    }));
+    localStorage.setItem(
+      "moxie.preferences.v2",
+      JSON.stringify({ savedThemes }),
+    );
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page
+    .getByRole("textbox", { name: "自定义主题 CSS 内容" })
+    .fill(":root { --accent: #123456; }");
+  await expect(page.getByRole("alert")).toContainText("不能超过 1.5 MB");
+  await expect(
+    page.getByRole("button", { name: "保存为本地主题" }),
+  ).toBeDisabled();
 });
 
 test("自定义 CSS 可保存为具名本地主题并在重启后应用", async ({ page }) => {

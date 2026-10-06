@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { themeCSSError } from "./theme-css";
+import {
+  THEME_CSS_LIMIT,
+  THEME_LIBRARY_CSS_LIMIT,
+  themeCSSError,
+} from "./theme-css";
 export { themeCSSError } from "./theme-css";
 export type ThemePreset =
   "light" | "dark" | "sepia" | "solarized-light" | "solarized-dark";
@@ -45,20 +49,27 @@ function initial(): Preferences {
       localStorage.getItem("moxie.preferences.v2") || "{}",
     );
     const storedTheme = value.theme || localStorage.getItem("moxie.theme");
-    const savedThemes: SavedTheme[] = Array.isArray(value.savedThemes)
-      ? value.savedThemes
-          .filter(
-            (theme: unknown): theme is SavedTheme =>
-              !!theme &&
-              typeof theme === "object" &&
-              typeof (theme as SavedTheme).name === "string" &&
-              (theme as SavedTheme).name.trim().length > 0 &&
-              (theme as SavedTheme).name.length <= 40 &&
-              typeof (theme as SavedTheme).css === "string" &&
-              !themeCSSError((theme as SavedTheme).css),
-          )
-          .slice(0, 20)
-      : [];
+    const savedThemes: SavedTheme[] = [];
+    let savedThemeCSSSize = 0;
+    if (Array.isArray(value.savedThemes)) {
+      for (const theme of value.savedThemes) {
+        if (
+          !theme ||
+          typeof theme !== "object" ||
+          typeof (theme as SavedTheme).name !== "string" ||
+          !(theme as SavedTheme).name.trim() ||
+          (theme as SavedTheme).name.length > 40 ||
+          typeof (theme as SavedTheme).css !== "string" ||
+          themeCSSError((theme as SavedTheme).css) ||
+          savedThemes.length >= 20 ||
+          savedThemeCSSSize + (theme as SavedTheme).css.length >
+            THEME_LIBRARY_CSS_LIMIT
+        )
+          continue;
+        savedThemes.push(theme as SavedTheme);
+        savedThemeCSSSize += (theme as SavedTheme).css.length;
+      }
+    }
     const themes: ThemePreset[] = [
       "light",
       "dark",
@@ -82,7 +93,8 @@ function initial(): Preferences {
       typewriter: value.typewriter === true,
       spellCheck: value.spellCheck === true,
       customCSS:
-        typeof value.customCSS === "string" && value.customCSS.length <= 65536
+        typeof value.customCSS === "string" &&
+        value.customCSS.length <= THEME_CSS_LIMIT
           ? value.customCSS
           : "",
       savedThemes,

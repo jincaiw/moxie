@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useRef, useState } from "react";
 import { Dialog } from "./Dialog";
 import { themeCSSError, type Preferences } from "./preferences";
+import { THEME_LIBRARY_CSS_LIMIT } from "./theme-css";
 import { download } from "./bridge";
 import type { UpdateStatus } from "./bridge";
 import { importThemePackage } from "./theme-package";
@@ -34,8 +35,20 @@ export function Settings({
   const duplicateName = preferences.savedThemes.some(
     (theme) => theme.name.toLowerCase() === normalizedName.toLowerCase(),
   );
+  const savedThemeCSSSize = preferences.savedThemes.reduce(
+    (total, theme) => total + theme.css.length,
+    0,
+  );
+  const nextThemeLibrarySize =
+    savedThemeCSSSize -
+    (activeTheme?.css.length || 0) +
+    preferences.customCSS.length;
+  const themeLibraryError =
+    nextThemeLibrarySize > THEME_LIBRARY_CSS_LIMIT
+      ? "本地主题库总大小不能超过 1.5 MB；请删除其他主题或精简 CSS。"
+      : "";
   const saveTheme = () => {
-    if (cssError) return;
+    if (cssError || themeLibraryError) return;
     if (activeTheme) {
       update(
         "savedThemes",
@@ -256,6 +269,7 @@ export function Settings({
             type="button"
             disabled={
               !!cssError ||
+              !!themeLibraryError ||
               !preferences.customCSS.trim() ||
               (activeTheme
                 ? false
@@ -274,6 +288,11 @@ export function Settings({
           )}
         </div>
         {themeMessage && <small role="status">{themeMessage}</small>}
+        {themeLibraryError && (
+          <small className="theme-css-error" role="alert">
+            {themeLibraryError}
+          </small>
+        )}
         {!activeTheme && duplicateName && (
           <small className="theme-css-error" role="alert">
             已有同名主题，请更换名称或先选择该主题进行更新。
@@ -283,11 +302,12 @@ export function Settings({
           <small>主题库已满；删除一个主题后才能保存新主题。</small>
         )}
         <small>
-          本地主题 {preferences.savedThemes.length}/20；每个主题最多 64 KB。
+          本地主题 {preferences.savedThemes.length}/20；每份 CSS 最多 128
+          KB，主题库总量最多 1.5 MB。
         </small>
         <small>
-          样式仅保存在本机。主题包支持 CSS
-          与小型图片/字体资源，导入时会内嵌资源；不允许外部 URL、@import
+          样式仅保存在本机。主题包总量最多 96 KB，支持 CSS
+          与图片/字体资源，导入时会内嵌资源；不允许外部 URL、@import
           或动态表达式。
         </small>
       </section>
