@@ -590,7 +590,8 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
 
 test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async ({ page }) => {
   await page.goto("/");
-  const source = `![尺寸示例](data:image/png;base64,${png.toString("base64")} =320x180)\n\n`;
+  const image = `data:image/png;base64,${png.toString("base64")}`;
+  const source = `![仅宽度](<${image}> =240x)\n\n![仅高度](<${image}> =x120)\n\n![宽高](<${image}> =320x180)\n\n`;
   await page.locator("input.md-input").setInputFiles({
     name: "图片尺寸.md",
     mimeType: "text/markdown",
@@ -598,15 +599,22 @@ test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async (
   });
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
 
-  const previewImage = page.locator(".image-preview img");
-  await expect(previewImage).toHaveAttribute("width", "320");
-  await expect(previewImage).toHaveAttribute("height", "180");
+  const previewImages = page.locator(".image-preview img");
+  await expect(previewImages).toHaveCount(3);
+  await expect(previewImages.nth(0)).toHaveAttribute("width", "240");
+  await expect(previewImages.nth(0)).not.toHaveAttribute("height", /.+/);
+  await expect(previewImages.nth(1)).toHaveAttribute("height", "120");
+  await expect(previewImages.nth(1)).not.toHaveAttribute("width", /.+/);
+  await expect(previewImages.nth(2)).toHaveAttribute("width", "320");
+  await expect(previewImages.nth(2)).toHaveAttribute("height", "180");
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
       "return import('/src/export.ts')",
     )()) as { exportHTML: (text: string, name: string) => Promise<string> };
     return module.exportHTML(markdown, "image-size.md");
   }, source);
+  expect(html).toContain('width="240"');
+  expect(html).toContain('height="120"');
   expect(html).toContain('width="320" height="180"');
 });
 
