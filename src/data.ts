@@ -131,7 +131,7 @@ function htmlHeadingTitle(source: string) {
 }
 function htmlHeadingClose(source: string, level: number) {
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<(script|style)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
+    `<!--[\\s\\S]*?-->|<(script|style|textarea|title|xmp|iframe|noembed|noframes|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
     "gi",
   );
   let match: RegExpExecArray | null;
