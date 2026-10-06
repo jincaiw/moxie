@@ -1485,6 +1485,26 @@ test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("引用内嵌套列表的 HTML 块不会把脚注样式文本提取为定义", async ({
+  page,
+}) => {
+  const source =
+    '> - 外层项目\n>   - 内层项目\n>\n>     <div class="literal">\n>     [^fake]: HTML 中的普通文本\n>     </div>\n\n正文[^real]。\n\n[^real]: 真正的脚注';
+  await page.goto("/");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "nested-html-footnote-boundary.md");
+  }, source);
+
+  expect(html).toContain("[^fake]: HTML 中的普通文本");
+  expect(html).toContain("真正的脚注");
+  expect(html).toContain('id="fn-1"');
+  expect(html).not.toContain('id="fn-2"');
+});
+
 test("脚注标记可通过鼠标或键盘跳转到定义", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
