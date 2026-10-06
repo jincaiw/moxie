@@ -123,6 +123,7 @@ function htmlHeadingTitle(source: string) {
         }
       },
     )
+    .replace(/\s+/g, " ")
     .trim();
 }
 export function headings(text: string) {
@@ -148,13 +149,36 @@ export function headings(text: string) {
   };
 
   let fence: RegExp | undefined;
+  let htmlHeadingCapture:
+    { level: number; from: number; content: string } | undefined;
   let line: ReturnType<typeof lineAt> | null = lineAt(0);
   while (line) {
     const next: ReturnType<typeof lineAt> | null =
       line.next <= text.length ? lineAt(line.next) : null;
     const content = markdownContainerContent(line.text);
     const nextContent = next ? markdownContainerContent(next.text) : "";
-    if (fence) {
+    if (htmlHeadingCapture && !fence) {
+      if (!content.trim()) {
+        htmlHeadingCapture = undefined;
+      } else {
+        const close = new RegExp(
+          `</h${htmlHeadingCapture.level}\\s*>`,
+          "i",
+        ).exec(content);
+        if (close) {
+          result.push({
+            level: htmlHeadingCapture.level,
+            title: htmlHeadingTitle(
+              `${htmlHeadingCapture.content}\n${content.slice(0, close.index)}`,
+            ),
+            from: htmlHeadingCapture.from,
+          });
+          htmlHeadingCapture = undefined;
+        } else {
+          htmlHeadingCapture.content += `\n${content}`;
+        }
+      }
+    } else if (fence) {
       if (fence.test(content)) fence = undefined;
     } else {
       const opening = /^(`{3,}|~{3,})/.exec(content);
@@ -162,15 +186,33 @@ export function headings(text: string) {
         const character = opening[1][0] === "`" ? "`" : "~";
         fence = new RegExp(`^${character}{${opening[1].length},}[ \\t]*$`);
       } else {
-        const htmlHeading =
-          /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)<\/h\1\s*>[ \t]*$/i.exec(content);
+        const htmlHeadingOpening = /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)$/i.exec(
+          content,
+        );
         const atx = /^(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/.exec(content);
-        if (htmlHeading) {
-          result.push({
-            level: Number(htmlHeading[1]),
-            title: htmlHeadingTitle(htmlHeading[2]),
-            from: line.from,
-          });
+        if (htmlHeadingOpening) {
+          const level = Number(htmlHeadingOpening[1]);
+          const close = new RegExp(`</h${level}\\s*>`, "i").exec(
+            htmlHeadingOpening[2],
+          );
+          if (
+            close &&
+            !htmlHeadingOpening[2].slice(close.index + close[0].length).trim()
+          ) {
+            result.push({
+              level,
+              title: htmlHeadingTitle(
+                htmlHeadingOpening[2].slice(0, close.index),
+              ),
+              from: line.from,
+            });
+          } else if (!close) {
+            htmlHeadingCapture = {
+              level,
+              from: line.from,
+              content: htmlHeadingOpening[2],
+            };
+          }
         } else if (atx) {
           result.push({
             level: atx[1].length,
