@@ -16,6 +16,62 @@ function normalizeFootnote(label: string) {
   return label.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function stripMarkdownContainers(line: string) {
+  let content = line;
+  for (let depth = 0; depth < 12; depth++) {
+    content = content.replace(/^ {0,3}/, "");
+    if (content.startsWith(">")) {
+      content = content.slice(1).replace(/^[ \t]?/, "");
+      continue;
+    }
+    const list = /^(?:[-+*]|\d{1,9}[.)])[ \t]+/.exec(content);
+    if (list) {
+      content = content.slice(list[0].length);
+      continue;
+    }
+    break;
+  }
+  return content;
+}
+
+function markNestedHTMLLines(
+  token: Tokens.Generic,
+  parentLines: string[],
+  parentStart: number,
+  htmlLines: Set<number>,
+) {
+  const structured = token as Tokens.Generic & {
+    tokens?: Tokens.Generic[];
+    items?: { tokens?: Tokens.Generic[] }[];
+  };
+  const children = [
+    ...(structured.tokens || []),
+    ...(structured.items || []).flatMap((item) => item.tokens || []),
+  ];
+  let cursor = 0;
+  for (const child of children) {
+    const childLines = child.raw.split("\n");
+    const first = stripMarkdownContainers(childLines[0] || "");
+    let relativeStart = -1;
+    for (let index = cursor; index < parentLines.length; index++) {
+      if (stripMarkdownContainers(parentLines[index]) === first) {
+        relativeStart = index;
+        break;
+      }
+    }
+    if (relativeStart < 0) continue;
+    const childStart = parentStart + relativeStart;
+    const rawLineCount = (child.raw.match(/\n/g) || []).length;
+    if (child.type === "html" && child.block) {
+      const coveredLines = rawLineCount + Number(!child.raw.endsWith("\n"));
+      for (let line = childStart; line < childStart + coveredLines; line++)
+        htmlLines.add(line);
+    }
+    markNestedHTMLLines(child, childLines, childStart, htmlLines);
+    cursor = relativeStart + Math.max(rawLineCount, 1);
+  }
+}
+
 function extractFootnotes(source: string) {
   const normalized = source.replace(/\r\n?/g, "\n");
   const lines = normalized.split("\n");
@@ -25,10 +81,13 @@ function extractFootnotes(source: string) {
     const startLine = lineOffset;
     const rawLineCount = token.raw.match(/\n/g)?.length || 0;
     lineOffset += rawLineCount;
-    if (token.type !== "html" || !token.block) continue;
-    const coveredLines = rawLineCount + Number(!token.raw.endsWith("\n"));
-    for (let line = startLine; line < startLine + coveredLines; line++)
-      htmlLines.add(line);
+    if (token.type === "html" && token.block) {
+      const coveredLines = rawLineCount + Number(!token.raw.endsWith("\n"));
+      for (let line = startLine; line < startLine + coveredLines; line++)
+        htmlLines.add(line);
+    } else {
+      markNestedHTMLLines(token, token.raw.split("\n"), startLine, htmlLines);
+    }
   }
   const remaining: string[] = [];
   const definitions = new Map<string, string>();
@@ -279,7 +338,14 @@ export async function exportHTML(
   const title = name.replace(/[&<>"']/g, "");
   const palettes: Record<
     ThemePreset,
-    { bg: string; text: string; muted: string; border: string; code: string; accent: string }
+    {
+      bg: string;
+      text: string;
+      muted: string;
+      border: string;
+      code: string;
+      accent: string;
+    }
   > = {
     light: {
       bg: "#fff",

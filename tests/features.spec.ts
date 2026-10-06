@@ -1387,7 +1387,7 @@ test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async
     name: "HTML块脚注边界.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      '<div class="literal">\n[^fake]: HTML 块中的普通文本\n</div>\n\n正文[^real]。\n\n[^real]: 真正的脚注',
+      '<div class="literal">\n[^fake]: HTML 块中的普通文本\n</div>\n\n- <div class="literal">\n  [^list-fake]: 列表 HTML 块中的普通文本\n  </div>\n\n> <div class="literal">\n> [^quote-fake]: 引用 HTML 块中的普通文本\n> </div>\n\n正文[^real]。\n\n[^real]: 真正的脚注',
     ),
   });
   await page.getByRole("button", { name: "导出", exact: true }).click();
@@ -1395,6 +1395,8 @@ test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async
   await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
   const html = await fs.readFile((await (await downloading).path())!, "utf8");
   expect(html).toContain("[^fake]: HTML 块中的普通文本");
+  expect(html).toContain("[^list-fake]: 列表 HTML 块中的普通文本");
+  expect(html).toContain("[^quote-fake]: 引用 HTML 块中的普通文本");
   expect(html).toContain("真正的脚注");
   expect(html).not.toContain('id="fn-2"');
 });
