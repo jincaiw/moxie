@@ -89,8 +89,11 @@ function markdownContainerContent(line: string) {
       content = content.slice(1).replace(/^[ \t]?/, "");
       continue;
     }
-    const list = /^(?:[-+*]|\d{1,9}[.)])[ \t]+/.exec(content);
+    const list = /^((?:[-+*]|\d{1,9}[.)])([ \t]+))/.exec(content);
     if (list) {
+      // Excess padding (or a tab) starts indented code inside a list item.
+      // Keep the marker so heading-looking code is never added to the outline.
+      if (list[2].length > 4 || / +\t/.test(list[2])) return content;
       content = content.slice(list[0].length);
       continue;
     }

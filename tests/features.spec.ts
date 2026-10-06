@@ -1695,6 +1695,12 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
   expect(
     headings(`${"> ".repeat(13)}# 深层引用标题`).map(({ title }) => title),
   ).toEqual(["深层引用标题"]);
+  expect(
+    headings(
+      "-     # 缩进代码标题\n\n1.      ## 有序列表缩进代码标题\n\n- # 真实列表标题\n",
+    ).map(({ title }) => title),
+  ).toEqual(["真实列表标题"]);
+  expect(headings("- \t# 制表符代码标题\n")).toEqual([]);
 });
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
