@@ -15,10 +15,36 @@ const { autoUpdater } = require("electron-updater");
 const { UpdateController } = require("./updater.cjs");
 let store,
   updates,
-  windowSequence = 0;
-const windowSessionScope = randomUUID();
+  windowSequence = 0,
+  windowProfileFile,
+  windowProfileWrites = Promise.resolve(),
+  isQuitting = false;
 const windowStates = new Map();
+const windowProfiles = new Set();
 const isDev = process.env.MOXIE_DEV === "1";
+async function loadWindowProfiles() {
+  if (!windowProfileFile) return;
+  try {
+    const value = JSON.parse(await fs.readFile(windowProfileFile, "utf8"));
+    if (!Array.isArray(value)) return;
+    for (const id of value) {
+      if (typeof id === "string" && /^[\da-f-]{36}$/i.test(id)) {
+        windowProfiles.add(id);
+        if (windowProfiles.size >= 16) break;
+      }
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") console.error("读取窗口会话失败", error);
+  }
+}
+function saveWindowProfiles() {
+  if (!windowProfileFile) return Promise.resolve();
+  const contents = JSON.stringify([...windowProfiles]);
+  windowProfileWrites = windowProfileWrites
+    .catch(() => {})
+    .then(() => atomicWrite(windowProfileFile, contents));
+  return windowProfileWrites;
+}
 function action(name, target) {
   const window =
     target ||
@@ -235,9 +261,26 @@ function setupIPC() {
     state.window.close();
   });
 }
-function createWindow(primary = false) {
+function createWindow(primary = false, restoredProfile) {
+  if (!primary && !restoredProfile && windowProfiles.size >= 16) {
+    const options = {
+      type: "info",
+      message: "最多可保存 16 个额外窗口工作区。",
+    };
+    const owner = BrowserWindow.getFocusedWindow?.();
+    void (owner
+      ? dialog.showMessageBox(owner, options)
+      : dialog.showMessageBox(options));
+    return null;
+  }
   const id = ++windowSequence;
-  const state = { dirty: false, allowClose: false, askingClose: false };
+  const profileId = primary ? undefined : restoredProfile || randomUUID();
+  const state = {
+    dirty: false,
+    allowClose: false,
+    askingClose: false,
+    profileId,
+  };
   const window = new BrowserWindow({
     width: 1280,
     height: 900,
@@ -249,7 +292,7 @@ function createWindow(primary = false) {
     backgroundColor: "#ffffff",
     webPreferences: {
       ...(!primary && {
-        partition: `moxie-workspace-${windowSessionScope}-${id}`,
+        partition: `persist:moxie-workspace-${profileId}`,
       }),
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -259,6 +302,12 @@ function createWindow(primary = false) {
   });
   state.window = window;
   windowStates.set(window.webContents, state);
+  if (profileId && !restoredProfile) {
+    windowProfiles.add(profileId);
+    void saveWindowProfiles().catch((error) =>
+      console.error("保存窗口会话失败", error),
+    );
+  }
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: "deny" };
@@ -299,10 +348,27 @@ function createWindow(primary = false) {
         state.askingClose = false;
       });
   });
-  window.on("closed", () => windowStates.delete(window.webContents));
+  window.on("closed", () => {
+    windowStates.delete(window.webContents);
+    if (
+      state.profileId &&
+      !state.dirty &&
+      windowStates.size > 0 &&
+      !isQuitting
+    ) {
+      windowProfiles.delete(state.profileId);
+      void saveWindowProfiles().catch((error) =>
+        console.error("清理窗口会话失败", error),
+      );
+    }
+  });
   if (isDev) void window.loadURL("http://127.0.0.1:5173");
   else void window.loadFile(path.join(__dirname, "../dist/index.html"));
   return window;
+}
+function restoreWindows() {
+  createWindow(true);
+  for (const profileId of windowProfiles) createWindow(false, profileId);
 }
 function setupUpdater() {
   updates = new UpdateController({
@@ -410,17 +476,24 @@ function createMenu() {
   );
 }
 app.whenReady().then(async () => {
+  if (app.getPath)
+    windowProfileFile = path.join(app.getPath("userData"), "windows.json");
   store = new FileStore(
     app.getPath ? path.join(app.getPath("userData"), "files.json") : undefined,
   );
   await store.init();
+  await loadWindowProfiles();
   setupUpdater();
   setupIPC();
-  createWindow(true);
+  restoreWindows();
   createMenu();
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow(true);
+    if (BrowserWindow.getAllWindows().length === 0) restoreWindows();
   });
+});
+app.on("before-quit", () => {
+  isQuitting = true;
+  void saveWindowProfiles();
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

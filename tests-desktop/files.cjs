@@ -1,4 +1,4 @@
-const { test } = require("node:test");
+const { test, after } = require("node:test");
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs/promises");
@@ -7,7 +7,19 @@ const path = require("node:path");
 const { EventEmitter } = require("node:events");
 const { UpdateController } = require("../electron/updater.cjs");
 const { mergeMacUpdateInfo } = require("../electron/update-info.cjs");
-async function harness() {
+const harnessDirectories = [];
+after(async () => {
+  await Promise.all(
+    harnessDirectories.map((directory) =>
+      fs.rm(directory, { recursive: true, force: true }),
+    ),
+  );
+});
+async function harness(userData) {
+  if (!userData) {
+    userData = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-main-test-"));
+    harnessDirectories.push(userData);
+  } else await fs.mkdir(userData, { recursive: true });
   const handlers = new Map(),
     events = new Map();
   const windows = [],
@@ -70,6 +82,7 @@ async function harness() {
   const electron = {
     app: {
       isPackaged: true,
+      getPath: () => userData,
       whenReady: () => Promise.resolve(),
       on: () => {},
       quit: () => {},
@@ -119,7 +132,7 @@ async function harness() {
     Buffer,
     console,
   });
-  await new Promise((r) => setImmediate(r));
+  await new Promise((r) => setTimeout(r, 20));
   const window = windows[0],
     event = {
       sender: window.webContents,
@@ -148,6 +161,19 @@ async function harness() {
     },
     window,
     windows,
+    userData,
+    waitForProfiles: async (count) => {
+      for (let attempt = 0; attempt < 50; attempt++) {
+        try {
+          const ids = JSON.parse(
+            await fs.readFile(path.join(userData, "windows.json"), "utf8"),
+          );
+          if (ids.length === count) return ids;
+        } catch {}
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw Error(`窗口会话数量未变为 ${count}`);
+    },
     externalUrls,
     events,
     event,
@@ -280,7 +306,7 @@ test("关闭脏文档时取消有效，保留副本先通知渲染层", async ()
   h.events.get("window:close-ready")(h.event);
   assert.equal(h.window.closed, true);
 });
-test("新建窗口隔离工作区存储和未保存关闭状态", async () => {
+test("新建窗口独立恢复工作区和未保存状态，并在关闭时清理恢复项", async () => {
   const h = await harness();
   const fileMenu = h.menuTemplate.find((menu) => menu.label === "文件");
   fileMenu.submenu.find((item) => item.label === "新建窗口").click();
@@ -290,10 +316,17 @@ test("新建窗口隔离工作区存储和未保存关闭状态", async () => {
     first.options.webPreferences.partition,
     second.options.webPreferences.partition,
   );
-  assert.match(second.options.webPreferences.partition, /^moxie-workspace-/);
+  assert.match(
+    second.options.webPreferences.partition,
+    /^persist:moxie-workspace-[\da-f-]{36}$/i,
+  );
+  const profiles = await h.waitForProfiles(1);
+  const restarted = await harness(h.userData);
+  assert.equal(restarted.windows.length, 2);
+  const restoredSecondary = restarted.windows[1];
   assert.equal(
-    second.options.webPreferences.partition.startsWith("persist:"),
-    false,
+    restoredSecondary.options.webPreferences.partition,
+    second.options.webPreferences.partition,
   );
 
   h.events.get("document:dirty")(
@@ -331,6 +364,31 @@ test("新建窗口隔离工作区存储和未保存关闭状态", async () => {
 
   await h.callFor("file:open", second);
   assert.equal(h.dialogParent, second);
+
+  restoredSecondary.emit("closed");
+  assert.deepEqual(await restarted.waitForProfiles(0), []);
+  assert.equal(profiles.length, 1);
+
+  const restoredFileMenu = restarted.menuTemplate.find(
+    (menu) => menu.label === "文件",
+  );
+  restoredFileMenu.submenu.find((item) => item.label === "新建窗口").click();
+  const retainedWindow = restarted.windows[2];
+  restarted.events.get("document:dirty")(
+    {
+      sender: retainedWindow.webContents,
+      senderFrame: retainedWindow.webContents.mainFrame,
+    },
+    true,
+  );
+  retainedWindow.emit("closed");
+  const retainedProfiles = await restarted.waitForProfiles(1);
+  const afterRetainedClose = await harness(h.userData);
+  assert.equal(afterRetainedClose.windows.length, 2);
+  assert.equal(
+    afterRetainedClose.windows[1].options.webPreferences.partition,
+    `persist:moxie-workspace-${retainedProfiles[0]}`,
+  );
 });
 const { FileStore } = require("../electron/files.cjs");
 const png = Buffer.from(
