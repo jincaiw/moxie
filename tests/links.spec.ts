@@ -237,6 +237,25 @@ test("拒绝危险协议且不改变文档", async ({ page }) => {
   );
 });
 
+test("无效百分号编码的标题链接显示提示且不改变文档", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "无效标题链接.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("[无效锚点](#bad%)\n\n## 目标标题\n\n"),
+  });
+  await page
+    .getByRole("link", { name: "无效锚点", exact: true })
+    .click({ modifiers: [clickModifier] });
+  await expect(page.getByRole("status")).toContainText(
+    "标题链接包含无效的百分号编码",
+  );
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText(
+    "[无效锚点](#bad%)",
+  );
+});
+
 test("HTML 导出的文内链接与重复标题锚点一致", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

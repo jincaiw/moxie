@@ -292,9 +292,15 @@ export default function App() {
     try {
       if (!usableLink(href)) throw Error("不支持此链接地址。");
       if (href.startsWith("#")) {
+        let anchor: string;
+        try {
+          anchor = decodeURIComponent(href.slice(1));
+        } catch {
+          throw Error("标题链接包含无效的百分号编码。");
+        }
         setPendingAnchor({
           id: current.id,
-          anchor: decodeURIComponent(href.slice(1)),
+          anchor,
         });
         return;
       }
