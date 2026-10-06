@@ -19,8 +19,10 @@ export function markdownLink(raw: string, document: Text) {
   return { href: link.href, label: link.text, title: link.title || undefined };
 }
 export function markdownImage(raw: string, document: Text) {
+  const sizing = markdownImageSizing(raw);
+  const source = sizing?.raw || raw;
   const lexer = new Lexer();
-  if (/\]\s*(?:\[|$)/.test(raw)) {
+  if (/\]\s*(?:\[|$)/.test(source)) {
     let refs = definitions.get(document);
     if (!refs) {
       refs = Lexer.lex(document.toString()).links;
@@ -28,13 +30,75 @@ export function markdownImage(raw: string, document: Text) {
     }
     lexer.tokens.links = refs;
   }
-  const tokens = lexer.inlineTokens(raw);
+  const tokens = lexer.inlineTokens(source);
   if (tokens.length !== 1 || tokens[0].type !== "image") return null;
   const image = tokens[0];
-  return { src: image.href, alt: image.text };
+  return {
+    src: image.href,
+    alt: image.text,
+    ...(sizing && { width: sizing.width, height: sizing.height }),
+  };
+}
+
+export function markdownImageSizing(raw: string) {
+  const match = /[ \t]+=(\d*)x(\d*)\)$/.exec(raw);
+  if (!match || (!match[1] && !match[2])) return null;
+  const width = match[1] ? Number(match[1]) : undefined;
+  const height = match[2] ? Number(match[2]) : undefined;
+  if (
+    (width !== undefined &&
+      (!Number.isInteger(width) || width < 1 || width > 4096)) ||
+    (height !== undefined &&
+      (!Number.isInteger(height) || height < 1 || height > 4096))
+  )
+    return null;
+  return {
+    raw: raw.slice(0, match.index) + ")",
+    width,
+    height,
+  };
+}
+
+export function markdownImageEnd(raw: string) {
+  if (!raw.startsWith("![")) return null;
+  let brackets = 0;
+  let labelEnd = -1;
+  for (let index = 2; index < raw.length; index++) {
+    if (raw[index] === "\\") {
+      index++;
+      continue;
+    }
+    if (raw[index] === "[") brackets++;
+    else if (raw[index] === "]") {
+      if (brackets === 0) {
+        labelEnd = index;
+        break;
+      }
+      brackets--;
+    }
+  }
+  if (labelEnd < 0 || raw[labelEnd + 1] !== "(") return null;
+  let parentheses = 0;
+  let angleDestination = false;
+  for (let index = labelEnd + 2; index < raw.length; index++) {
+    if (raw[index] === "\\") {
+      index++;
+      continue;
+    }
+    if (raw[index] === "<" && index === labelEnd + 2) angleDestination = true;
+    else if (raw[index] === ">" && angleDestination) angleDestination = false;
+    else if (!angleDestination && raw[index] === "(") parentheses++;
+    else if (!angleDestination && raw[index] === ")") {
+      if (parentheses === 0) return index + 1;
+      parentheses--;
+    }
+  }
+  return null;
 }
 
 export function markdownImageDestination(raw: string) {
+  const sizing = markdownImageSizing(raw);
+  if (sizing) raw = sizing.raw;
   if (!raw.startsWith("![")) return null;
   let depth = 0;
   let closeLabel = -1;

@@ -18,7 +18,13 @@ import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
-import { headingLabel, htmlImage, markdownImage, markdownLink } from "./links";
+import {
+  headingLabel,
+  htmlImage,
+  markdownImage,
+  markdownImageEnd,
+  markdownLink,
+} from "./links";
 import { headings } from "./data";
 import { LinkWidget } from "./link-widget";
 import { renderMermaid } from "./mermaid";
@@ -551,13 +557,23 @@ function build(
         if (node.name === "Image") {
           codeRanges.push({ from: node.from, to: node.to });
           if (!isActive) {
-            const raw = state.doc.sliceString(node.from, node.to);
+            const lineOffset = node.from - line.from;
+            const rawLine = line.text.slice(lineOffset);
+            const inlineLength = markdownImageEnd(rawLine);
+            const raw = inlineLength
+              ? rawLine.slice(0, inlineLength)
+              : state.doc.sliceString(node.from, node.to);
             const image = markdownImage(raw, state.doc);
             if (image) {
-              const wholeLine = node.from === line.from && node.to === line.to;
+              const imageTo = inlineLength
+                ? line.from + lineOffset + inlineLength
+                : node.to;
+              if (imageTo > node.to)
+                codeRanges.push({ from: node.to, to: imageTo });
+              const wholeLine = node.from === line.from && imageTo === line.to;
               add(
                 node.from,
-                node.to,
+                imageTo,
                 Decoration.replace({
                   widget: new ImageWidget(
                     image.src,
@@ -565,12 +581,15 @@ function build(
                     node.from,
                     state.facet(documentPath),
                     wholeLine,
+                    image.width,
+                    image.height,
                   ),
                 }),
               );
               return false;
             }
           }
+          codeRanges.push({ from: node.from, to: node.to });
         }
         if (
           (node.name === "HTMLTag" || node.name === "HTMLBlock") &&
@@ -1223,6 +1242,8 @@ class ImageWidget extends WidgetType {
     readonly from: number,
     readonly path: string | undefined,
     readonly block: boolean,
+    readonly width?: number,
+    readonly height?: number,
   ) {
     super();
   }
@@ -1231,7 +1252,9 @@ class ImageWidget extends WidgetType {
       this.src === other.src &&
       this.alt === other.alt &&
       this.from === other.from &&
-      this.path === other.path
+      this.path === other.path &&
+      this.width === other.width &&
+      this.height === other.height
     );
   }
   toDOM(view: EditorView) {
@@ -1251,6 +1274,8 @@ class ImageWidget extends WidgetType {
       .then((src) => {
         const img = document.createElement("img");
         img.alt = this.alt;
+        if (this.width) img.width = this.width;
+        if (this.height) img.height = this.height;
         img.src = src;
         img.addEventListener("load", () => {
           view.requestMeasure();

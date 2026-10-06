@@ -1,7 +1,7 @@
 import { Lexer, Marked, type MarkedExtension, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import { resolveImage } from "./assets";
-import { headingSlug } from "./links";
+import { headingSlug, markdownImageSizing } from "./links";
 import { renderMermaid } from "./mermaid";
 import { inlineMathMatches, renderMath } from "./math";
 import { themeCSSError } from "./theme-css";
@@ -336,6 +336,55 @@ const mathExtensions: NonNullable<MarkedExtension["extensions"]> = [
   },
 ];
 
+const imageExtensions: NonNullable<MarkedExtension["extensions"]> = [
+  {
+    name: "typoraImageSize",
+    level: "inline",
+    start(source) {
+      return source.indexOf("![");
+    },
+    tokenizer(source) {
+      if (!source.startsWith("![")) return;
+      for (const match of source.matchAll(/[ \t]+=\d*x\d*\)/g)) {
+        const raw = source.slice(0, match.index! + match[0].length);
+        const sizing = markdownImageSizing(raw);
+        if (!sizing) continue;
+        const tokens = new Lexer().inlineTokens(sizing.raw);
+        if (tokens.length !== 1 || tokens[0].type !== "image") continue;
+        const image = tokens[0];
+        return {
+          type: "typoraImageSize",
+          raw,
+          href: image.href,
+          title: image.title,
+          text: image.text,
+          tokens: image.tokens,
+          width: sizing.width,
+          height: sizing.height,
+        };
+      }
+    },
+    childTokens: ["tokens"],
+    renderer(token) {
+      const image = token as Tokens.Image & {
+        width?: number;
+        height?: number;
+      };
+      const html = this.parser.renderer.image(image);
+      const attributes = [
+        image.width && `width="${image.width}"`,
+        image.height && `height="${image.height}"`,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const closing = html.lastIndexOf(">");
+      return attributes
+        ? html.slice(0, closing) + " " + attributes + html.slice(closing)
+        : html;
+    },
+  },
+];
+
 function createParser(footnotes: FootnoteState, enableFootnotes = true) {
   const parser = new Marked();
   parser.use({
@@ -373,6 +422,7 @@ function createParser(footnotes: FootnoteState, enableFootnotes = true) {
       });
     },
     extensions: [
+      ...imageExtensions,
       ...mathExtensions,
       {
         name: "moxieToc",

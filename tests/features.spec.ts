@@ -588,6 +588,28 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   await expect(page.locator(".cm-content")).toContainText("pixel.png");
 });
 
+test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async ({ page }) => {
+  await page.goto("/");
+  const source = `![尺寸示例](data:image/png;base64,${png.toString("base64")} =320x180)\n\n`;
+  await page.locator("input.md-input").setInputFiles({
+    name: "图片尺寸.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+
+  const previewImage = page.locator(".image-preview img");
+  await expect(previewImage).toHaveAttribute("width", "320");
+  await expect(previewImage).toHaveAttribute("height", "180");
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "image-size.md");
+  }, source);
+  expect(html).toContain('width="320" height="180"');
+});
+
 test("图片加载失败时状态消息会通知辅助技术", async ({ page }) => {
   await page.route("https://image.test/missing.png", (route) =>
     route.abort(),
