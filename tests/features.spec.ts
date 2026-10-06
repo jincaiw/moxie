@@ -25,11 +25,18 @@ test("表格直接编辑、转义竖线、撤销重做与增删行列", async ({
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "表格编辑.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "| 项目 | 状态 |\n| --- | --- |\n| 计划 | 待办 |\n| 发布 | 完成 |\n| 校验 | 通过 |\n",
+    ),
+  });
   await page.locator(".editable-table td").first().click();
   const cell = page.getByRole("textbox", { name: "编辑第 2 行第 1 列" });
   await cell.fill("计划 | 已修改");
   await cell.press(shortcut("z"));
-  await expect(cell).toHaveValue("保存文档");
+  await expect(cell).toHaveValue("计划");
   await cell.press(shortcut("Shift+z"));
   await expect(cell).toHaveValue("计划 | 已修改");
   await cell.press("Enter");

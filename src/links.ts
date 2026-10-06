@@ -124,9 +124,21 @@ export function headingSlug(title: string) {
     .replace(/\s+/g, "-");
 }
 export function headingLabel(source: string) {
+  const codeSpans: string[] = [];
+  const protectedSource = source.replace(
+    /(`+)([\s\S]*?)(?<!`)\1(?!`)/g,
+    (raw) => {
+      const tokens = Lexer.lexInline(raw);
+      const code = tokens.find((token) => token.type === "codespan");
+      if (!code || code.type !== "codespan") return raw;
+      const placeholder = `MOXIECODESPAN${codeSpans.length}TOKEN`;
+      codeSpans.push(code.text);
+      return placeholder;
+    },
+  );
   // Match the visible text produced by the Moxie inline extensions used by
   // the HTML exporter. Keep the contents and remove only the syntax markers.
-  const visibleSource = source
+  const visibleSource = protectedSource
     .replace(/(?<![=])==(?=\S)(.+?\S)==(?![=])/g, "$1")
     .replace(/(?<![\\^])\^(?=\S)([^\s^]+)\^(?!\^)/g, "$1")
     .replace(/(?<![~\\])~(?=\S)([^\s~]+)~(?!~)/g, "$1")
@@ -135,6 +147,15 @@ export function headingLabel(source: string) {
   element.innerHTML = DOMPurify.sanitize(
     marked.parseInline(visibleSource, { async: false }) as string,
   );
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    walker.currentNode.textContent = (
+      walker.currentNode.textContent || ""
+    ).replace(
+      /MOXIECODESPAN(\d+)TOKEN/g,
+      (placeholder, index: string) => codeSpans[Number(index)] ?? placeholder,
+    );
+  }
   return element.textContent || "";
 }
 export function headingTarget(text: string, anchor: string) {

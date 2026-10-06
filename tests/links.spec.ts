@@ -201,6 +201,19 @@ test("Moxie 行内格式标题的锚点与导出一致", async ({ page }) => {
   }
 });
 
+test("行内代码标题中的 Moxie 标记保持字面文本", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "代码标题.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("## `==literal==` 与 `$x+1$`\n\n"),
+  });
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await expect(page.locator(".outline-row")).toHaveText([
+    "==literal== 与 $x+1$",
+  ]);
+});
+
 test("拒绝危险协议且不改变文档", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
