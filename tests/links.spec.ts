@@ -88,6 +88,33 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
   expect(errors).toEqual([]);
 });
 
+test("引用链接标签按 CommonMark 折叠空白并保留标题与嵌套格式", async ({
+  page,
+}) => {
+  const source =
+    '[read **this**][A   Guide]\n\n[a guide]: <https://example.com/a_(b)> "A title"';
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "reference-link.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const link = page.getByRole("link", { name: "read this", exact: true });
+  await expect(link).toHaveAttribute("href", "https://example.com/a_(b)");
+  await expect(link).toHaveAttribute("title", /A title/);
+  await expect(link.locator("strong")).toHaveText("this");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "reference-link.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.com/a_(b)" title="A title">read <strong>this</strong></a>',
+  );
+});
+
 test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

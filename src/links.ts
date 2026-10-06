@@ -16,7 +16,7 @@ export function markdownLink(raw: string, document: Text) {
   const tokens = lexer.inlineTokens(raw);
   if (tokens.length !== 1 || tokens[0].type !== "link") return null;
   const link = tokens[0];
-  return { href: link.href, label: link.text };
+  return { href: link.href, label: link.text, title: link.title || undefined };
 }
 export function markdownImage(raw: string, document: Text) {
   const lexer = new Lexer();

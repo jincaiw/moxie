@@ -13,6 +13,7 @@ export class LinkWidget extends WidgetType {
     readonly label: string,
     readonly href: string,
     readonly from: number,
+    readonly linkTitle = "",
   ) {
     super();
   }
@@ -20,7 +21,8 @@ export class LinkWidget extends WidgetType {
     return (
       this.label === other.label &&
       this.href === other.href &&
-      this.from === other.from
+      this.from === other.from &&
+      this.linkTitle === other.linkTitle
     );
   }
   toDOM(view: EditorView) {
@@ -28,7 +30,9 @@ export class LinkWidget extends WidgetType {
     anchor.className = "rendered-link";
     anchor.href = usableLink(this.href) ? this.href : "#";
     anchor.dataset.mdLink = this.href;
-    anchor.title = `${this.href}\n⌘/Ctrl + 单击打开，单击编辑`;
+    anchor.title = [this.linkTitle, this.href, "⌘/Ctrl + 单击打开，单击编辑"]
+      .filter(Boolean)
+      .join("\n");
     const formulas: string[] = [];
     const labelParser = new Marked();
     labelParser.use({

@@ -714,7 +714,12 @@ function build(
                 node.from,
                 node.to,
                 Decoration.replace({
-                  widget: new LinkWidget(link.label, link.href, node.from),
+                  widget: new LinkWidget(
+                    link.label,
+                    link.href,
+                    node.from,
+                    link.title,
+                  ),
                 }),
               );
               return false;
