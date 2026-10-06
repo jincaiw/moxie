@@ -923,18 +923,37 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
     // Vite loads the actual browser module, including its Markdown parser.
     // @ts-expect-error runtime URL is served by the development server
     const { rehomeImages } = await import("/src/assets.ts");
+    // @ts-expect-error runtime URL is served by the development server
+    const { markdownImage } = await import("/src/links.ts");
     const text =
-      '[图]: old.assets/reference.png "引用图片"\n\n![引用图][图]\n\n![图片](old.assets/a.png)\n\n<img src="old.assets/html.png" alt="HTML 图片">\n\n`![例子](example.png)`\n\n```md\n![例子](code.png)\n```';
-    return { text: await rehomeImages(text, "/old/a.md", "/new/b.md"), calls };
+      '[图]: old.assets/reference.png "引用图片"\n\n![引用图][图]\n\n![图片](old.assets/a.png)\n\n![括号](old.assets/image_(1).png)\n\n![转义括号](old.assets/image_\\(2\\).png)\n\n![空格](<old.assets/image 3.png>)\n\n<img src="old.assets/html.png" alt="HTML 图片">\n\n`![例子](example.png)`\n\n```md\n![例子](code.png)\n```';
+    const parsed = [
+      "![括号](old.assets/image_(1).png)",
+      "![转义括号](old.assets/image_\\(2\\).png)",
+      "![空格](<old.assets/image 3.png>)",
+    ].map((raw) => markdownImage(raw, { toString: () => text } as any));
+    return {
+      text: await rehomeImages(text, "/old/a.md", "/new/b.md"),
+      calls,
+      parsed,
+    };
   });
   expect(result.calls).toEqual([
     "old.assets/reference.png",
     "old.assets/html.png",
+    "old.assets/image 3.png",
+    "old.assets/image_(2).png",
+    "old.assets/image_(1).png",
     "old.assets/a.png",
   ]);
   expect(
     result.text.match(/%E6%96%B0%E6%96%87%E6%A1%A3.assets\/copied.png/g),
-  ).toHaveLength(3);
+  ).toHaveLength(6);
+  expect(result.parsed).toEqual([
+    { src: "old.assets/image_(1).png", alt: "括号" },
+    { src: "old.assets/image_(2).png", alt: "转义括号" },
+    { src: "old.assets/image 3.png", alt: "空格" },
+  ]);
   expect(result.text).toContain("`![例子](example.png)`");
   expect(result.text).toContain("![例子](code.png)");
 });

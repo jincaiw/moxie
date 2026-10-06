@@ -1,6 +1,6 @@
 import type { DocumentFile } from "./data";
 import { parser } from "@lezer/markdown";
-import { htmlImage } from "./links";
+import { htmlImage, markdownImageDestination } from "./links";
 
 export const imageTypes = new Set([
   "image/png",
@@ -55,17 +55,15 @@ export async function rehomeImages(
     enter(node) {
       const raw = text.slice(node.from, node.to);
       if (node.name === "Image") {
-        const inline = /!\[[^\]\n]*\]\(([^\s)]+)(?:\s+"[^"\n]*")?\)/.exec(raw);
+        const inline = markdownImageDestination(raw);
         if (inline) {
+          const source = raw
+            .slice(inline.start, inline.end)
+            .replace(/\\([\\()])/g, "$1");
           matches.push({
-            src: inline[1],
-            start: node.from + inline.index + inline[0].indexOf("](") + 2,
-            end:
-              node.from +
-              inline.index +
-              inline[0].indexOf("](") +
-              2 +
-              inline[1].length,
+            src: source,
+            start: node.from + inline.start,
+            end: node.from + inline.end,
           });
           return;
         }

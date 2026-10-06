@@ -19,22 +19,68 @@ export function markdownLink(raw: string, document: Text) {
   return { href: link.href, label: link.text };
 }
 export function markdownImage(raw: string, document: Text) {
-  const inline = /^!\[([^\]]*)\]\(([^\s)]+)(?:\s+"[^"]*")?\)$/.exec(raw);
-  if (inline) return { src: inline[2], alt: inline[1] };
-
-  const reference = /^!\[([^\]]*)\](?:\[([^\]]*)\])?$/.exec(raw);
-  if (!reference) return null;
-  let refs = definitions.get(document);
-  if (!refs) {
-    refs = Lexer.lex(document.toString()).links;
-    definitions.set(document, refs);
+  const lexer = new Lexer();
+  if (/\]\s*(?:\[|$)/.test(raw)) {
+    let refs = definitions.get(document);
+    if (!refs) {
+      refs = Lexer.lex(document.toString()).links;
+      definitions.set(document, refs);
+    }
+    lexer.tokens.links = refs;
   }
-  const label = (reference[2] || reference[1])
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-  const definition = refs[label];
-  return definition ? { src: definition.href, alt: reference[1] } : null;
+  const tokens = lexer.inlineTokens(raw);
+  if (tokens.length !== 1 || tokens[0].type !== "image") return null;
+  const image = tokens[0];
+  return { src: image.href, alt: image.text };
+}
+
+export function markdownImageDestination(raw: string) {
+  if (!raw.startsWith("![")) return null;
+  let depth = 0;
+  let closeLabel = -1;
+  for (let index = 2; index < raw.length; index++) {
+    if (raw[index] === "\\") {
+      index++;
+      continue;
+    }
+    if (raw[index] === "[") depth++;
+    else if (raw[index] === "]") {
+      if (depth === 0) {
+        closeLabel = index;
+        break;
+      }
+      depth--;
+    }
+  }
+  if (closeLabel < 0 || raw[closeLabel + 1] !== "(") return null;
+  let start = closeLabel + 2;
+  while (/\s/.test(raw[start] || "")) start++;
+  if (raw[start] === "<") {
+    const destinationStart = start + 1;
+    for (let index = destinationStart; index < raw.length; index++) {
+      if (raw[index] === "\\") {
+        index++;
+        continue;
+      }
+      if (raw[index] === ">") return { start: destinationStart, end: index };
+    }
+    return null;
+  }
+
+  const destinationStart = start;
+  let parentheses = 0;
+  for (let index = start; index < raw.length; index++) {
+    if (raw[index] === "\\") {
+      index++;
+      continue;
+    }
+    if (raw[index] === "(") parentheses++;
+    else if (raw[index] === ")") {
+      if (parentheses === 0) return { start: destinationStart, end: index };
+      parentheses--;
+    } else if (/\s/.test(raw[index])) return null;
+  }
+  return null;
 }
 export function htmlImage(raw: string) {
   if (!/^<img\b[^>]*>$/i.test(raw)) return null;
