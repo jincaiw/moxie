@@ -309,6 +309,11 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByLabel("PDF 页面方向").selectOption("landscape");
   await page.getByLabel("PDF 页边距").fill("24");
   await page.getByLabel("PDF 页眉与页码").check();
+  await page.getByLabel("系统拼写检查").check();
+  await expect(page.locator(".cm-content")).toHaveAttribute(
+    "spellcheck",
+    "true",
+  );
   await expect(page.getByLabel("自动检查更新")).toBeChecked();
   await page.getByLabel("自动检查更新").uncheck();
   await page.getByLabel("打字机模式").check();
@@ -323,6 +328,11 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.getByLabel("PDF 页面方向")).toHaveValue("landscape");
   await expect(page.getByLabel("PDF 页边距")).toHaveValue("24");
   await expect(page.getByLabel("PDF 页眉与页码")).toBeChecked();
+  await expect(page.getByLabel("系统拼写检查")).toBeChecked();
+  await expect(page.locator(".cm-content")).toHaveAttribute(
+    "spellcheck",
+    "true",
+  );
   await expect(page.getByLabel("自动检查更新")).not.toBeChecked();
   await expect(
     page.getByRole("button", { name: "立即检查更新" }),
