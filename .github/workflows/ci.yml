@@ -17,6 +17,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: node scripts/verify-theme-catalog.cjs
       - run: npm run build
       - run: npm run test:desktop
       - run: npx playwright install --with-deps chromium

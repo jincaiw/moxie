@@ -1,0 +1,13 @@
+:root[data-theme] {
+  --bg: #1c2330;
+  --side: #171d28;
+  --text: #e5ebf3;
+  --muted: #abb8c8;
+  --border: #364154;
+  --selected: #303c50;
+  --code: #242d3b;
+  --panel: #202938;
+  --accent: #a5c9ff;
+  --focus: #a5c9ff;
+  color-scheme: dark;
+}

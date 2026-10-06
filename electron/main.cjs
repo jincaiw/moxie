@@ -13,6 +13,7 @@ const { randomUUID } = require("node:crypto");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
 const { autoUpdater } = require("electron-updater");
 const { UpdateController } = require("./updater.cjs");
+const { fetchThemeResource } = require("./theme-gallery.cjs");
 let store,
   updates,
   windowSequence = 0,
@@ -128,6 +129,7 @@ function setupIPC() {
   handle("update:check", () => updates.check());
   handle("update:download", () => updates.download());
   handle("update:install", () => updates.install());
+  handle("theme:fetch", (url) => fetchThemeResource(url));
   handle("file:open", async (_input, { window }) => {
     const result = await dialog.showOpenDialog(window, {
       properties: ["openFile"],

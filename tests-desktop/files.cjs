@@ -2,17 +2,105 @@ const { test, after } = require("node:test");
 const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs/promises");
+const syncFS = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { EventEmitter } = require("node:events");
 const { UpdateController } = require("../electron/updater.cjs");
 const { mergeMacUpdateInfo } = require("../electron/update-info.cjs");
+const {
+  fetchThemeResource,
+  isThemeResourceURL,
+} = require("../electron/theme-gallery.cjs");
+const { verifyThemeCatalog } = require("../scripts/verify-theme-catalog.cjs");
 const harnessDirectories = [];
 after(async () => {
   await Promise.all(
     harnessDirectories.map((directory) =>
       fs.rm(directory, { recursive: true, force: true }),
     ),
+  );
+});
+
+test("精选主题网络入口仅允许官方目录和版本化 Release 资源", () => {
+  assert.equal(
+    isThemeResourceURL(
+      "https://raw.githubusercontent.com/jincaiw/moxie/main/public/theme-catalog-v1.json",
+    ),
+    true,
+  );
+  assert.equal(
+    isThemeResourceURL(
+      "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
+    ),
+    true,
+  );
+  for (const url of [
+    "http://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
+    "https://github.com/other/repo/releases/download/v0.16.78/theme-mist-blue.css",
+    "https://github.com/jincaiw/moxie/releases/download/latest/theme-mist-blue.css",
+    "https://github.com/jincaiw/moxie/releases/download/v0.16.78/anything.zip",
+    "https://example.com/theme.css",
+  ])
+    assert.equal(isThemeResourceURL(url), false, url);
+});
+
+test("发布前主题目录校验 CSS 摘要、预览资源和应用版本", () => {
+  const packageVersion = require("../package.json").version;
+  const catalog = JSON.parse(
+    syncFS.readFileSync("public/theme-catalog-v1.json", "utf8"),
+  );
+  assert.equal(verifyThemeCatalog(catalog, packageVersion), true);
+  const invalid = structuredClone(catalog);
+  invalid.themes[0].sha256 = "0".repeat(64);
+  assert.throws(
+    () => verifyThemeCatalog(invalid, packageVersion),
+    /大小或 SHA-256/,
+  );
+  assert.throws(
+    () => verifyThemeCatalog(catalog, "0.16.77"),
+    /高于当前应用版本/,
+  );
+});
+
+test("精选主题下载限制重定向主机和响应大小", async () => {
+  const url =
+    "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css";
+  const mockResponse = (body, finalURL) => {
+    const response = new Response(body, {
+      status: 200,
+      headers: { "content-type": "text/css" },
+    });
+    Object.defineProperty(response, "url", { value: finalURL });
+    return response;
+  };
+  const goodFetch = async () =>
+    mockResponse(":root { --accent: #315f85; }", url);
+  const response = await fetchThemeResource(url, goodFetch);
+  assert.match(response, /--accent/);
+  await assert.rejects(
+    fetchThemeResource(url, async () =>
+      mockResponse("ok", "https://example.com/theme.css"),
+    ),
+    /不受信任|最终地址无效/,
+  );
+  let redirectRequests = 0;
+  await assert.rejects(
+    fetchThemeResource(url, async () => {
+      redirectRequests++;
+      return new Response(null, {
+        status: 302,
+        headers: { location: "https://example.com/theme.css" },
+      });
+    }),
+    /不受信任/,
+  );
+  assert.equal(redirectRequests, 1);
+  await assert.rejects(
+    fetchThemeResource(url, async () =>
+      mockResponse("x".repeat(256 * 1024 + 1), url),
+    ),
+    /超过 256 KB/,
   );
 });
 async function harness(userData) {

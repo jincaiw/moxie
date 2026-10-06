@@ -110,6 +110,7 @@ declare global {
       checkForUpdates: () => Promise<UpdateStatus>;
       downloadUpdate: () => Promise<UpdateStatus>;
       installUpdate: () => Promise<UpdateStatus>;
+      fetchThemeResource: (url: string) => Promise<string>;
       onUpdateStatus: (fn: (status: UpdateStatus) => void) => () => void;
       onAction: (fn: (action: string) => void) => () => void;
       dirty: (dirty: boolean) => void;
@@ -124,4 +125,12 @@ export function download(text: string, name: string, type = "text/markdown") {
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function fetchThemeResource(url: string) {
+  if (window.desktop?.fetchThemeResource)
+    return window.desktop.fetchThemeResource(url);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`请求失败（${response.status}）`);
+  return response.text();
 }

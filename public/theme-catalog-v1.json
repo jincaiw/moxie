@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "version": "1.0.0",
+  "generatedAt": "2026-10-06T00:00:00.000Z",
+  "themes": [
+    {
+      "id": "mist-blue",
+      "name": "雾蓝",
+      "description": "清爽的冷色阅读界面，适合长文与日常笔记。",
+      "author": "Moxie",
+      "license": "CC0-1.0",
+      "sourceUrl": "https://github.com/jincaiw/moxie",
+      "previewUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.svg",
+      "version": "1.0.0",
+      "minimumAppVersion": "0.16.78",
+      "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
+      "sha256": "293ba9314b13d76169e8bdf3a34563a58ffc50b01b402351d72ae7342e74a073",
+      "size": 244,
+      "appearance": "light"
+    },
+    {
+      "id": "midnight-slate",
+      "name": "午夜石板",
+      "description": "低亮度深色界面，降低暗处阅读时的整体亮度。",
+      "author": "Moxie",
+      "license": "CC0-1.0",
+      "sourceUrl": "https://github.com/jincaiw/moxie",
+      "previewUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-midnight-slate.svg",
+      "version": "1.0.0",
+      "minimumAppVersion": "0.16.78",
+      "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-midnight-slate.css",
+      "sha256": "d623aea0c44faa7c55cba73de630077061795daab0be1574d765c48272ac27fc",
+      "size": 243,
+      "appearance": "dark"
+    },
+    {
+      "id": "forest-paper",
+      "name": "森林纸感",
+      "description": "带有柔和绿色强调色的暖纸背景。",
+      "author": "Moxie",
+      "license": "CC0-1.0",
+      "sourceUrl": "https://github.com/jincaiw/moxie",
+      "previewUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-forest-paper.svg",
+      "version": "1.0.0",
+      "minimumAppVersion": "0.16.78",
+      "packageUrl": "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-forest-paper.css",
+      "sha256": "ebbac8cf247bc45c42f0f496ea221d39b6476933247e217e2161bf7d170dfbf2",
+      "size": 244,
+      "appearance": "paper"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, RefreshCw, Check } from "lucide-react";
 import { useRef, useState } from "react";
 import { Dialog } from "./Dialog";
 import { themeCSSError, type Preferences } from "./preferences";
@@ -6,6 +6,49 @@ import { THEME_LIBRARY_CSS_LIMIT } from "./theme-css";
 import { download } from "./bridge";
 import type { UpdateStatus } from "./bridge";
 import { importThemePackage } from "./theme-package";
+import {
+  downloadVerifiedTheme,
+  loadThemeCatalog,
+  type GalleryTheme,
+  type ThemeCatalog,
+} from "./theme-gallery";
+
+function themeRequestError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  if (
+    /failed to fetch|fetch failed|network|timed out|connection|terminated|连接失败/i.test(
+      message,
+    )
+  )
+    return "暂时无法连接官方主题图库，请检查网络后重试。";
+  return message || fallback;
+}
+
+function ThemePreview({ theme, alt }: { theme: GalleryTheme; alt: string }) {
+  const [unavailable, setUnavailable] = useState(false);
+  return (
+    <div
+      className={`theme-gallery-preview theme-gallery-preview--${theme.appearance}`}
+      aria-label={alt || `${theme.name}主题预览`}
+    >
+      <div className="theme-gallery-preview-fallback" aria-hidden="true">
+        <span />
+        <i />
+        <i />
+        <b />
+        <i />
+      </div>
+      {!unavailable && (
+        <img
+          src={theme.previewUrl}
+          alt={alt}
+          loading="lazy"
+          onError={() => setUnavailable(true)}
+        />
+      )}
+    </div>
+  );
+}
 export function Settings({
   preferences,
   update,
@@ -27,6 +70,14 @@ export function Settings({
   const themePackage = useRef<HTMLInputElement>(null);
   const [themeName, setThemeName] = useState("");
   const [themeMessage, setThemeMessage] = useState("");
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryError, setGalleryError] = useState("");
+  const [gallery, setGallery] = useState<ThemeCatalog | null>(null);
+  const [galleryQuery, setGalleryQuery] = useState("");
+  const [galleryAppearance, setGalleryAppearance] = useState("all");
+  const [selectedGalleryTheme, setSelectedGalleryTheme] =
+    useState<GalleryTheme | null>(null);
   const cssError = themeCSSError(preferences.customCSS);
   const activeTheme = preferences.savedThemes.find(
     (theme) => theme.name === preferences.activeSavedTheme,
@@ -47,6 +98,67 @@ export function Settings({
     nextThemeLibrarySize > THEME_LIBRARY_CSS_LIMIT
       ? "本地主题库总大小不能超过 1.5 MB；请删除其他主题或精简 CSS。"
       : "";
+  const galleryThemes = (gallery?.themes || []).filter((theme) => {
+    const query = galleryQuery.trim().toLocaleLowerCase();
+    const matchesQuery =
+      !query ||
+      `${theme.name} ${theme.description} ${theme.author}`
+        .toLocaleLowerCase()
+        .includes(query);
+    const matchesAppearance =
+      galleryAppearance === "all" || theme.appearance === galleryAppearance;
+    return matchesQuery && matchesAppearance;
+  });
+  const loadGallery = async () => {
+    setGalleryLoading(true);
+    setGalleryError("");
+    try {
+      const next = await loadThemeCatalog(__APP_VERSION__);
+      setGallery(next);
+      setSelectedGalleryTheme(null);
+    } catch (error) {
+      setGalleryError(themeRequestError(error, "无法读取主题目录。"));
+    } finally {
+      setGalleryLoading(false);
+    }
+  };
+  const installGalleryTheme = async (theme: GalleryTheme) => {
+    if (
+      preferences.savedThemes.some(
+        (saved) =>
+          saved.name.toLocaleLowerCase() === theme.name.toLocaleLowerCase(),
+      )
+    ) {
+      setThemeMessage(
+        `本地已有同名主题“${theme.name}”，请先改名或删除后再安装。`,
+      );
+      return;
+    }
+    if (preferences.savedThemes.length >= 20) {
+      setThemeMessage("本地主题库已满；删除一个主题后才能安装。");
+      return;
+    }
+    try {
+      const css = await downloadVerifiedTheme(theme);
+      const total =
+        preferences.savedThemes.reduce(
+          (sum, saved) => sum + saved.css.length,
+          0,
+        ) + css.length;
+      if (total > THEME_LIBRARY_CSS_LIMIT)
+        throw new Error("本地主题库总大小不能超过 1.5 MB；请先删除其他主题。");
+      update("savedThemes", [
+        ...preferences.savedThemes,
+        { name: theme.name, css },
+      ]);
+      update("activeSavedTheme", theme.name);
+      update("customCSS", css);
+      setThemeMessage(`已安装并应用“${theme.name}”。`);
+      setSelectedGalleryTheme(null);
+    } catch (error) {
+      setGalleryError(themeRequestError(error, "主题下载或校验失败。"));
+    }
+  };
   const saveTheme = () => {
     if (cssError || themeLibraryError) return;
     if (activeTheme) {
@@ -311,6 +423,138 @@ export function Settings({
           与图片/字体资源，导入时会内嵌资源；不允许外部 URL、@import
           或动态表达式。
         </small>
+      </section>
+      <section className="theme-gallery" aria-label="精选主题图库">
+        <div className="theme-gallery-heading">
+          <div>
+            <h3>精选主题图库</h3>
+            <small>由 Moxie 维护；安装前显示作者、许可和来源。</small>
+          </div>
+          <button
+            type="button"
+            aria-expanded={galleryOpen}
+            onClick={() => {
+              const open = !galleryOpen;
+              setGalleryOpen(open);
+              if (open && !gallery) void loadGallery();
+            }}
+          >
+            {galleryOpen ? "收起图库" : "浏览主题图库"}
+          </button>
+        </div>
+        {galleryOpen && (
+          <div className="theme-gallery-content">
+            {galleryLoading && (
+              <small role="status">正在加载官方主题目录…</small>
+            )}
+            {galleryError && (
+              <div className="theme-gallery-error" role="alert">
+                <span>{galleryError}</span>
+                <button type="button" onClick={() => void loadGallery()}>
+                  <RefreshCw size={14} /> 重试
+                </button>
+              </div>
+            )}
+            {gallery && (
+              <>
+                <div className="theme-gallery-filters">
+                  <input
+                    aria-label="搜索精选主题"
+                    placeholder="搜索主题"
+                    value={galleryQuery}
+                    onChange={(event) => setGalleryQuery(event.target.value)}
+                  />
+                  <select
+                    aria-label="筛选主题外观"
+                    value={galleryAppearance}
+                    onChange={(event) =>
+                      setGalleryAppearance(event.target.value)
+                    }
+                  >
+                    <option value="all">全部外观</option>
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                    <option value="paper">纸感</option>
+                  </select>
+                  <button
+                    type="button"
+                    aria-label="刷新精选主题目录"
+                    disabled={galleryLoading}
+                    onClick={() => void loadGallery()}
+                  >
+                    <RefreshCw size={15} />
+                  </button>
+                </div>
+                {galleryThemes.length ? (
+                  <div className="theme-gallery-grid">
+                    {galleryThemes.map((theme) => (
+                      <button
+                        className="theme-gallery-card"
+                        type="button"
+                        key={theme.id}
+                        aria-pressed={selectedGalleryTheme?.id === theme.id}
+                        onClick={() => {
+                          setSelectedGalleryTheme(theme);
+                          setGalleryError("");
+                        }}
+                      >
+                        <ThemePreview theme={theme} alt="" />
+                        <span className="theme-gallery-card-copy">
+                          <strong>{theme.name}</strong>
+                          <small>
+                            {theme.appearance === "dark"
+                              ? "深色"
+                              : theme.appearance === "paper"
+                                ? "纸感"
+                                : "浅色"}
+                          </small>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <small>没有符合条件的主题。</small>
+                )}
+                {selectedGalleryTheme && (
+                  <div className="theme-gallery-detail">
+                    <ThemePreview
+                      theme={selectedGalleryTheme}
+                      alt={`${selectedGalleryTheme.name}主题预览`}
+                    />
+                    <div>
+                      <h4>{selectedGalleryTheme.name}</h4>
+                      <p>{selectedGalleryTheme.description}</p>
+                      <small>
+                        作者：{selectedGalleryTheme.author} · 许可：
+                        {selectedGalleryTheme.license} · 版本：
+                        {selectedGalleryTheme.version}
+                      </small>
+                      <a
+                        href={selectedGalleryTheme.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        查看主题来源
+                      </a>
+                      <button
+                        type="button"
+                        disabled={galleryLoading}
+                        onClick={() =>
+                          void installGalleryTheme(selectedGalleryTheme)
+                        }
+                      >
+                        <Check size={15} /> 确认安装并应用
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <small>
+                  安装会另存为本地主题并立即应用，不会覆盖已有主题；离线时可重试，已安装主题不受影响。
+                </small>
+              </>
+            )}
+          </div>
+        )}
       </section>
       <section className="pdf-settings" aria-label="PDF 导出设置">
         <h3>PDF 导出</h3>

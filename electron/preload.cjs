@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("desktop", {
   checkForUpdates: () => ipcRenderer.invoke("update:check"),
   downloadUpdate: () => ipcRenderer.invoke("update:download"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
+  fetchThemeResource: (url) => ipcRenderer.invoke("theme:fetch", url),
   dirty: (value) => ipcRenderer.send("document:dirty", Boolean(value)),
   closeReady: () => ipcRenderer.send("window:close-ready"),
   onAction: (fn) => {

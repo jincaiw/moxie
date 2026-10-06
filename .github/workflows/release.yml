@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - name: Check tag matches package version
         run: node -e 'if (process.env.GITHUB_REF_NAME !== "v" + require("./package.json").version) process.exit(1)'
+      - run: node scripts/verify-theme-catalog.cjs
       - run: npm run build
       - run: npm run test:desktop
       - run: npx playwright install chromium
@@ -116,6 +117,10 @@ jobs:
           release/update-info/arm64/latest-mac.yml
           release/update-info/x64/latest-mac.yml
           release/latest-mac.yml
+      - name: Stage curated theme gallery
+        run: |
+          cp public/theme-catalog-v1.json release/
+          cp public/themes/theme-*.css public/themes/theme-*.svg release/
       - name: Generate checksums
         run: cd release && shasum -a 256 Moxie-*.dmg Moxie-*.zip > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
@@ -134,5 +139,8 @@ jobs:
             release/Moxie-*.zip
             release/Moxie-*.zip.blockmap
             release/latest-mac.yml
+            release/theme-catalog-v1.json
+            release/theme-*.css
+            release/theme-*.svg
             release/SHA256SUMS.txt
           fail_on_unmatched_files: true

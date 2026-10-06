@@ -8,6 +8,8 @@ import {
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { validateThemeCatalog } from "../src/theme-gallery";
 import {
   parseClipboardTable,
   parseTable,
@@ -20,6 +22,157 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
 );
+
+function themeCatalogFixture(css: string) {
+  return {
+    schemaVersion: 1,
+    version: "1.0.0",
+    generatedAt: "2026-10-06T00:00:00.000Z",
+    themes: [
+      {
+        id: "mist-blue",
+        name: "雾蓝",
+        description: "清爽的冷色阅读界面。",
+        author: "Moxie",
+        license: "CC0-1.0",
+        sourceUrl: "https://github.com/jincaiw/moxie",
+        previewUrl:
+          "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.svg",
+        version: "1.0.0",
+        minimumAppVersion: "0.16.78",
+        packageUrl:
+          "https://github.com/jincaiw/moxie/releases/download/v0.16.78/theme-mist-blue.css",
+        sha256: createHash("sha256").update(css).digest("hex"),
+        size: Buffer.byteLength(css),
+        appearance: "light",
+      },
+    ],
+  };
+}
+
+async function mockThemeGallery(
+  page: import("@playwright/test").Page,
+  catalog: unknown,
+  packageCSS: string,
+) {
+  await page.addInitScript(
+    ({ catalogText, packageCSS }) => {
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = String(input);
+        if (url.endsWith("theme-catalog-v1.json"))
+          return new Response(catalogText, { status: 200 });
+        if (url.endsWith("theme-mist-blue.css"))
+          return new Response(packageCSS, { status: 200 });
+        return originalFetch(input, init);
+      };
+    },
+    { catalogText: JSON.stringify(catalog), packageCSS },
+  );
+}
+
+test("官方主题目录拒绝重复 ID、非官方地址和不支持的结构", () => {
+  const valid = themeCatalogFixture(":root { --accent: #315f85; }");
+  expect(() => validateThemeCatalog(valid)).not.toThrow();
+  const external = structuredClone(valid);
+  external.themes[0].packageUrl = "https://example.com/theme.css";
+  expect(() => validateThemeCatalog(external)).toThrow("官方 Release");
+  const duplicate = structuredClone(valid);
+  duplicate.themes.push({ ...duplicate.themes[0] });
+  expect(() => validateThemeCatalog(duplicate)).toThrow("无效或超出限制");
+  const unknownSchema = { ...valid, schemaVersion: 2 };
+  expect(() => validateThemeCatalog(unknownSchema)).toThrow("不受支持");
+});
+
+test("主题图库搜索、筛选、校验并将精选主题保存为本地主题", async ({ page }) => {
+  const css = `:root[data-theme] { --bg: #f3f7fb; --text: #253241; --accent: #315f85; }`;
+  await mockThemeGallery(page, themeCatalogFixture(css), css);
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  const card = page.getByRole("button", { name: /雾蓝/ });
+  await expect(card).toBeVisible();
+  await page.getByLabel("搜索精选主题").fill("不存在");
+  await expect(card).toHaveCount(0);
+  await page.getByLabel("搜索精选主题").fill("雾蓝");
+  await card.click();
+  await expect(page.getByText("许可：CC0-1.0")).toBeVisible();
+  await page.getByRole("button", { name: "确认安装并应用" }).click();
+  await expect(page.getByLabel("本地主题")).toHaveValue("雾蓝");
+  await expect
+    .poll(() =>
+      page
+        .locator("html")
+        .evaluate((element) =>
+          getComputedStyle(element).getPropertyValue("--bg").trim(),
+        ),
+    )
+    .toBe("#f3f7fb");
+  await expect(page.locator(".theme-css-editor [role='status']")).toContainText(
+    "已安装并应用",
+  );
+});
+
+test("精选主题完整性校验失败时不安装，并提供冲突提示", async ({ page }) => {
+  const css = ":root { --accent: #315f85; }";
+  const catalog = themeCatalogFixture(css);
+  await mockThemeGallery(page, catalog, ":root { --accent: #ffffff; }");
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await page.getByRole("button", { name: /雾蓝/ }).click();
+  await page.getByRole("button", { name: "确认安装并应用" }).click();
+  await expect(page.getByRole("alert")).toContainText("完整性校验失败");
+  await expect(page.getByLabel("本地主题")).toHaveValue("");
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "moxie.preferences.v2",
+      JSON.stringify({
+        theme: "light",
+        savedThemes: [{ name: "雾蓝", css: ":root { --accent: #315f85; }" }],
+        activeSavedTheme: "",
+      }),
+    );
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await page.getByRole("button", { name: /雾蓝/ }).click();
+  await page.getByRole("button", { name: "确认安装并应用" }).click();
+  await expect(page.locator(".theme-css-editor [role='status']")).toContainText(
+    "已有同名主题",
+  );
+  await expect(page.getByLabel("本地主题")).toHaveValue("");
+});
+
+test("主题图库离线时保留重试入口并可在恢复后重新加载", async ({ page }) => {
+  const css = ":root { --accent: #315f85; }";
+  const catalog = JSON.stringify(themeCatalogFixture(css));
+  await page.addInitScript(
+    ({ catalog, css }) => {
+      let attempts = 0;
+      window.fetch = async (input) => {
+        const url = String(input);
+        if (url.endsWith("theme-catalog-v1.json")) {
+          attempts++;
+          if (attempts === 1) throw new TypeError("Failed to fetch");
+          return new Response(catalog, { status: 200 });
+        }
+        if (url.endsWith("theme-mist-blue.css"))
+          return new Response(css, { status: 200 });
+        throw new Error("fixture not found");
+      };
+    },
+    { catalog, css },
+  );
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByRole("button", { name: "浏览主题图库" }).click();
+  await expect(page.getByRole("alert")).toContainText("检查网络后重试");
+  await page.getByRole("button", { name: "重试" }).click();
+  await expect(page.getByRole("button", { name: /雾蓝/ })).toBeVisible();
+});
 
 test("表格直接编辑、转义竖线、撤销重做与增删行列", async ({ page }) => {
   const errors: string[] = [];
