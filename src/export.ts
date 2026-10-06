@@ -19,28 +19,44 @@ function normalizeFootnote(label: string) {
 function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
   const protectedLines = new Set<number>();
   let fence: { character: string; length: number } | undefined;
-  let codeSpanTicks = 0;
+  let delimiters = new Map<number, number[]>();
+  const pairCodeSpans = () => {
+    for (const occurrences of delimiters.values()) {
+      for (let index = 0; index + 1 < occurrences.length; index += 2) {
+        for (
+          let line = occurrences[index] + 1;
+          line <= occurrences[index + 1];
+          line++
+        )
+          protectedLines.add(line);
+      }
+    }
+    delimiters = new Map();
+  };
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const line = lines[lineIndex];
-    if (excludedLines.has(lineIndex)) continue;
+    if (excludedLines.has(lineIndex)) {
+      pairCodeSpans();
+      continue;
+    }
     if (fence) {
       const close = new RegExp(
         `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
       );
-      if (close.test(line)) fence = undefined;
+      if (close.test(line)) {
+        fence = undefined;
+        pairCodeSpans();
+      }
       continue;
     }
-    if (!codeSpanTicks) {
-      const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-      if (openingFence) {
-        fence = {
-          character: openingFence[1][0],
-          length: openingFence[1].length,
-        };
-        continue;
-      }
-    } else {
-      protectedLines.add(lineIndex);
+    const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (openingFence) {
+      pairCodeSpans();
+      fence = {
+        character: openingFence[1][0],
+        length: openingFence[1].length,
+      };
+      continue;
     }
 
     for (let index = 0; index < line.length;) {
@@ -59,12 +75,14 @@ function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
       while (line[end] === "`") end++;
       const runLength = end - index;
       if (slashCount % 2 === 0) {
-        if (!codeSpanTicks) codeSpanTicks = runLength;
-        else if (codeSpanTicks === runLength) codeSpanTicks = 0;
+        const occurrences = delimiters.get(runLength) || [];
+        occurrences.push(lineIndex);
+        delimiters.set(runLength, occurrences);
       }
       index = end;
     }
   }
+  pairCodeSpans();
   return protectedLines;
 }
 

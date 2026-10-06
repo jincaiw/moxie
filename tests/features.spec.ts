@@ -1944,6 +1944,22 @@ test("多行行内代码中的脚注样式行保留为代码文本", async ({ pa
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("未闭合反引号不会吞掉后续真实脚注", async ({ page }) => {
+  const source =
+    "未闭合代码符号 ` 后继续正文[^real]。\n\n[^real]: 应正常保留的脚注";
+  await page.goto("/");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "unclosed-code-footnote-boundary.md");
+  }, source);
+
+  expect(html).toContain("应正常保留的脚注");
+  expect(html).toContain('id="fn-1"');
+});
+
 test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
