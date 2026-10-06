@@ -157,6 +157,49 @@ function htmlHeadingClose(source: string, level: number) {
   }
   return null;
 }
+function htmlBlockHeadingNodes(source: string, from: number) {
+  const masked = source.split("");
+  const blank = (start: number, end: number) => {
+    for (let index = start; index < end; index++) {
+      if (masked[index] !== "\n" && masked[index] !== "\r") masked[index] = " ";
+    }
+  };
+  const literals = /<!--|<(script|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b[^>]*>/gi;
+  let literal: RegExpExecArray | null;
+  while ((literal = literals.exec(source))) {
+    let end: number;
+    if (literal[0] === "<!--") {
+      const close = source.indexOf("-->", literal.index + 4);
+      end = close < 0 ? source.length : close + 3;
+    } else {
+      const tag = /^<([A-Za-z][\w-]*)/.exec(literal[0])?.[1];
+      const close = tag ? new RegExp(`</${tag}\\s*>`, "ig") : undefined;
+      if (close) close.lastIndex = literal.index + literal[0].length;
+      const closing = close?.exec(source);
+      end = closing ? closing.index + closing[0].length : source.length;
+    }
+    blank(literal.index, end);
+    literals.lastIndex = end;
+  }
+
+  const result: { level: number; title: string; from: number }[] = [];
+  const opening = /<h([1-6])(?:\s[^>]*)?>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = opening.exec(masked.join("")))) {
+    const level = Number(match[1]);
+    const close = htmlHeadingClose(masked.join("").slice(opening.lastIndex), level);
+    if (!close) continue;
+    result.push({
+      level,
+      title: htmlHeadingTitle(
+        source.slice(opening.lastIndex, opening.lastIndex + close.index),
+      ),
+      from: from + match.index,
+    });
+    opening.lastIndex += close.index + close[0].length;
+  }
+  return result;
+}
 type HtmlBlockState =
   { close: RegExp; endsAtBlank: false } | { endsAtBlank: true };
 function htmlBlockOpening(
@@ -189,8 +232,15 @@ function htmlBlockOpening(
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const markdownHeadings: { level: number; title: string; from: number }[] = [];
+  const htmlHeadings: { level: number; title: string; from: number }[] = [];
   markdownParser.configure(GFM).parse(text).iterate({
     enter(node) {
+      if (node.name === "HTMLBlock") {
+        htmlHeadings.push(
+          ...htmlBlockHeadingNodes(text.slice(node.from, node.to), node.from),
+        );
+        return;
+      }
       const atx = /^ATXHeading([1-6])$/.exec(node.name);
       const setext = /^SetextHeading([12])$/.exec(node.name);
       if (!atx && !setext) return;
@@ -322,5 +372,22 @@ export function headings(text: string) {
     }
     line = line && line.next <= text.length ? lineAt(line.next) : null;
   }
-  return [...result, ...markdownHeadings].sort((a, b) => a.from - b.from);
+  const htmlStarts = new Set(
+    htmlHeadings.map((heading) =>
+      JSON.stringify([
+        heading.level,
+        heading.title,
+        text.lastIndexOf("\n", heading.from - 1) + 1,
+      ]),
+    ),
+  );
+  const scannedHtmlHeadings = result.filter(
+    (heading) =>
+      !htmlStarts.has(
+        JSON.stringify([heading.level, heading.title, heading.from]),
+      ),
+  );
+  return [...scannedHtmlHeadings, ...htmlHeadings, ...markdownHeadings].sort(
+    (a, b) => a.from - b.from,
+  );
 }

@@ -1734,6 +1734,14 @@ test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
     "title",
   ]);
   expect(
+    headings(
+      "- 列表项\n    <h2>列表里的 HTML 标题</h2>\n\n> - 引用列表\n>     <h3>引用列表里的 HTML 标题</h3>",
+    ).map(({ level, title }) => [level, title]),
+  ).toEqual([
+    [2, "列表里的 HTML 标题"],
+    [3, "引用列表里的 HTML 标题"],
+  ]);
+  expect(
     headings("<h2>未闭合标题\n\n# 有效 Markdown 标题\n").map(
       ({ title }) => title,
     ),
