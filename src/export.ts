@@ -56,12 +56,16 @@ function markNestedHTMLLines(
       child.type === "html" &&
       child.raw.startsWith("<!--") &&
       child.raw.includes("\n");
+    const inlineRawElement =
+      child.type === "html" &&
+      /^<(script|style|pre|textarea)\b/i.exec(child.raw)?.[1];
     let relativeStart = -1;
     for (let index = cursor; index < parentLines.length; index++) {
       const parent = stripMarkdownContainers(parentLines[index]);
       if (
         parent === first ||
-        (inlineMultilineComment && parent.includes(first))
+        ((inlineMultilineComment || inlineRawElement) &&
+          parent.includes(first))
       ) {
         relativeStart = index;
         break;
@@ -74,6 +78,15 @@ function markNestedHTMLLines(
       const coveredLines = rawLineCount + Number(!child.raw.endsWith("\n"));
       for (let line = childStart; line < childStart + coveredLines; line++)
         htmlLines.add(line);
+    }
+    if (inlineRawElement) {
+      const close = new RegExp(`</${inlineRawElement}\\s*>`, "i");
+      for (let index = relativeStart + 1; index < parentLines.length; index++) {
+        const content = stripMarkdownContainers(parentLines[index]);
+        if (/^ {0,3}\[\^[^\]]+\]:/.test(content))
+          htmlLines.add(parentStart + index);
+        if (close.test(content)) break;
+      }
     }
     markNestedHTMLLines(child, childLines, childStart, htmlLines);
     cursor = relativeStart + Math.max(rawLineCount, 1);

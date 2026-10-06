@@ -1946,6 +1946,24 @@ test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("行内 script/style 原始文本中的脚注样式行不会被提取", async ({ page }) => {
+  const source =
+    "正文 <script>\n[^script-fake]: script 私密文本\n</script> 结束。脚本引用[^script-fake]。\n\n正文 <style>\n[^style-fake]: style 私密文本\n</style> 结束。样式引用[^style-fake]。\n\n引用[^real]。\n\n[^real]: 真正的脚注";
+  await page.goto("/");
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "inline-raw-html-footnote-boundary.md");
+  }, source);
+
+  expect(html).not.toContain("script 私密文本");
+  expect(html).toContain("样式引用[^style-fake]");
+  expect(html).toContain("真正的脚注");
+  expect(html).toContain('id="fn-1"');
+  expect(html).not.toContain('id="fn-2"');
+});
+
 test("引用内嵌套列表的 HTML 块不会把脚注样式文本提取为定义", async ({
   page,
 }) => {
