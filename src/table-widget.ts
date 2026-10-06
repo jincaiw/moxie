@@ -1,8 +1,9 @@
 import { EditorView, WidgetType } from "@codemirror/view";
 import { Transaction } from "@codemirror/state";
 import { undo, redo } from "@codemirror/commands";
-import { marked } from "marked";
+import { Marked } from "marked";
 import DOMPurify from "dompurify";
+import { inlineMathMatches, renderMath } from "./math";
 import {
   parseTable,
   cellValue,
@@ -20,8 +21,55 @@ const positions = new WeakMap<
   EditorView,
   Map<number, { row: number; col: number }>
 >();
-const html = (text: string) =>
-  DOMPurify.sanitize(marked.parseInline(text, { async: false }) as string);
+function renderCellContent(cell: HTMLElement, source: string) {
+  const formulas: string[] = [];
+  const parser = new Marked();
+  parser.use({
+    extensions: [
+      {
+        name: "tableCellMath",
+        level: "inline",
+        start(text) {
+          return inlineMathMatches(text)[0]?.from;
+        },
+        tokenizer(text) {
+          const match = inlineMathMatches(text)[0];
+          if (match?.from === 0)
+            return { type: "tableCellMath", raw: match.raw, text: match.text };
+        },
+        renderer(token) {
+          const index = formulas.push(token.text) - 1;
+          return `\uE000${index}\uE001`;
+        },
+      },
+    ],
+  });
+  cell.innerHTML = DOMPurify.sanitize(
+    parser.parseInline(source, { async: false }) as string,
+  );
+  const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+  for (const textNode of textNodes) {
+    const markers = [...textNode.data.matchAll(/\uE000(\d+)\uE001/g)];
+    for (const marker of markers.reverse()) {
+      const math = formulas[Number(marker[1])];
+      if (math === undefined) continue;
+      const formula = document.createElement("span");
+      formula.className = "inline-formula";
+      formula.textContent = math;
+      const remainder = textNode.splitText(marker.index!);
+      remainder.splitText(marker[0].length);
+      remainder.replaceWith(formula);
+      void renderMath(math, { throwOnError: false, trust: false })
+        .then((output) => {
+          if (formula.isConnected)
+            formula.innerHTML = DOMPurify.sanitize(output);
+        })
+        .catch(() => {});
+    }
+  }
+}
 
 export class TableWidget extends WidgetType {
   constructor(
@@ -50,7 +98,7 @@ export class TableWidget extends WidgetType {
       const input = cell.querySelector("input");
       const value = after.rows[row]?.[col]?.text || "";
       cell.style.textAlign = tableColumnAlignment(after.separator, col) || "";
-      if (!input) cell.innerHTML = html(value);
+      if (!input) renderCellContent(cell, value);
       else if (input.value !== cellValue(value)) input.value = cellValue(value);
     });
     return true;
@@ -187,7 +235,7 @@ export class TableWidget extends WidgetType {
         const cell = document.createElement(r === 0 ? "th" : "td");
         cell.dataset.cell = `${r}:${c}`;
         cell.style.textAlign = tableColumnAlignment(model.separator, c) || "";
-        cell.innerHTML = html(row[c]?.text || "");
+        renderCellContent(cell, row[c]?.text || "");
         cell.tabIndex = 0;
         cell.setAttribute("aria-label", `表格第 ${r + 1} 行第 ${c + 1} 列`);
         const startEditing = () => {
@@ -271,7 +319,8 @@ export class TableWidget extends WidgetType {
             });
           });
           input.addEventListener("blur", () => {
-            cell.innerHTML = html(
+            renderCellContent(
+              cell,
               parseTable(context.widget.text).rows[r]?.[c]?.text || "",
             );
           });

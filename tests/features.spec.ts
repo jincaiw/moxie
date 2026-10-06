@@ -89,6 +89,20 @@ test("从电子表格粘贴 TSV 会扩展表格并正确转义单元格", async 
   await expect(page.locator(".cm-content")).toContainText("A \\| B");
 });
 
+test("表格单元格即时排版支持行内公式并保留代码与转义文本", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".cm-content").fill(
+    "| 公式 | 代码 | 转义 |\n| --- | --- | --- |\n| $x^2$ | `$literal$` | \\$literal |\n",
+  );
+  await page.locator(".cm-content").press(documentEnd);
+  const cells = page.locator(".editable-table tbody td");
+  await expect(cells.nth(0).locator(".inline-formula .katex")).toBeVisible();
+  await expect(cells.nth(1).locator("code")).toHaveText("$literal$");
+  await expect(cells.nth(1).locator(".inline-formula")).toHaveCount(0);
+  await expect(cells.nth(2).locator(".inline-formula")).toHaveCount(0);
+  await expect(cells.nth(2)).toContainText("$literal");
+});
+
 test("表格 Tab 到末尾会新建行，Shift+Tab 和方向键可导航单元格", async ({
   page,
 }) => {
