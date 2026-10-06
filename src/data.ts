@@ -142,7 +142,10 @@ function htmlHeadingClose(source: string, level: number) {
 }
 type HtmlBlockState =
   { close: RegExp; endsAtBlank: false } | { endsAtBlank: true };
-function htmlBlockOpening(content: string): HtmlBlockState | undefined {
+function htmlBlockOpening(
+  content: string,
+  blankBefore = false,
+): HtmlBlockState | undefined {
   const terminated = (close: RegExp): HtmlBlockState | undefined =>
     close.test(content) ? undefined : { close, endsAtBlank: false };
   if (/^<!--/.test(content)) return terminated(/-->/);
@@ -160,6 +163,12 @@ function htmlBlockOpening(content: string): HtmlBlockState | undefined {
     /^<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|head|header|hr|html|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|tr|track|ul)\b/i.test(
       content,
     )
+  )
+    return { endsAtBlank: true };
+
+  if (
+    blankBefore &&
+    /^<\/?[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[^<>]*)?\/?>/.test(content)
   )
     return { endsAtBlank: true };
 }
@@ -195,6 +204,18 @@ export function headings(text: string) {
       line.next <= text.length ? lineAt(line.next) : null;
     const content = markdownContainerContent(line.text);
     const nextContent = next ? markdownContainerContent(next.text) : "";
+    const previousLineEnd =
+      line.from > 1 &&
+      text.charCodeAt(line.from - 1) === 10 &&
+      text.charCodeAt(line.from - 2) === 13
+        ? line.from - 2
+        : Math.max(0, line.from - 1);
+    const previousLineStart = text.lastIndexOf("\n", previousLineEnd - 1) + 1;
+    const blankBefore =
+      line.from === 0 ||
+      !markdownContainerContent(
+        text.slice(previousLineStart, previousLineEnd),
+      ).trim();
     const insideHtmlHeading =
       htmlBlock?.endsAtBlank &&
       (htmlHeadingCapture || /^<h[1-6]\b/i.test(content));
@@ -258,27 +279,29 @@ export function headings(text: string) {
               content: htmlHeadingOpening[2],
             };
           }
-        } else if (htmlBlockOpening(content)) {
-          htmlBlock = htmlBlockOpening(content);
-        } else if (atx) {
-          result.push({
-            level: atx[1].length,
-            title: (atx[2] || "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
-            from: line.from,
-          });
         } else {
-          const setext = next && /^(=+|-+)[ \t]*$/.exec(nextContent);
-          if (
-            setext &&
-            content.trim() &&
-            !/^(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(content)
-          ) {
+          const htmlBlockStart = htmlBlockOpening(content, blankBefore);
+          if (htmlBlockStart) htmlBlock = htmlBlockStart;
+          else if (atx) {
             result.push({
-              level: setext[1][0] === "=" ? 1 : 2,
-              title: content.trim(),
+              level: atx[1].length,
+              title: (atx[2] || "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
               from: line.from,
             });
-            line = next;
+          } else {
+            const setext = next && /^(=+|-+)[ \t]*$/.exec(nextContent);
+            if (
+              setext &&
+              content.trim() &&
+              !/^(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(content)
+            ) {
+              result.push({
+                level: setext[1][0] === "=" ? 1 : 2,
+                title: content.trim(),
+                from: line.from,
+              });
+              line = next;
+            }
           }
         }
       }
