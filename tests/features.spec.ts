@@ -1277,7 +1277,7 @@ test("GFM 引用内嵌套任务和 CommonMark 硬换行在预览与导出中一�
 
 test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ page }) => {
   const source =
-    "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n> 引用前 <!-- quote private note --> 引用后\n\n- 列表前 <!-- list private note --> 列表后\n\n行内代码 `<!-- code example -->`。\n\n```html\n<!-- fenced code example -->\n```\n\n文档结尾。";
+    "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n> 引用前 <!-- quote private note --> 引用后\n\n- 列表前 <!-- list private note --> 列表后\n\n行内代码 `<!-- code example -->`。\n\n```html\n<!-- fenced code example -->\n```\n\n跨行行内注释 <!-- 注释开始\n[^hidden]: 注释中的脚注机密\n注释结束 --> 之后的正文引用[^hidden]。\n\n文档结尾。";
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
     name: "html-comments.md",
@@ -1311,6 +1311,8 @@ test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ pag
     return module.exportHTML(markdown, "html-comments.md");
   }, source);
   expect(html).not.toContain("private note");
+  expect(html).not.toContain("注释中的脚注机密");
+  expect(html).toContain("正文引用[^hidden]");
   expect(html).toContain("code example");
   expect(html).toContain("fenced code example");
 });

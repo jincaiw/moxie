@@ -52,9 +52,17 @@ function markNestedHTMLLines(
   for (const child of children) {
     const childLines = child.raw.split("\n");
     const first = stripMarkdownContainers(childLines[0] || "");
+    const inlineMultilineComment =
+      child.type === "html" &&
+      child.raw.startsWith("<!--") &&
+      child.raw.includes("\n");
     let relativeStart = -1;
     for (let index = cursor; index < parentLines.length; index++) {
-      if (stripMarkdownContainers(parentLines[index]) === first) {
+      const parent = stripMarkdownContainers(parentLines[index]);
+      if (
+        parent === first ||
+        (inlineMultilineComment && parent.includes(first))
+      ) {
         relativeStart = index;
         break;
       }
@@ -62,7 +70,7 @@ function markNestedHTMLLines(
     if (relativeStart < 0) continue;
     const childStart = parentStart + relativeStart;
     const rawLineCount = (child.raw.match(/\n/g) || []).length;
-    if (child.type === "html" && child.block) {
+    if (child.type === "html" && (child.block || inlineMultilineComment)) {
       const coveredLines = rawLineCount + Number(!child.raw.endsWith("\n"));
       for (let line = childStart; line < childStart + coveredLines; line++)
         htmlLines.add(line);
