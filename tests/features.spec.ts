@@ -618,6 +618,40 @@ test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async (
   expect(html).toContain('width="320" height="180"');
 });
 
+test("图片尺寸工具可修改宽高并恢复原始比例", async ({ page }) => {
+  await page.goto("/");
+  const image = `data:image/png;base64,${png.toString("base64")}`;
+  const source = `![尺寸示例](${image} =320x180)\n\n`;
+  await page.locator("input.md-input").setInputFiles({
+    name: "调整图片尺寸.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".image-preview").click();
+  await page.getByRole("button", { name: "设置图片尺寸" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "设置图片尺寸" });
+  await expect(dialog.getByLabel("图片宽度（像素）")).toHaveValue("320");
+  await expect(dialog.getByLabel("图片高度（像素）")).toHaveValue("180");
+  await dialog.getByLabel("图片宽度（像素）").fill("240");
+  await dialog.getByLabel("图片高度（像素）").fill("");
+  await dialog.getByRole("button", { name: "应用" }).click();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("=240x)");
+  await page.locator(".cm-content").press("ArrowDown");
+
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".image-preview").click();
+  await page.getByRole("button", { name: "设置图片尺寸" }).click();
+  const resetDialog = page.getByRole("dialog", { name: "设置图片尺寸" });
+  await resetDialog.getByLabel("图片宽度（像素）").fill("");
+  await resetDialog.getByRole("button", { name: "应用" }).click();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).not.toContainText("=240x)");
+  await expect(page.locator(".cm-content")).toContainText(image);
+});
+
 test("图片加载失败时状态消息会通知辅助技术", async ({ page }) => {
   await page.route("https://image.test/missing.png", (route) =>
     route.abort(),

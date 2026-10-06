@@ -31,7 +31,7 @@ import { searchKeymap, search, openSearchPanel } from "@codemirror/search";
 import { livePreview, documentPath, previewTheme } from "./live";
 import { imageTypes } from "./assets";
 import { linkHandler } from "./link-widget";
-import { markdownLink } from "./links";
+import { markdownImageEnd, markdownImageSizing, markdownLink } from "./links";
 
 const sessions = new Map<string, EditorState>();
 export type Format =
@@ -66,6 +66,8 @@ export type EditorHandle = {
   redo: () => void;
   format: (kind: Format) => void;
   images: (files: File[]) => Promise<void>;
+  imageSize: () => { width: string; height: string } | null;
+  setImageSize: (width: string, height: string) => boolean;
   forget: (id: string) => void;
 };
 type Props = {
@@ -385,6 +387,11 @@ export const Editor = forwardRef<EditorHandle, Props>(
     const spellCheck = props.spellCheck ?? false;
     const host = useRef<HTMLDivElement>(null);
     const view = useRef<EditorView | null>(null);
+    const imageSizeTarget = useRef<{
+      from: number;
+      to: number;
+      raw: string;
+    } | null>(null);
     const docSnapshot = useRef("");
     const pendingChange = useRef<{
       view: EditorView;
@@ -474,6 +481,72 @@ export const Editor = forwardRef<EditorHandle, Props>(
       },
       format(kind) {
         if (view.current) formatSelection(view.current, kind);
+      },
+      imageSize() {
+        const instance = view.current;
+        if (!instance) return null;
+        const position = instance.state.selection.main.from;
+        let imageFrom = -1;
+        syntaxTree(instance.state).iterate({
+          enter(node) {
+            if (
+              node.name === "Image" &&
+              position >= node.from &&
+              position <= node.to
+            )
+              imageFrom = node.from;
+          },
+        });
+        if (imageFrom < 0) return null;
+        const line = instance.state.doc.lineAt(imageFrom);
+        const rawLine = line.text.slice(imageFrom - line.from);
+        const length = markdownImageEnd(rawLine);
+        if (!length) return null;
+        const raw = rawLine.slice(0, length);
+        imageSizeTarget.current = {
+          from: imageFrom,
+          to: imageFrom + length,
+          raw,
+        };
+        const sizing = markdownImageSizing(raw);
+        return {
+          width: sizing?.width ? String(sizing.width) : "",
+          height: sizing?.height ? String(sizing.height) : "",
+        };
+      },
+      setImageSize(width, height) {
+        const instance = view.current;
+        const target = imageSizeTarget.current;
+        if (!instance || !target) return false;
+        const widthValue = width.trim() ? Number(width) : undefined;
+        const heightValue = height.trim() ? Number(height) : undefined;
+        if (
+          (widthValue !== undefined &&
+            (!Number.isInteger(widthValue) ||
+              widthValue < 1 ||
+              widthValue > 4096)) ||
+          (heightValue !== undefined &&
+            (!Number.isInteger(heightValue) ||
+              heightValue < 1 ||
+              heightValue > 4096)) ||
+          instance.state.doc.sliceString(target.from, target.to) !== target.raw
+        )
+          return false;
+        const sizing = markdownImageSizing(target.raw);
+        const base = sizing?.raw || target.raw;
+        if (!base.endsWith(")")) return false;
+        const updated =
+          widthValue === undefined && heightValue === undefined
+            ? base
+            : `${base.slice(0, -1)} =${widthValue || ""}x${heightValue || ""})`;
+        instance.dispatch({
+          changes: { from: target.from, to: target.to, insert: updated },
+          selection: { anchor: target.from + updated.length },
+          annotations: Transaction.userEvent.of("input.image-size"),
+        });
+        imageSizeTarget.current = null;
+        instance.focus();
+        return true;
       },
       images: insertImages,
       forget(key) {

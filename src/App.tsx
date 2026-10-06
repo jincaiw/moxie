@@ -17,6 +17,7 @@ import {
   FileDown,
   Eye,
   ImagePlus,
+  Scaling,
   Type,
   Maximize2,
   Minimize2,
@@ -125,6 +126,10 @@ export default function App() {
   );
   const [pdfPreviewURL, setPdfPreviewURL] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [imageSizeDialog, setImageSizeDialog] = useState<{
+    width: string;
+    height: string;
+  } | null>(null);
   const folderWorkspace = useFolder();
   const [tabGroup, setTabGroup] = useState("全部");
   const tabGroups = useMemo(
@@ -178,6 +183,14 @@ export default function App() {
   const toolbar = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
   const autoError = workspace.autoErrors[current.id];
+  const editImageSize = () => {
+    const size = editor.current?.imageSize();
+    if (!size) {
+      setMessage("请先点击即时排版中的图片，再设置尺寸。");
+      return;
+    }
+    setImageSizeDialog(size);
+  };
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
   useEffect(() => {
@@ -992,6 +1005,9 @@ export default function App() {
             <Tool label="插入图片" onClick={() => imageUpload.current?.click()}>
               <ImagePlus size={18} />
             </Tool>
+            <Tool label="设置图片尺寸" onClick={editImageSize}>
+              <Scaling size={18} />
+            </Tool>
             <Tool label="查找与替换" onClick={() => editor.current?.find()}>
               <Search size={18} />
             </Tool>
@@ -1121,6 +1137,14 @@ export default function App() {
                 }}
               >
                 <Search size={17} /> 查找与替换
+              </button>
+              <button
+                onClick={() => {
+                  editImageSize();
+                  setMenu(null);
+                }}
+              >
+                <Scaling size={17} /> 设置图片尺寸
               </button>
               <button
                 onClick={() => {
@@ -1611,6 +1635,76 @@ export default function App() {
             src={`${pdfPreviewURL}#toolbar=1&view=FitH`}
             title="PDF 页面预览"
           />
+        </Dialog>
+      )}
+      {imageSizeDialog && (
+        <Dialog title="设置图片尺寸" onClose={() => setImageSizeDialog(null)}>
+          <header>
+            <h2>设置图片尺寸</h2>
+            <Tool
+              label="关闭图片尺寸设置"
+              onClick={() => setImageSizeDialog(null)}
+            >
+              <X size={18} />
+            </Tool>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (
+                editor.current?.setImageSize(
+                  imageSizeDialog.width,
+                  imageSizeDialog.height,
+                )
+              )
+                setImageSizeDialog(null);
+              else setMessage("尺寸需为 1–4096 的整数像素。");
+            }}
+          >
+            <label>
+              宽度（像素）
+              <input
+                type="number"
+                min="1"
+                max="4096"
+                step="1"
+                value={imageSizeDialog.width}
+                onChange={(event) =>
+                  setImageSizeDialog((size) =>
+                    size ? { ...size, width: event.target.value } : size,
+                  )
+                }
+                aria-label="图片宽度（像素）"
+              />
+            </label>
+            <label>
+              高度（像素）
+              <input
+                type="number"
+                min="1"
+                max="4096"
+                step="1"
+                value={imageSizeDialog.height}
+                onChange={(event) =>
+                  setImageSizeDialog((size) =>
+                    size ? { ...size, height: event.target.value } : size,
+                  )
+                }
+                aria-label="图片高度（像素）"
+              />
+            </label>
+            <p>
+              留空一个数值可按图片原始比例自动计算；宽高都留空可移除固定尺寸。
+            </p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setImageSizeDialog(null)}>
+                取消
+              </button>
+              <button className="primary-button" type="submit">
+                应用
+              </button>
+            </div>
+          </form>
         </Dialog>
       )}
       {statsOpen && (
