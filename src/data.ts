@@ -80,6 +80,24 @@ export type DocumentFile = {
   dirty?: boolean;
   group?: string;
 };
+function markdownContainerContent(line: string) {
+  let content = line;
+  for (let depth = 0; depth < 12; depth++) {
+    const indentation = /^ {0,3}/.exec(content)?.[0].length || 0;
+    content = content.slice(indentation);
+    if (content.startsWith(">")) {
+      content = content.slice(1).replace(/^[ \t]?/, "");
+      continue;
+    }
+    const list = /^(?:[-+*]|\d{1,9}[.)])[ \t]+/.exec(content);
+    if (list) {
+      content = content.slice(list[0].length);
+      continue;
+    }
+    break;
+  }
+  return content;
+}
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const lineAt = (from: number) => {
@@ -107,17 +125,17 @@ export function headings(text: string) {
   while (line) {
     const next: ReturnType<typeof lineAt> | null =
       line.next <= text.length ? lineAt(line.next) : null;
+    const content = markdownContainerContent(line.text);
+    const nextContent = next ? markdownContainerContent(next.text) : "";
     if (fence) {
-      if (fence.test(line.text)) fence = undefined;
+      if (fence.test(content)) fence = undefined;
     } else {
-      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
+      const opening = /^(`{3,}|~{3,})/.exec(content);
       if (opening) {
         const character = opening[1][0] === "`" ? "`" : "~";
-        fence = new RegExp(
-          `^ {0,3}${character}{${opening[1].length},}[ \\t]*$`,
-        );
+        fence = new RegExp(`^${character}{${opening[1].length},}[ \\t]*$`);
       } else {
-        const atx = /^ {0,3}(#{1,6})(?:[ \\t]+(.*?)|[ \\t]*)$/.exec(line.text);
+        const atx = /^(#{1,6})(?:[ \\t]+(.*?)|[ \\t]*)$/.exec(content);
         if (atx) {
           result.push({
             level: atx[1].length,
@@ -125,15 +143,15 @@ export function headings(text: string) {
             from: line.from,
           });
         } else {
-          const setext = next && /^ {0,3}(=+|-+)[ \\t]*$/.exec(next.text);
+          const setext = next && /^(=+|-+)[ \\t]*$/.exec(nextContent);
           if (
             setext &&
-            line.text.trim() &&
-            !/^ {0,3}(?:>|[-+*][ \\t]|\\d+[.)][ \\t])/.test(line.text)
+            content.trim() &&
+            !/^(?:>|[-+*][ \\t]|\\d+[.)][ \\t])/.test(content)
           ) {
             result.push({
               level: setext[1][0] === "=" ? 1 : 2,
-              title: line.text.trim(),
+              title: content.trim(),
               from: line.from,
             });
             line = next;

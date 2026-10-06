@@ -15,6 +15,7 @@ import {
   tableColumnAlignment,
 } from "../src/table";
 import { inlineMathMatches } from "../src/math";
+import { headings } from "../src/data";
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
@@ -1052,6 +1053,17 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
   ]);
   await page.getByRole("button", { name: "真正的标题", exact: true }).click();
   await expect(page.locator(".cm-focused")).toBeVisible();
+});
+
+test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过容器围栏", () => {
+  const source =
+    "> ## 引用标题\n>\n> 引用 Setext\n> ---\n\n- # 列表标题\n\n- 列表 Setext\n  ===\n\n> ````md\n> # 围栏中的标题\n> ```\n> ````\n";
+  expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+    [2, "引用标题"],
+    [2, "引用 Setext"],
+    [1, "列表标题"],
+    [1, "列表 Setext"],
+  ]);
 });
 
 test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) => {
