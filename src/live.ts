@@ -14,6 +14,7 @@ import {
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
@@ -57,6 +58,26 @@ function hydrateHTMLImages(
       },
     );
   });
+}
+
+function renderInlineHTMLPreview(
+  element: HTMLElement,
+  view: EditorView,
+  source: string,
+  path: string | undefined,
+) {
+  element.innerHTML = DOMPurify.sanitize(
+    marked.parseInline(source, { async: false }) as string,
+  );
+  hydrateHTMLImages(element, view, path);
+  void renderInlineHTMLMarkdown(source)
+    .then((html) => {
+      if (!element.isConnected) return;
+      element.innerHTML = DOMPurify.sanitize(html);
+      hydrateHTMLImages(element, view, path);
+      view.requestMeasure();
+    })
+    .catch(() => {});
 }
 
 class RenderWidget extends WidgetType {
@@ -178,10 +199,7 @@ class InlineHTMLWidget extends WidgetType {
     const el = document.createElement("span");
     el.className = "md-inline-html-preview";
     el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
-    el.innerHTML = DOMPurify.sanitize(
-      marked.parseInline(this.source, { async: false }) as string,
-    );
-    hydrateHTMLImages(el, view, this.path);
+    renderInlineHTMLPreview(el, view, this.source, this.path);
     el.title = "点击编辑原文";
     enableHTMLSourceEditing(el, view, this.from);
     return el;
@@ -211,10 +229,7 @@ class InlineHTMLParagraphWidget extends WidgetType {
     el.className = "md-inline-html-paragraph-preview";
     el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
     el.title = "点击编辑原文";
-    el.innerHTML = DOMPurify.sanitize(
-      marked.parseInline(this.source, { async: false }) as string,
-    );
-    hydrateHTMLImages(el, view, this.path);
+    renderInlineHTMLPreview(el, view, this.source, this.path);
     enableHTMLSourceEditing(el, view, this.from);
     return el;
   }

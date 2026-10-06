@@ -688,6 +688,35 @@ test("行内 HTML 预览可通过键盘聚焦并按空格编辑源码", async ({
   );
 });
 
+test("行内 HTML 中的 Moxie 格式与公式在预览和导出中一致", async ({ page }) => {
+  await page.goto("/");
+  const markdown =
+    "# 格式一致性\n\n前文 <span>==高亮==、^上标^、~下标~ 和 $x+1$</span> 后文";
+  await page.locator(".md-input").setInputFiles({
+    name: "行内 HTML 格式.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(markdown),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press(documentStart);
+  const preview = page.locator(".md-inline-html-preview");
+  await expect(preview.locator("mark")).toHaveText("高亮");
+  await expect(preview.locator("sup")).toHaveText("上标");
+  await expect(preview.locator("sub")).toHaveText("下标");
+  await expect(preview.locator("math")).toHaveCount(1);
+
+  const html = await page.evaluate(async (source) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(source, "inline-html-format.md");
+  }, markdown);
+  expect(html).toContain("<mark>高亮</mark>");
+  expect(html).toContain("<sup>上标</sup>");
+  expect(html).toContain("<sub>下标</sub>");
+  expect(html.match(/<math/g)).toHaveLength(1);
+});
+
 test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({

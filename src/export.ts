@@ -328,6 +328,16 @@ function createParser(footnotes: FootnoteState, enableFootnotes = true) {
   });
   return parser;
 }
+
+export async function renderInlineHTMLMarkdown(source: string) {
+  const parser = createParser(
+    { definitions: new Map(), numbers: new Map(), references: new Map() },
+    false,
+  );
+  const html = (await parser.parse(source, { async: true })) as string;
+  return html.replace(/^<p>/, "").replace(/<\/p>\n?$/, "");
+}
+
 export async function exportHTML(
   text: string,
   name: string,
