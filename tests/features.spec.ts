@@ -662,6 +662,33 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toBeVisible();
 });
 
+test("自动更新下载进度提供屏幕阅读器名称和百分比", async ({ page }) => {
+  await page.addInitScript(() => {
+    const status = { status: "downloading", percent: 42 } as const;
+    window.desktop = {
+      getUpdateStatus: async () => status,
+      checkForUpdates: async () => status,
+      downloadUpdate: async () => status,
+      installUpdate: async () => status,
+      onUpdateStatus: (listener) => {
+        queueMicrotask(() => listener(status));
+        return () => {};
+      },
+      onAction: () => () => {},
+      recent: async () => [],
+      dirty: () => {},
+    } as unknown as NonNullable<typeof window.desktop>;
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+
+  const progress = page.getByRole("progressbar", {
+    name: "软件更新下载进度",
+  });
+  await expect(progress).toHaveAttribute("aria-valuetext", "42%");
+  await expect(progress).toHaveAttribute("value", "42");
+});
+
 test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
