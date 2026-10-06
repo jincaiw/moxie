@@ -764,6 +764,20 @@ test("链接打开关联文档及锚点，限制目录边界和协议", async ()
     );
     h.open(root);
     await h.call("file:folder");
+    await assert.rejects(
+      h.call("link:open", {
+        documentPath: source,
+        href: "../%E0%A4%A.md",
+      }),
+      /无效的百分号编码/,
+    );
+    await assert.rejects(
+      h.call("link:open", {
+        documentPath: source,
+        href: "../%E7%9B%AE%E6%A0%87%20%E6%96%87%E6%A1%A3.md#bad%",
+      }),
+      /无效的百分号编码/,
+    );
     const result = await h.call("link:open", {
       documentPath: source,
       href: "../%E7%9B%AE%E6%A0%87%20%E6%96%87%E6%A1%A3.md#%E7%9B%AE%E6%A0%87",

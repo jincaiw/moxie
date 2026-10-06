@@ -276,9 +276,13 @@ class FileStore {
     )
       throw Error("链接无效");
     const hash = href.indexOf("#");
-    const relative = decodeURIComponent(hash < 0 ? href : href.slice(0, hash));
-    const anchor =
-      hash < 0 ? undefined : decodeURIComponent(href.slice(hash + 1));
+    let relative, anchor;
+    try {
+      relative = decodeURIComponent(hash < 0 ? href : href.slice(0, hash));
+      anchor = hash < 0 ? undefined : decodeURIComponent(href.slice(hash + 1));
+    } catch {
+      throw Error("链接包含无效的百分号编码");
+    }
     if (
       !relative ||
       path.isAbsolute(relative) ||
