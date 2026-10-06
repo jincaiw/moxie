@@ -100,6 +100,21 @@ function markdownContainerContent(line: string) {
     return content;
   }
 }
+function markdownContainerStartsListItem(line: string) {
+  let content = line;
+  while (true) {
+    const indentation = /^ {0,3}/.exec(content)?.[0].length || 0;
+    content = content.slice(indentation);
+    if (content.startsWith(">")) {
+      content = content.slice(1).replace(/^[ \t]?/, "");
+      continue;
+    }
+    const list = /^((?:[-+*]|\d{1,9}[.)])([ \t]+))/.exec(content);
+    return Boolean(
+      list && list[2].length <= 4 && !/ +\t/.test(list[2]),
+    );
+  }
+}
 function htmlHeadingTitle(source: string) {
   return source
     .replace(/<!--[\s\S]*?-->/g, "")
@@ -292,6 +307,7 @@ export function headings(text: string) {
             if (
               setext &&
               content.trim() &&
+              !markdownContainerStartsListItem(next.text) &&
               !/^(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(content)
             ) {
               result.push({
