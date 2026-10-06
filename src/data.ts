@@ -98,6 +98,33 @@ function markdownContainerContent(line: string) {
   }
   return content;
 }
+function htmlHeadingTitle(source: string) {
+  return source
+    .replace(/<[^>]*>/g, "")
+    .replace(
+      /&(#(?:x[\da-f]+|\d+)|amp|lt|gt|quot|apos);/gi,
+      (match, entity: string) => {
+        const named: Record<string, string> = {
+          amp: "&",
+          lt: "<",
+          gt: ">",
+          quot: '\"',
+          apos: "'",
+        };
+        if (entity[0] !== "#") return named[entity.toLowerCase()] || match;
+        const value =
+          entity[1]?.toLowerCase() === "x"
+            ? Number.parseInt(entity.slice(2), 16)
+            : Number.parseInt(entity.slice(1), 10);
+        try {
+          return Number.isFinite(value) ? String.fromCodePoint(value) : match;
+        } catch {
+          return match;
+        }
+      },
+    )
+    .trim();
+}
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const lineAt = (from: number) => {
@@ -135,19 +162,27 @@ export function headings(text: string) {
         const character = opening[1][0] === "`" ? "`" : "~";
         fence = new RegExp(`^${character}{${opening[1].length},}[ \\t]*$`);
       } else {
-        const atx = /^(#{1,6})(?:[ \\t]+(.*?)|[ \\t]*)$/.exec(content);
-        if (atx) {
+        const htmlHeading =
+          /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)<\/h\1\s*>[ \t]*$/i.exec(content);
+        const atx = /^(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/.exec(content);
+        if (htmlHeading) {
+          result.push({
+            level: Number(htmlHeading[1]),
+            title: htmlHeadingTitle(htmlHeading[2]),
+            from: line.from,
+          });
+        } else if (atx) {
           result.push({
             level: atx[1].length,
-            title: (atx[2] || "").replace(/[ \\t]+#+[ \\t]*$/, "").trim(),
+            title: (atx[2] || "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
             from: line.from,
           });
         } else {
-          const setext = next && /^(=+|-+)[ \\t]*$/.exec(nextContent);
+          const setext = next && /^(=+|-+)[ \t]*$/.exec(nextContent);
           if (
             setext &&
             content.trim() &&
-            !/^(?:>|[-+*][ \\t]|\\d+[.)][ \\t])/.test(content)
+            !/^(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(content)
           ) {
             result.push({
               level: setext[1][0] === "=" ? 1 : 2,

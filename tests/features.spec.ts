@@ -1066,21 +1066,48 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
   ]);
 });
 
+test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
+  const source =
+    '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n```html\n<h1>代码示例</h1>\n```\n';
+  expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+    [2, "HTML & 标题"],
+  ]);
+  expect(headings("#title\n# title\n").map(({ title }) => title)).toEqual([
+    "title",
+  ]);
+});
+
 test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
     name: "目录.md",
     mimeType: "text/markdown",
-    buffer: Buffer.from("[TOC]\n\n# 第一章\n\n## 子章节\n\n正文\n"),
+    buffer: Buffer.from(
+      "[TOC]\n\n# 第一章\n\n## 子章节\n\n<h2><em>HTML</em> &amp; 标题</h2>\n\n正文\n",
+    ),
   });
   const toc = page.locator(".md-toc");
   await expect(toc).toBeVisible();
   await toc.locator("summary").click();
   const section = toc.getByRole("button", { name: "子章节", exact: true });
   await expect(section).toBeVisible();
+  await expect(
+    toc.getByRole("button", { name: "HTML & 标题", exact: true }),
+  ).toBeVisible();
   await section.click();
   await expect(page.locator(".cm-activeLine")).toContainText("子章节");
   await expect(toc).not.toHaveAttribute("open", "");
+
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(
+      "[TOC]\n\n# 第一章\n\n## 子章节\n\n<h2><em>HTML</em> &amp; 标题</h2>",
+      "目录.md",
+    );
+  });
+  expect(html).toContain('href="#html-标题"');
 });
 
 test("自动补全括号、引号与反引号，退格删除空配对", async ({ page }) => {
