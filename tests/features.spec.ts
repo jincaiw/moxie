@@ -1546,7 +1546,7 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
     // @ts-expect-error runtime URL is served by the development server
     const { markdownImage } = await import("/src/links.ts");
     const text =
-      '[图]: old.assets/reference.png "引用图片"\n\n![引用图][图]\n\n![图片](old.assets/a.png)\n\n![括号](old.assets/image_(1).png)\n\n![转义括号](old.assets/image_\\(2\\).png)\n\n![空格](<old.assets/image 3.png>)\n\n<img src="old.assets/html.png" alt="HTML 图片">\n\n`![例子](example.png)`\n\n```md\n![例子](code.png)\n```';
+      '[图]: old.assets/reference.png "引用图片"\n\n![引用图][图]\n\n![图片](old.assets/a.png)\n\n![括号](old.assets/image_(1).png)\n\n![转义括号](old.assets/image_\\(2\\).png)\n\n![空格](<old.assets/image 3.png>)\n\n<img src="old.assets/html.png" alt="HTML 图片">\n\n`![例子](example.png)`\n\n```md\n![例子](code.png)\n```\n\n![尺寸](old.assets/sized.png =320x180)';
     const parsed = [
       "![括号](old.assets/image_(1).png)",
       "![转义括号](old.assets/image_\\(2\\).png)",
@@ -1559,16 +1559,23 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
     };
   });
   expect(result.calls).toEqual([
-    "old.assets/reference.png",
+    "old.assets/sized.png",
     "old.assets/html.png",
     "old.assets/image 3.png",
     "old.assets/image_(2).png",
     "old.assets/image_(1).png",
     "old.assets/a.png",
+    "old.assets/reference.png",
   ]);
   expect(
     result.text.match(/%E6%96%B0%E6%96%87%E6%A1%A3.assets\/copied.png/g),
-  ).toHaveLength(6);
+  ).toHaveLength(7);
+  expect(result.text).toContain(
+    "![尺寸](%E6%96%B0%E6%96%87%E6%A1%A3.assets/copied.png =320x180)",
+  );
+  expect(result.text).toContain(
+    '[图]: %E6%96%B0%E6%96%87%E6%A1%A3.assets/copied.png "引用图片"',
+  );
   expect(result.parsed).toEqual([
     { src: "old.assets/image_(1).png", alt: "括号" },
     { src: "old.assets/image_(2).png", alt: "转义括号" },

@@ -1,6 +1,6 @@
 import type { DocumentFile } from "./data";
 import { parser } from "@lezer/markdown";
-import { htmlImage, markdownImageDestination } from "./links";
+import { htmlImage, markdownImageDestination, markdownImageEnd } from "./links";
 
 export const imageTypes = new Set([
   "image/png",
@@ -55,9 +55,23 @@ export async function rehomeImages(
     enter(node) {
       const raw = text.slice(node.from, node.to);
       if (node.name === "Image") {
-        const inline = markdownImageDestination(raw);
+        let imageRaw = raw;
+        let inline = markdownImageDestination(imageRaw);
+        if (!inline) {
+          const lineEnd = text.indexOf("\n", node.from);
+          const rawLine = text.slice(
+            node.from,
+            lineEnd < 0 ? text.length : lineEnd,
+          );
+          const imageLength = markdownImageEnd(rawLine);
+          const candidate = imageLength ? rawLine.slice(0, imageLength) : "";
+          if (/[ \t]+=\d*x\d*\)$/.test(candidate)) {
+            imageRaw = candidate;
+            inline = markdownImageDestination(imageRaw);
+          }
+        }
         if (inline) {
-          const source = raw
+          const source = imageRaw
             .slice(inline.start, inline.end)
             .replace(/\\([\\()])/g, "$1");
           matches.push({
@@ -104,7 +118,8 @@ export async function rehomeImages(
         from + reference.index + reference[0].indexOf(target) + target.length,
     });
   }
-  for (const match of matches.reverse()) {
+  matches.sort((a, b) => b.start - a.start);
+  for (const match of matches) {
     const src = match.src;
     if (/^[a-z][a-z0-9+.-]*:/i.test(src)) continue;
     const data = await resolveImage(src, oldPath);
