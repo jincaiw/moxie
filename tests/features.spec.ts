@@ -1948,7 +1948,7 @@ test("HTML 块中的脚注样式文本不会被提取为 Markdown 脚注", async
 
 test("行内 script/style 原始文本中的脚注样式行不会被提取", async ({ page }) => {
   const source =
-    "正文 <script>\n[^script-fake]: script 私密文本\n</script> 结束。脚本引用[^script-fake]。\n\n正文 <style>\n[^style-fake]: style 私密文本\n</style> 结束。样式引用[^style-fake]。\n\n引用[^real]。\n\n[^real]: 真正的脚注";
+    "正文 <script>\n[^script-fake]: script 私密文本\n</script> 结束。脚本引用[^script-fake]。\n\n正文 <style>\n[^style-fake]: style 私密文本\n</style> 结束。样式引用[^style-fake]。\n\n正文 <xmp>\n[^xmp-fake]: xmp 隐藏文本\n</xmp> 结束。旧标签引用[^xmp-fake]。\n\n正文 <iframe>\n[^iframe-fake]: iframe 隐藏文本\n</iframe> 结束。嵌入引用[^iframe-fake]。\n\n引用[^real]。\n\n[^real]: 真正的脚注";
   await page.goto("/");
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
@@ -1959,6 +1959,8 @@ test("行内 script/style 原始文本中的脚注样式行不会被提取", asy
 
   expect(html).not.toContain("script 私密文本");
   expect(html).toContain("样式引用[^style-fake]");
+  expect(html).not.toContain("xmp 隐藏文本");
+  expect(html).not.toContain("iframe 隐藏文本");
   expect(html).toContain("真正的脚注");
   expect(html).toContain('id="fn-1"');
   expect(html).not.toContain('id="fn-2"');

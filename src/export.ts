@@ -58,14 +58,15 @@ function markNestedHTMLLines(
       child.raw.includes("\n");
     const inlineRawElement =
       child.type === "html" &&
-      /^<(script|style|pre|textarea)\b/i.exec(child.raw)?.[1];
+      /^<(script|style|pre|textarea|title|xmp|iframe|noembed|noframes|listing)\b/i.exec(
+        child.raw,
+      )?.[1];
     let relativeStart = -1;
     for (let index = cursor; index < parentLines.length; index++) {
       const parent = stripMarkdownContainers(parentLines[index]);
       if (
         parent === first ||
-        ((inlineMultilineComment || inlineRawElement) &&
-          parent.includes(first))
+        ((inlineMultilineComment || inlineRawElement) && parent.includes(first))
       ) {
         relativeStart = index;
         break;
