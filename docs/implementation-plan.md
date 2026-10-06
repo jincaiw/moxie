@@ -914,4 +914,4 @@
 - [x] 区分需要匹配关闭标签的 HTML block 类型 1（script/pre/style/textarea）与遇空行结束的类型 6（含 title、iframe）。
 - [x] 回归验证 title/iframe 区块后的 Markdown 标题恢复，以及 script 关闭标签前持续隔离标题语法。
 - [x] 生产构建成功；完整浏览器回归 101 项通过、3 项性能用例按配置跳过；桌面逻辑测试 20 项通过。
-- [ ] GitHub Actions 源码校验、arm64/x64 打包和 Release 发布待完成。
+- [x] GitHub Actions 源码校验、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 含四条双架构 DMG/ZIP 记录。
