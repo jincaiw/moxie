@@ -1,3 +1,5 @@
+import { GFM, parser as markdownParser } from "@lezer/markdown";
+
 export const welcome = `# 欢迎使用墨写
 
 让想法自然成文。
@@ -100,8 +102,8 @@ function markdownContainerContent(line: string) {
     return content;
   }
 }
-function markdownContainerStartsListItem(line: string) {
-  let content = line;
+function markdownHeadingUsesListCodeTab(prefix: string) {
+  let content = prefix;
   while (true) {
     const indentation = /^ {0,3}/.exec(content)?.[0].length || 0;
     content = content.slice(indentation);
@@ -110,9 +112,7 @@ function markdownContainerStartsListItem(line: string) {
       continue;
     }
     const list = /^((?:[-+*]|\d{1,9}[.)])([ \t]+))/.exec(content);
-    return Boolean(
-      list && list[2].length <= 4 && !/ +\t/.test(list[2]),
-    );
+    return Boolean(list && / +\t/.test(list[2]));
   }
 }
 function htmlHeadingTitle(source: string) {
@@ -188,6 +188,31 @@ function htmlBlockOpening(
 }
 export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
+  const markdownHeadings: { level: number; title: string; from: number }[] = [];
+  markdownParser.configure(GFM).parse(text).iterate({
+    enter(node) {
+      const atx = /^ATXHeading([1-6])$/.exec(node.name);
+      const setext = /^SetextHeading([12])$/.exec(node.name);
+      if (!atx && !setext) return;
+      const lineStart = text.lastIndexOf("\n", node.from - 1) + 1;
+      if (markdownHeadingUsesListCodeTab(text.slice(lineStart, node.from)))
+        return;
+      const raw = text.slice(node.from, node.to);
+      const firstLine = raw.split(/\r?\n/, 1)[0];
+      const title = atx
+        ? firstLine.replace(/^#{1,6}[ \t]*/, "").replace(/[ \t]+#+[ \t]*$/, "").trim()
+        : raw
+            .replace(/\r?\n(?:[ \t]*>[ \t]?)*[ \t]*[=-]+[ \t]*$/, "")
+            .replace(/\r?\n/g, " ")
+            .replace(/[ \t]+/g, " ")
+            .trim();
+      markdownHeadings.push({
+        level: Number(atx?.[1] || setext?.[1]),
+        title,
+        from: lineStart,
+      });
+    },
+  });
   const lineAt = (from: number) => {
     const lf = text.indexOf("\n", from);
     const cr = text.indexOf("\r", from);
@@ -214,10 +239,7 @@ export function headings(text: string) {
     { level: number; from: number; content: string } | undefined;
   let line: ReturnType<typeof lineAt> | null = lineAt(0);
   while (line) {
-    const next: ReturnType<typeof lineAt> | null =
-      line.next <= text.length ? lineAt(line.next) : null;
     const content = markdownContainerContent(line.text);
-    const nextContent = next ? markdownContainerContent(next.text) : "";
     const previousLineEnd =
       line.from > 1 &&
       text.charCodeAt(line.from - 1) === 10 &&
@@ -271,7 +293,6 @@ export function headings(text: string) {
         const htmlHeadingOpening = /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)$/i.exec(
           content,
         );
-        const atx = /^(#{1,6})(?:[ \t]+(.*?)|[ \t]*)$/.exec(content);
         if (htmlHeadingOpening) {
           const level = Number(htmlHeadingOpening[1]);
           const close = htmlHeadingClose(htmlHeadingOpening[2], level);
@@ -296,32 +317,10 @@ export function headings(text: string) {
         } else {
           const htmlBlockStart = htmlBlockOpening(content, blankBefore);
           if (htmlBlockStart) htmlBlock = htmlBlockStart;
-          else if (atx) {
-            result.push({
-              level: atx[1].length,
-              title: (atx[2] || "").replace(/[ \t]+#+[ \t]*$/, "").trim(),
-              from: line.from,
-            });
-          } else {
-            const setext = next && /^(=+|-+)[ \t]*$/.exec(nextContent);
-            if (
-              setext &&
-              content.trim() &&
-              !markdownContainerStartsListItem(next.text) &&
-              !/^(?:>|[-+*][ \t]|\d+[.)][ \t])/.test(content)
-            ) {
-              result.push({
-                level: setext[1][0] === "=" ? 1 : 2,
-                title: content.trim(),
-                from: line.from,
-              });
-              line = next;
-            }
-          }
         }
       }
     }
     line = line && line.next <= text.length ? lineAt(line.next) : null;
   }
-  return result;
+  return [...result, ...markdownHeadings].sort((a, b) => a.from - b.from);
 }

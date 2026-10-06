@@ -1701,6 +1701,11 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
     ).map(({ title }) => title),
   ).toEqual(["真实列表标题"]);
   expect(headings("- \t# 制表符代码标题\n")).toEqual([]);
+  expect(
+    headings("- 项目正文\n    # 缩进续行标题\n\n- 第二项\n      # 缩进代码伪标题\n").map(
+      ({ level, title }) => [level, title],
+    ),
+  ).toEqual([[1, "缩进续行标题"]]);
   expect(headings("- 普通列表项\n  - ---\n")).toEqual([]);
   expect(headings("1. 普通列表项\n   1. ---\n")).toEqual([]);
   expect(
@@ -1709,6 +1714,11 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
       title,
     ]),
   ).toEqual([[2, "引用 Setext 标题"]]);
+  expect(
+    headings("段落标题第一行\n段落标题第二行\n---\n").map(
+      ({ level, title }) => [level, title],
+    ),
+  ).toEqual([[2, "段落标题第一行 段落标题第二行"]]);
 });
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
