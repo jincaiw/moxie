@@ -100,6 +100,7 @@ function markdownContainerContent(line: string) {
 }
 function htmlHeadingTitle(source: string) {
   return source
+    .replace(/<br\s*\/?>/gi, " ")
     .replace(/<[^>]*>/g, "")
     .replace(
       /&(#(?:x[\da-f]+|\d+)|amp|lt|gt|quot|apos);/gi,
