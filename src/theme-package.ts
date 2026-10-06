@@ -1,4 +1,5 @@
 import { themeCSSError } from "./theme-css";
+import DOMPurify from "dompurify";
 
 const packageLimit = 96 * 1024;
 const mimeTypes: Record<string, string> = {
@@ -7,6 +8,7 @@ const mimeTypes: Record<string, string> = {
   jpeg: "image/jpeg",
   jpg: "image/jpeg",
   png: "image/png",
+  svg: "image/svg+xml",
   webp: "image/webp",
   woff: "application/font-woff",
   woff2: "font/woff2",
@@ -74,7 +76,26 @@ export async function importThemePackage(files: File[]) {
   const embeddedAssets = new Map<string, string>();
   for (const [path, file] of assets) {
     const extension = path.split(".").pop()?.toLowerCase() || "";
-    const bytes = new Uint8Array(await file.arrayBuffer());
+    const bytes =
+      extension === "svg"
+        ? new TextEncoder().encode(
+            DOMPurify.sanitize(await file.text(), {
+              USE_PROFILES: { svg: true },
+              FORBID_TAGS: [
+                "script",
+                "foreignObject",
+                "style",
+                "iframe",
+                "object",
+                "embed",
+                "animate",
+                "animateTransform",
+                "set",
+              ],
+              FORBID_ATTR: ["style", "href", "xlink:href"],
+            }),
+          )
+        : new Uint8Array(await file.arrayBuffer());
     let binary = "";
     for (const byte of bytes) binary += String.fromCharCode(byte);
     embeddedAssets.set(

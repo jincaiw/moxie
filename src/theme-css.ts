@@ -15,7 +15,7 @@ export function themeCSSError(css: string): string | null {
   );
   if (/@import\b/i.test(decoded)) return "为保护本地隐私，不支持 @import。";
   const withoutEmbeddedAssets = decoded.replace(
-    /url\(\s*(['"]?)data:(?:image\/(?:png|jpeg|gif|webp|avif)|font\/woff2|application\/font-woff);base64,[a-z\d+/=]+\1\s*\)/gi,
+    /url\(\s*(['"]?)data:(?:image\/(?:png|jpeg|gif|webp|avif|svg\+xml)|font\/woff2|application\/font-woff);base64,[a-z\d+/=]+\1\s*\)/gi,
     "",
   );
   if (/url\s*\(|expression\s*\(/i.test(withoutEmbeddedAssets))

@@ -461,9 +461,13 @@ test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", as
   await fs.mkdir(path.join(theme, "assets"), { recursive: true });
   await fs.writeFile(
     path.join(theme, "theme.css"),
-    'body { background-image: url("assets/tile.png"); } :root { --accent: #117799; }',
+    'body { background-image: url("assets/tile.png"), url("assets/shape.svg"); } :root { --accent: #117799; }',
   );
   await fs.writeFile(path.join(theme, "assets", "tile.png"), png);
+  await fs.writeFile(
+    path.join(theme, "assets", "shape.svg"),
+    '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(1)</script><foreignObject><iframe src="https://example.com"></iframe></foreignObject><path fill="#123456" d="M0 0h10v10z"/></svg>',
+  );
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "偏好设置" }).click();
@@ -471,6 +475,15 @@ test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", as
     const css = page.getByRole("textbox", { name: "自定义主题 CSS 内容" });
     await expect(css).toContainText("data:image/png;base64,");
     await expect(css).toContainText(png.toString("base64"));
+    await expect(css).toContainText("data:image/svg+xml;base64,");
+    const embeddedSVG = await css.inputValue();
+    const encodedSVG = /data:image\/svg\+xml;base64,([a-z\d+/=]+)/i.exec(
+      embeddedSVG,
+    )?.[1];
+    expect(encodedSVG).toBeTruthy();
+    const safeSVG = Buffer.from(encodedSVG!, "base64").toString("utf8");
+    expect(safeSVG).toContain("<path");
+    expect(safeSVG).not.toMatch(/<script|foreignObject|iframe|onload|https:/i);
     await page.getByLabel("新主题名称").fill("纸纹");
     await page.getByRole("button", { name: "保存为本地主题" }).click();
     await expect(
