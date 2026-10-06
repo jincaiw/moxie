@@ -153,14 +153,11 @@ function htmlBlockOpening(
   if (/^<!\[CDATA\[/i.test(content)) return terminated(/\]\]>/);
   if (/^<![A-Z]/.test(content)) return terminated(/>/);
 
-  const raw =
-    /^<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b/i.exec(
-      content,
-    );
+  const raw = /^<(script|pre|style|textarea)\b/i.exec(content);
   if (raw) return terminated(new RegExp(`</${raw[1]}\\s*>`, "i"));
 
   if (
-    /^<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|head|header|hr|html|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|tr|track|ul)\b/i.test(
+    /^<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)\b/i.test(
       content,
     )
   )
