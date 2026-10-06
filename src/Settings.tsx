@@ -792,7 +792,12 @@ export function Settings({
           {updateStatus.status === "error" && updateStatus.message}
         </div>
         {updateStatus.status === "downloading" && (
-          <progress max="100" value={updateStatus.percent || 0} />
+          <progress
+            aria-label="软件更新下载进度"
+            aria-valuetext={`${Math.round(updateStatus.percent || 0)}%`}
+            max="100"
+            value={updateStatus.percent || 0}
+          />
         )}
         <div className="update-actions">
           <button
