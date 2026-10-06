@@ -740,6 +740,49 @@ test("列表与引用容器中的 HTML 区块保留 Markdown 上下文", async (
   );
 });
 
+test("引用中的嵌套列表 HTML 区块保留容器和后续正文", async ({ page }) => {
+  const source =
+    "> - 外层项目\n>   - 内层项目\n>\n>     <div><strong>嵌套 HTML</strong><script>window.__nestedHtmlAttack = true</script></div>\n>\n>     HTML 后正文";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-quote-list-html.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+
+  const content = page.locator(".cm-content");
+  await content.press(documentStart);
+  const preview = page.locator(".html-block-preview");
+  await expect(preview).toContainText("嵌套 HTML");
+  await expect(preview.locator("script")).toHaveCount(0);
+  await expect(content).toContainText("HTML 后正文");
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { __nestedHtmlAttack?: boolean })
+          .__nestedHtmlAttack,
+    ),
+  ).toBeUndefined();
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (text: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "nested-quote-list-html.md");
+  }, source);
+  expect(html).toContain("<blockquote>");
+  expect(html).toContain("<ul>");
+  expect(html).toContain("嵌套 HTML");
+  expect(html).toContain("HTML 后正文");
+  expect(html).not.toContain("<script>");
+
+  await preview.click();
+  await expect(content).toContainText(
+    "<div><strong>嵌套 HTML</strong><script>window.__nestedHtmlAttack = true</script></div>",
+  );
+});
+
 test("CommonMark 列表续段、嵌套任务和惰性引用在预览与导出中一致", async ({
   page,
 }) => {
