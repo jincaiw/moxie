@@ -987,4 +987,4 @@
 - [x] HTML 大纲扫描跳过 `<template>` 惰性内容，覆盖嵌套模板及注释/脚本中的伪关闭标签。
 - [x] 模板范围仅从 Markdown 语法树的 HTMLBlock 节点提取，代码围栏中的 `<template>` 示例不会吞掉后续标题。
 - [x] 定向 HTML 标题回归 4 项通过；生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.113 且含四条双架构 DMG/ZIP 更新记录。
