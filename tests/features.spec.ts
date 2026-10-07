@@ -1803,6 +1803,14 @@ test("HTML plaintext 区块后面的文本不进入文档大纲", () => {
   );
 });
 
+test("HTML noscript 示例中的标签文本不进入文档大纲", () => {
+  const source =
+    "<noscript>\n<h2>脚本关闭提示示例中的伪标题</h2>\n</noscript>\n\n# 真正的 Markdown 标题\n";
+  expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+    [1, "真正的 Markdown 标题"],
+  ]);
+});
+
 test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
