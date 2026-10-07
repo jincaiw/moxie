@@ -1,4 +1,5 @@
 import { GFM, parser as markdownParser } from "@lezer/markdown";
+import { decode } from "html-entities";
 
 export const welcome = `# 欢迎使用墨写
 
@@ -297,31 +298,7 @@ function stripHTMLHeadingMarkup(source: string) {
 }
 
 function htmlHeadingTitle(source: string) {
-  return stripHTMLHeadingMarkup(source)
-    .replace(
-      /&(#(?:x[\da-f]+|\d+)|amp|lt|gt|quot|apos);/gi,
-      (match, entity: string) => {
-        const named: Record<string, string> = {
-          amp: "&",
-          lt: "<",
-          gt: ">",
-          quot: '\"',
-          apos: "'",
-        };
-        if (entity[0] !== "#") return named[entity.toLowerCase()] || match;
-        const value =
-          entity[1]?.toLowerCase() === "x"
-            ? Number.parseInt(entity.slice(2), 16)
-            : Number.parseInt(entity.slice(1), 10);
-        try {
-          return Number.isFinite(value) ? String.fromCodePoint(value) : match;
-        } catch {
-          return match;
-        }
-      },
-    )
-    .replace(/\s+/g, " ")
-    .trim();
+  return decode(stripHTMLHeadingMarkup(source)).replace(/\s+/g, " ").trim();
 }
 const htmlRawTextElement =
   "script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing";

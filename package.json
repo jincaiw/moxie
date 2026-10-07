@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.122",
+  "version": "0.16.123",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -33,6 +33,7 @@
     "@lezer/markdown": "^1.7.2",
     "dompurify": "^3.2.6",
     "electron-updater": "^6.8.9",
+    "html-entities": "^2.6.0",
     "html-to-docx": "^1.8.0",
     "katex": "^0.16.22",
     "lucide-react": "^0.468.0",

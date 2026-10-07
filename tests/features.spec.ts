@@ -1773,6 +1773,13 @@ test("HTML 标题文本提取忽略含大于号的引号属性", () => {
   expect(headings(source).map(({ title }) => title)).toEqual(["正确标题"]);
 });
 
+test("HTML 标题导航解码 HTML5 命名实体", () => {
+  const source = "<h2>空格&nbsp;版权 &copy; 不等于 &NotEqualTilde;</h2>\n";
+  expect(headings(source).map(({ title }) => title)).toEqual([
+    "空格 版权 © 不等于 ≂̸",
+  ]);
+});
+
 test("HTML 标题内原始文本、样式和注释中的伪关闭标签不会截断标题", () => {
   const source =
     '<h2>可见前缀<script>const sample = "</h2>";</script>可见后缀</h2>\n\n<h3>跨行前缀\n<style>.example::after { content: "</h3>"; }</style>跨行后缀</h3>\n\n<h4>注释前缀<!-- </h4> -->注释后缀</h4>\n\n<h5>文本域前缀<textarea>字面量 </h5> 不会关闭</textarea>文本域后缀</h5>\n\n<h6>XMP 前缀<xmp><b>原样 </h6> 文本</b></xmp>XMP 后缀</h6>\n';
