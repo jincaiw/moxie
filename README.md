@@ -35,7 +35,11 @@ npm run package:mac
 
 输出在 `release/`，包含 Apple Silicon 与 Intel 的 DMG/ZIP。当前未配置 Developer ID 签名和公证，不属于可公开分发的已签名版本。正式发布需要项目所有者的 Apple Developer 凭据。
 
-推送 `v*` 格式的 Git tag 会由 GitHub Actions 在 macOS Runner 上构建 arm64/x64 DMG 与 ZIP，并创建 GitHub Release、附上 SHA-256 校验文件。没有 Apple Developer 凭据时，产物仍为未签名、未公证版本。
+推送 `v*` 格式的 Git tag 会由 GitHub Actions 在原生平台 Runner 上构建 arm64/x64 DMG 与 ZIP，并创建 GitHub Release、附上 SHA-256 校验文件。没有 Apple Developer 凭据时，macOS 产物仍为未签名、未公证版本。
+
+## Windows 与 Linux 安装包
+
+Windows 使用 NSIS 安装器，Linux 提供 AppImage；对应构建命令为 `npm run package:win` 和 `npm run package:linux`。Windows 安装版与 Linux AppImage 接入 GitHub Releases 应用内更新；Linux 其他打包格式及开发运行不启用自动更新。v0.16.120 起发布工作流会为三个桌面平台构建安装包。
 
 ## v0.16.39 已发布
 

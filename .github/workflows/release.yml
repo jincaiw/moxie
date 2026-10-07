@@ -1,4 +1,4 @@
-name: Publish macOS release
+name: Publish desktop release
 on:
   push:
     tags:
@@ -32,17 +32,25 @@ jobs:
           path: test-results/
           if-no-files-found: ignore
   build:
-    name: Build ${{ matrix.arch }} macOS package
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }} package
     needs: verify
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: arm64
-            runner: macos-15
-          - arch: x64
-            runner: macos-15-intel
-    runs-on: ${{ matrix.runner }}
+          - platform: macOS
+            os: macos-15
+            arch: arm64
+          - platform: macOS
+            os: macos-15-intel
+            arch: x64
+          - platform: Windows
+            os: windows-latest
+            arch: x64
+          - platform: Linux
+            os: ubuntu-22.04
+            arch: x64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,6 +59,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Configure optional macOS signing credentials
+        if: matrix.platform == 'macOS'
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -69,21 +78,35 @@ jobs:
             echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD" >> "$GITHUB_ENV"
             echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
           fi
-      - run: npm run package:mac -- --${{ matrix.arch }}
+      - name: Build macOS packages
+        if: matrix.platform == 'macOS'
+        run: npm run package:mac -- --${{ matrix.arch }}
+      - name: Build Windows installer
+        if: matrix.platform == 'Windows'
+        run: npm run package:win
+      - name: Build Linux AppImage
+        if: matrix.platform == 'Linux'
+        run: npm run package:linux
       - uses: actions/upload-artifact@v4
-        name: Upload macOS packages
+        name: Upload desktop packages
         with:
-          name: macOS-${{ matrix.arch }}
+          name: package-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
-            release/Moxie-*-${{ matrix.arch }}.dmg
-            release/Moxie-*-${{ matrix.arch }}.zip
-            release/Moxie-*-${{ matrix.arch }}.zip.blockmap
+            release/Moxie-*.dmg
+            release/Moxie-*.zip
+            release/Moxie-*.zip.blockmap
+            release/Moxie-*.exe
+            release/Moxie-*.exe.blockmap
+            release/Moxie-*.AppImage
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         name: Upload update metadata
         with:
-          name: update-info-${{ matrix.arch }}
-          path: release/latest-mac.yml
+          name: update-info-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            release/latest-mac.yml
+            release/latest.yml
+            release/latest-linux.yml
           if-no-files-found: error
 
   publish:
@@ -100,16 +123,16 @@ jobs:
       - run: npm ci --ignore-scripts
       - uses: actions/download-artifact@v4
         with:
-          pattern: macOS-*
+          pattern: package-*
           path: release
           merge-multiple: true
       - uses: actions/download-artifact@v4
         with:
-          name: update-info-arm64
+          name: update-info-macOS-arm64
           path: release/update-info/arm64
       - uses: actions/download-artifact@v4
         with:
-          name: update-info-x64
+          name: update-info-macOS-x64
           path: release/update-info/x64
       - name: Merge architecture update metadata
         run: >-
@@ -121,24 +144,30 @@ jobs:
         run: |
           cp public/theme-catalog-v1.json release/
           cp public/themes/theme-*.css public/themes/theme-*.svg release/
+      - uses: actions/download-artifact@v4
+        with:
+          name: update-info-Windows-x64
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: update-info-Linux-x64
+          path: release
       - name: Generate checksums
-        run: cd release && shasum -a 256 Moxie-*.dmg Moxie-*.zip > SHA256SUMS.txt
+        run: cd release && shasum -a 256 Moxie-* > SHA256SUMS.txt
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Moxie ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            macOS packages for Apple Silicon (arm64) and Intel (x64).
+            Desktop packages for macOS (Apple Silicon and Intel), Windows (x64), and Linux AppImage (x64).
 
-            **Distribution status:** Developer ID signing and notarization run when the repository secrets `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured. Without them, packages remain unsigned and automatic installation is unavailable. Users of unsigned builds must manually install a signed build before in-app updates can work. First launch and update behavior still need validation on physical Macs.
+            **macOS distribution status:** Developer ID signing and notarization run when the repository secrets `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` are configured. Without them, macOS automatic installation is unavailable. Linux in-app updates require the AppImage build. Windows uses the NSIS installer.
 
             See `SHA256SUMS.txt` to verify downloaded files.
           files: |
-            release/Moxie-*.dmg
-            release/Moxie-*.zip
-            release/Moxie-*.zip.blockmap
-            release/latest-mac.yml
+            release/Moxie-*
+            release/latest*.yml
             release/theme-catalog-v1.json
             release/theme-*.css
             release/theme-*.svg

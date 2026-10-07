@@ -1,10 +1,21 @@
-function describeUpdateError(error) {
+function describeUpdateError(error, platform = process.platform) {
   const detail = error instanceof Error ? error.message : String(error || "");
   if (/sign|code.?sign|certificate/i.test(detail))
-    return "此安装包未签名，macOS 暂不允许自动更新。请下载新版安装包。";
+    return platform === "darwin"
+      ? "此安装包未签名，macOS 暂不允许自动更新。请下载新版安装包。"
+      : "更新包签名校验失败。请从官方发布页下载并安装新版。";
   if (/network|timeout|ENOTFOUND|ECONN|status code 404/i.test(detail))
     return "无法连接更新服务，请检查网络后重试。";
   return detail.slice(0, 400) || "检查更新失败，请稍后重试。";
+}
+
+function supportsAutoUpdate({ isPackaged, platform, env = process.env }) {
+  return Boolean(
+    isPackaged &&
+    (platform === "darwin" ||
+      platform === "win32" ||
+      (platform === "linux" && env.APPIMAGE)),
+  );
 }
 
 class UpdateController {
@@ -17,7 +28,7 @@ class UpdateController {
       ? { status: "idle" }
       : {
           status: "unsupported",
-          message: "自动更新仅适用于已安装的 macOS 桌面版。",
+          message: "当前安装方式暂不支持自动更新，请从官方发布页下载新版。",
         };
 
     if (!supported) return;
@@ -91,4 +102,4 @@ class UpdateController {
   }
 }
 
-module.exports = { UpdateController, describeUpdateError };
+module.exports = { UpdateController, describeUpdateError, supportsAutoUpdate };

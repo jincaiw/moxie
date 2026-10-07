@@ -6,7 +6,11 @@ const syncFS = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { EventEmitter } = require("node:events");
-const { UpdateController } = require("../electron/updater.cjs");
+const {
+  UpdateController,
+  describeUpdateError,
+  supportsAutoUpdate,
+} = require("../electron/updater.cjs");
 const { mergeMacUpdateInfo } = require("../electron/update-info.cjs");
 const {
   fetchThemeResource,
@@ -771,6 +775,49 @@ test("自动更新检查、下载进度、未保存拦截和安装流程", async
   dirty = false;
   controller.install();
   assert.equal(installed, true);
+});
+
+test("自动更新只对正式支持的安装格式启用", () => {
+  assert.equal(
+    supportsAutoUpdate({ isPackaged: true, platform: "darwin" }),
+    true,
+  );
+  assert.equal(
+    supportsAutoUpdate({ isPackaged: true, platform: "win32" }),
+    true,
+  );
+  assert.equal(
+    supportsAutoUpdate({ isPackaged: true, platform: "linux", env: {} }),
+    false,
+  );
+  assert.equal(
+    supportsAutoUpdate({
+      isPackaged: true,
+      platform: "linux",
+      env: { APPIMAGE: "/opt/Moxie.AppImage" },
+    }),
+    true,
+  );
+  assert.equal(
+    supportsAutoUpdate({ isPackaged: false, platform: "win32" }),
+    false,
+  );
+  assert.match(
+    describeUpdateError(Error("code signature invalid"), "darwin"),
+    /macOS/,
+  );
+  assert.match(
+    describeUpdateError(Error("certificate invalid"), "win32"),
+    /官方发布页/,
+  );
+});
+
+test("Windows 与 Linux 发布目标及平台图标已配置", () => {
+  const build = require("../package.json").build;
+  assert.equal(build.win.target[0].target, "nsis");
+  assert.equal(build.linux.target[0].target, "AppImage");
+  assert.equal(syncFS.existsSync(build.win.icon), true);
+  assert.equal(syncFS.existsSync(build.linux.icon), true);
 });
 
 test("arm64 与 x64 更新清单合并并拒绝缺失架构", () => {

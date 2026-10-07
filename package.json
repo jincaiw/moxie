@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.119",
+  "version": "0.16.120",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -12,6 +12,8 @@
     "test": "playwright test",
     "benchmark:long-doc": "MOXIE_PERF=1 playwright test tests/performance.spec.ts --workers=1",
     "package:mac": "npm run build && electron-builder --mac --publish never",
+    "package:win": "npm run build && electron-builder --win nsis --x64 --publish never",
+    "package:linux": "npm run build && electron-builder --linux AppImage --x64 --publish never",
     "test:desktop": "node tests-desktop/files.cjs",
     "package:mac:zip": "npm run build && electron-builder --mac zip --publish never",
     "format": "prettier --write src electron tests tests-desktop docs README.md *.json *.ts .github/workflows/*.yml"
@@ -81,6 +83,36 @@
           "target": "zip",
           "arch": [
             "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "desktopName": "moxie-editor",
+      "synopsis": "本地 Markdown 写作编辑器",
+      "category": "Office",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
             "x64"
           ]
         }

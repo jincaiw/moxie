@@ -12,7 +12,7 @@ const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
 const { autoUpdater } = require("electron-updater");
-const { UpdateController } = require("./updater.cjs");
+const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
 let store,
   updates,
@@ -375,7 +375,11 @@ function restoreWindows() {
 function setupUpdater() {
   updates = new UpdateController({
     updater: autoUpdater,
-    supported: app.isPackaged && process.platform === "darwin",
+    supported: supportsAutoUpdate({
+      isPackaged: app.isPackaged,
+      platform: process.platform,
+      env: process.env,
+    }),
     hasUnsavedChanges: () =>
       [...windowStates.values()].some((state) => state.dirty),
     onStatus: (status) => {

@@ -825,7 +825,8 @@ export function Settings({
           )}
         </div>
         <small>
-          macOS 自动安装需要 Developer ID 签名。未签名版本会提示改为手动下载。
+          macOS 自动安装需要 Developer ID 签名；Linux 自动更新仅适用于
+          AppImage。
         </small>
       </section>
       <p>
