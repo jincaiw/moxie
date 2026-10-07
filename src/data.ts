@@ -115,6 +115,12 @@ function markdownHeadingUsesListCodeTab(prefix: string) {
     return Boolean(list && / +\t/.test(list[2]));
   }
 }
+function htmlHeadingIsHidden(openingTag: string) {
+  return (
+    /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
+    /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag)
+  );
+}
 function htmlHeadingTitle(source: string) {
   return source
     .replace(/<!--[\s\S]*?-->/g, "")
@@ -252,8 +258,12 @@ function htmlBlockHeadingNodes(source: string, from: number) {
   const opening = /<h([1-6])(?:\s[^>]*)?>/gi;
   let match: RegExpExecArray | null;
   while ((match = opening.exec(masked.join("")))) {
+    if (htmlHeadingIsHidden(match[0])) continue;
     const level = Number(match[1]);
-    const close = htmlHeadingClose(masked.join("").slice(opening.lastIndex), level);
+    const close = htmlHeadingClose(
+      masked.join("").slice(opening.lastIndex),
+      level,
+    );
     if (!close) continue;
     result.push({
       level,
@@ -305,44 +315,51 @@ export function headings(text: string) {
   const templateRanges: { from: number; to: number }[] = [];
   const inTemplate = (from: number) =>
     templateRanges.some((range) => from >= range.from && from < range.to);
-  markdownParser.configure(GFM).parse(text).iterate({
-    enter(node) {
-      if (node.name === "HTMLBlock") {
-        const html = text.slice(node.from, node.to);
-        templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
-        const plaintext = /<plaintext\b/i.exec(html);
-        if (plaintext)
-          plaintextStart = Math.min(plaintextStart, node.from + plaintext.index);
-        if (node.from >= plaintextStart) return;
-        htmlHeadings.push(
-          ...htmlBlockHeadingNodes(html, node.from),
-        );
-        return;
-      }
-      if (inTemplate(node.from)) return;
-      const atx = /^ATXHeading([1-6])$/.exec(node.name);
-      const setext = /^SetextHeading([12])$/.exec(node.name);
-      if (!atx && !setext) return;
-      const lineStart = text.lastIndexOf("\n", node.from - 1) + 1;
-      if (lineStart >= plaintextStart) return;
-      if (markdownHeadingUsesListCodeTab(text.slice(lineStart, node.from)))
-        return;
-      const raw = text.slice(node.from, node.to);
-      const firstLine = raw.split(/\r?\n/, 1)[0];
-      const title = atx
-        ? firstLine.replace(/^#{1,6}[ \t]*/, "").replace(/[ \t]+#+[ \t]*$/, "").trim()
-        : raw
-            .replace(/\r?\n(?:[ \t]*>[ \t]?)*[ \t]*[=-]+[ \t]*$/, "")
-            .replace(/\r?\n/g, " ")
-            .replace(/[ \t]+/g, " ")
-            .trim();
-      markdownHeadings.push({
-        level: Number(atx?.[1] || setext?.[1]),
-        title,
-        from: lineStart,
-      });
-    },
-  });
+  markdownParser
+    .configure(GFM)
+    .parse(text)
+    .iterate({
+      enter(node) {
+        if (node.name === "HTMLBlock") {
+          const html = text.slice(node.from, node.to);
+          templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
+          const plaintext = /<plaintext\b/i.exec(html);
+          if (plaintext)
+            plaintextStart = Math.min(
+              plaintextStart,
+              node.from + plaintext.index,
+            );
+          if (node.from >= plaintextStart) return;
+          htmlHeadings.push(...htmlBlockHeadingNodes(html, node.from));
+          return;
+        }
+        if (inTemplate(node.from)) return;
+        const atx = /^ATXHeading([1-6])$/.exec(node.name);
+        const setext = /^SetextHeading([12])$/.exec(node.name);
+        if (!atx && !setext) return;
+        const lineStart = text.lastIndexOf("\n", node.from - 1) + 1;
+        if (lineStart >= plaintextStart) return;
+        if (markdownHeadingUsesListCodeTab(text.slice(lineStart, node.from)))
+          return;
+        const raw = text.slice(node.from, node.to);
+        const firstLine = raw.split(/\r?\n/, 1)[0];
+        const title = atx
+          ? firstLine
+              .replace(/^#{1,6}[ \t]*/, "")
+              .replace(/[ \t]+#+[ \t]*$/, "")
+              .trim()
+          : raw
+              .replace(/\r?\n(?:[ \t]*>[ \t]?)*[ \t]*[=-]+[ \t]*$/, "")
+              .replace(/\r?\n/g, " ")
+              .replace(/[ \t]+/g, " ")
+              .trim();
+        markdownHeadings.push({
+          level: Number(atx?.[1] || setext?.[1]),
+          title,
+          from: lineStart,
+        });
+      },
+    });
   const lineAt = (from: number) => {
     const lf = text.indexOf("\n", from);
     const cr = text.indexOf("\r", from);
@@ -427,7 +444,15 @@ export function headings(text: string) {
         const htmlHeadingOpening = /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)$/i.exec(
           content,
         );
-        if (htmlHeadingOpening) {
+        if (
+          htmlHeadingOpening &&
+          !htmlHeadingIsHidden(
+            htmlHeadingOpening[0].slice(
+              0,
+              htmlHeadingOpening[0].indexOf(">") + 1,
+            ),
+          )
+        ) {
           const level = Number(htmlHeadingOpening[1]);
           const close = htmlHeadingClose(htmlHeadingOpening[2], level);
           if (

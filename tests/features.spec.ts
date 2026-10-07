@@ -1798,9 +1798,9 @@ test("CommonMark HTML 区块按各自结束条件恢复标题扫描", () => {
 });
 
 test("HTML plaintext 区块后面的文本不进入文档大纲", () => {
-  expect(headings("<plaintext>\n<h2>文本示例中的伪标题</h2>\n\n# 仍是纯文本\n")).toEqual(
-    [],
-  );
+  expect(
+    headings("<plaintext>\n<h2>文本示例中的伪标题</h2>\n\n# 仍是纯文本\n"),
+  ).toEqual([]);
 });
 
 test("HTML noscript 示例中的标签文本不进入文档大纲", () => {
@@ -1813,10 +1813,18 @@ test("HTML noscript 示例中的标签文本不进入文档大纲", () => {
 
 test("HTML template 惰性内容中的标题不进入文档大纲", () => {
   const source =
-    "```html\n<template><h2>代码示例中的伪标题</h2></template>\n```\n\n# 代码围栏后的标题\n\n<template>\n<!-- </template> -->\n<template><h3>嵌套模板伪标题</h3></template>\n<script>const closing = \"</template>\";</script>\n<h2>模板示例中的伪标题</h2>\n</template>\n\n# 真正的 Markdown 标题\n";
+    '```html\n<template><h2>代码示例中的伪标题</h2></template>\n```\n\n# 代码围栏后的标题\n\n<template>\n<!-- </template> -->\n<template><h3>嵌套模板伪标题</h3></template>\n<script>const closing = "</template>";</script>\n<h2>模板示例中的伪标题</h2>\n</template>\n\n# 真正的 Markdown 标题\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [1, "代码围栏后的标题"],
     [1, "真正的 Markdown 标题"],
+  ]);
+});
+
+test("hidden HTML 标题不进入文档大纲", () => {
+  const source =
+    '<h2 hidden>隐藏的标题</h2>\n\n<h3 aria-hidden="true">辅助技术隐藏的标题</h3>\n\n# 可见的标题\n';
+  expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+    [1, "可见的标题"],
   ]);
 });
 
