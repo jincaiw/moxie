@@ -214,15 +214,37 @@ export function headingLabel(source: string) {
   element.innerHTML = DOMPurify.sanitize(
     marked.parseInline(visibleSource, { async: false }) as string,
   );
+  const isHidden = (node: Node) => {
+    let current = node.parentElement;
+    while (current && element.contains(current)) {
+      const { display, visibility, contentVisibility } = current.style;
+      if (
+        current.hasAttribute("hidden") ||
+        current.getAttribute("aria-hidden")?.toLowerCase() === "true" ||
+        display.toLowerCase() === "none" ||
+        visibility === "hidden" ||
+        visibility === "collapse" ||
+        contentVisibility === "hidden" ||
+        current.matches(
+          "details:not([open]), dialog:not([open]), [popover]",
+        )
+      )
+        return true;
+      current = current.parentElement;
+    }
+    return false;
+  };
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let visibleText = "";
   while (walker.nextNode()) {
+    if (isHidden(walker.currentNode)) continue;
     let text = walker.currentNode.textContent || "";
     for (const [placeholder, code] of codeSpans) {
       text = text.split(placeholder).join(code);
     }
-    walker.currentNode.textContent = text;
+    visibleText += text;
   }
-  return element.textContent || "";
+  return visibleText;
 }
 export function headingTarget(text: string, anchor: string) {
   const used = new Map<string, number>();

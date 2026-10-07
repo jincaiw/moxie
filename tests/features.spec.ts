@@ -998,6 +998,71 @@ test("浏览器 PDF 打印采用纸张方向和页边距设置", async ({ page }
   expect(html).toContain("p{orphans:3;widows:3}");
 });
 
+test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const state = window as typeof window & { __printHtml?: string };
+    window.open = (() => {
+      const doc = {
+        readyState: "complete",
+        write: (html: string) => {
+          state.__printHtml = html;
+        },
+        close: () => {},
+      };
+      return { document: doc, print: () => {} } as unknown as Window;
+    }) as typeof window.open;
+  });
+  await page.goto("/");
+  const rows = Array.from(
+    { length: 100 },
+    (_, index) => `| 第 ${index + 1} 行 | 用于分页校对的表格内容 |`,
+  ).join("\n");
+  const code = Array.from(
+    { length: 100 },
+    (_, index) => `const row${index} = "long code pagination sample";`,
+  ).join("\n");
+  await page.locator(".md-input").setInputFiles({
+    name: "分页校对.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      `# 分页校对\n\n| 标题 | 内容 |\n| --- | --- |\n${rows}\n\n\`\`\`ts\n${code}\n\`\`\`\n`,
+    ),
+  });
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  await page.getByRole("menuitem", { name: "PDF 文档", exact: true }).click();
+  const html = await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as typeof window & { __printHtml?: string }).__printHtml,
+      ),
+    )
+    .toBeTruthy()
+    .then(() =>
+      page.evaluate(
+        () => (window as typeof window & { __printHtml?: string }).__printHtml!,
+      ),
+    );
+  expect(html).toContain("thead{display:table-header-group}");
+  expect(html).toContain("pre,table{break-inside:auto;page-break-inside:auto}");
+
+  const printPage = await page.context().newPage();
+  try {
+    await printPage.setContent(html);
+    const cdp = await printPage.context().newCDPSession(printPage);
+    const pdf = await cdp.send("Page.printToPDF", {
+      printBackground: true,
+      preferCSSPageSize: true,
+      transferMode: "ReturnAsBase64",
+    });
+    const bytes = Buffer.from(pdf.data, "base64").toString("latin1");
+    expect(bytes.startsWith("%PDF-")).toBe(true);
+    expect(bytes.match(/\/Type\s*\/Page\b/g)?.length ?? 0).toBeGreaterThan(2);
+  } finally {
+    await printPage.close();
+  }
+});
+
 test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部加载", async ({
   page,
 }) => {
@@ -1691,6 +1756,19 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
     .getByRole("button", { name: "真正的标题 代码", exact: true })
     .click();
   await expect(page.locator(".cm-focused")).toBeVisible();
+});
+
+test("Markdown 标题大纲忽略内联 HTML 隐藏文字", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "标题隐藏文字.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      '# 可见<span hidden>隐藏属性</span><span aria-hidden="true">辅助隐藏</span><span style="display:none">display 隐藏</span><span style="visibility:hidden">visibility 隐藏</span><span style="content-visibility:hidden">content 隐藏</span><details><summary>折叠区域</summary>details 隐藏</details><dialog>dialog 隐藏</dialog><span popover>popover 隐藏</span>标题\n',
+    ),
+  });
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await expect(page.locator(".outline-row")).toHaveText(["可见标题"]);
 });
 
 test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过容器围栏", () => {

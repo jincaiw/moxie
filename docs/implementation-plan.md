@@ -258,7 +258,7 @@
 本节是当前未完成事项的唯一主清单；更早的版本小节记录当时状态，后续完成情况以本节及相应后续版本小节为准。
 
 - [x] v0.16.80 修复图库主题安装/更新时的重复提交入口并补充进度状态，修正主清单中与 v0.16.79 实际完成情况不符的图库状态；详见 [主题图库计划](theme-gallery-plan.md)。
-- [ ] **持续补充** CommonMark/GFM 边界语料；现有回归覆盖裸网址、邮箱、列表/引用嵌套、硬换行、脚注、HTML 区块终止、原始文本元素、惰性模板、隐藏祖先、CSS 声明、带引号属性扫描、HTML5 命名实体解码和标题内隐藏子树、`<template>` 惰性内容、折叠 `<details>`、`<dialog>`、`popover` 和 `content-visibility:hidden` 过滤。发现具体兼容缺陷时新增样例与修复，不将规范语料视为一次性可穷尽任务。
+- [ ] **持续补充** CommonMark/GFM 边界语料；现有回归覆盖裸网址、邮箱、列表/引用嵌套、硬换行、脚注、HTML 区块终止、原始文本元素、惰性模板、隐藏祖先、CSS 声明、带引号属性扫描、HTML5 命名实体解码、HTML 标题隐藏子树，以及 Markdown 标题内联 HTML 的 `hidden`、`aria-hidden`、`display`、`visibility`、`content-visibility`、关闭 `<details>`/`<dialog>` 和 `popover` 隐藏语义。发现具体兼容缺陷时新增样例与修复，不将规范语料视为一次性可穷尽任务。
 - [x] v0.16.96 修复“另存为”时 Typora 尺寸图片本地资源路径迁移，并按文档偏移从后往前替换，避免引用定义与多图片替换错位。
 - [x] v0.16.81 新增 GFM 列表内围栏代码、缩进代码与脚注定义样式文本组合回归；图库下载进行态增加 `aria-busy` 语义，辅助技术可感知正在安装。
 - [x] v0.16.81 已发布；源码验证、arm64/x64 macOS 构建、双架构自动更新清单及 Release 资源上传均成功。
@@ -303,6 +303,7 @@
 - [x] v0.16.98 远端源码校验、arm64/x64 打包成功；正式版 Release 发布完成，15 项附件核验齐全。
 - [x] 修复主分支 CI 长时间停留在 Ubuntu Chromium 系统依赖安装步骤的问题：改用与发布校验相同的 macOS runner 和 Chromium 安装命令。
 - [ ] **受阻**：在真实 macOS 校对 PDF 分页，覆盖长表格、代码、图片和标题；桌面端已可在导出前预览实际 PDF，但本环境无 macOS 打印引擎。
+- [x] Playwright Chromium 实际打印回归覆盖跨页长表格与长代码块，确认导出 HTML 中保留重复表头及可续页规则；macOS 打印引擎验收仍单独待真机。
 - [x] v0.16.61–v0.16.62 支持新建隔离窗口、跨重启恢复、按窗口未保存关闭保护、共享文件授权及跨窗更新拦截；v0.16.63–v0.16.64 增加标签分组筛选、归组和管理。
 - [x] 带本地资源目录的主题包安装已实现。
 - [x] 系统拼写检查开关已连接偏好设置并持久化；回归验证设置重载后仍生效，且编辑器 `spellcheck` 属性同步更新。
@@ -1087,3 +1088,10 @@
 - [x] HTML 大纲和 `[TOC]` 跳过 `content-visibility:hidden` 的标题及祖先容器，并保留显式 `visible` 内容。
 - [x] 桌面逻辑 22 项、Playwright 116 项通过，3 项性能基准按配置跳过；生产构建和精选主题目录校验成功。
 - [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
+
+## v0.16.131 大纲隐藏语义与 Chromium PDF 分页回归
+
+- [x] Markdown 标题内联 HTML 的 `hidden`、`aria-hidden="true"`、`display:none`、`visibility:hidden`、`content-visibility:hidden`、关闭 `<details>` / `<dialog>` 和 `popover` 子树文字不再进入大纲；可见标题文本保留。
+- [x] 增加 Chromium 实际 PDF 多页打印回归，使用长表格和长代码块验证分页输出及导出分页 CSS。
+- [x] 本地 Playwright 118 项、桌面逻辑 22 项、生产构建和精选主题目录校验通过；3 项性能基准按配置跳过。
+- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布待标签流水线完成。
