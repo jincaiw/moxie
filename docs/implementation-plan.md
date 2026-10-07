@@ -994,4 +994,4 @@
 
 - [x] 大纲不收录带 HTML `hidden` 属性或 `aria-hidden="true"` 的标题。
 - [x] 定向可访问性/HTML 大纲回归覆盖两种隐藏语义；生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.114 且含四条双架构 DMG/ZIP 更新记录。
