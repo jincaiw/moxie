@@ -148,7 +148,7 @@ function htmlHeadingTitle(source: string) {
 }
 function htmlHeadingClose(source: string, level: number) {
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
+    `<!--[\\s\\S]*?-->|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<plaintext\\b[^>]*>[\\s\\S]*$|<\\/h${level}\\s*>`,
     "gi",
   );
   let match: RegExpExecArray | null;
@@ -164,7 +164,7 @@ function htmlBlockHeadingNodes(source: string, from: number) {
       if (masked[index] !== "\n" && masked[index] !== "\r") masked[index] = " ";
     }
   };
-  const literals = /<!--|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b[^>]*>/gi;
+  const literals = /<!--|<plaintext\b[^>]*>|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b[^>]*>/gi;
   let literal: RegExpExecArray | null;
   while ((literal = literals.exec(source))) {
     let end: number;
@@ -173,10 +173,14 @@ function htmlBlockHeadingNodes(source: string, from: number) {
       end = close < 0 ? source.length : close + 3;
     } else {
       const tag = /^<([A-Za-z][\w-]*)/.exec(literal[0])?.[1];
-      const close = tag ? new RegExp(`</${tag}\\s*>`, "ig") : undefined;
-      if (close) close.lastIndex = literal.index + literal[0].length;
-      const closing = close?.exec(source);
-      end = closing ? closing.index + closing[0].length : source.length;
+      if (tag?.toLowerCase() === "plaintext") {
+        end = source.length;
+      } else {
+        const close = tag ? new RegExp(`</${tag}\\s*>`, "ig") : undefined;
+        if (close) close.lastIndex = literal.index + literal[0].length;
+        const closing = close?.exec(source);
+        end = closing ? closing.index + closing[0].length : source.length;
+      }
     }
     blank(literal.index, end);
     literals.lastIndex = end;
@@ -215,6 +219,8 @@ function htmlBlockOpening(
 
   const raw = /^<(script|pre|style|textarea)\b/i.exec(content);
   if (raw) return terminated(new RegExp(`</${raw[1]}\\s*>`, "i"));
+  if (/^<plaintext\b/i.test(content))
+    return { close: /(?!)/, endsAtBlank: false };
 
   if (
     /^<(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|meta|nav|noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)\b/i.test(
@@ -233,11 +239,17 @@ export function headings(text: string) {
   const result: { level: number; title: string; from: number }[] = [];
   const markdownHeadings: { level: number; title: string; from: number }[] = [];
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
+  let plaintextStart = Number.POSITIVE_INFINITY;
   markdownParser.configure(GFM).parse(text).iterate({
     enter(node) {
       if (node.name === "HTMLBlock") {
+        const html = text.slice(node.from, node.to);
+        const plaintext = /<plaintext\b/i.exec(html);
+        if (plaintext)
+          plaintextStart = Math.min(plaintextStart, node.from + plaintext.index);
+        if (node.from >= plaintextStart) return;
         htmlHeadings.push(
-          ...htmlBlockHeadingNodes(text.slice(node.from, node.to), node.from),
+          ...htmlBlockHeadingNodes(html, node.from),
         );
         return;
       }
@@ -245,6 +257,7 @@ export function headings(text: string) {
       const setext = /^SetextHeading([12])$/.exec(node.name);
       if (!atx && !setext) return;
       const lineStart = text.lastIndexOf("\n", node.from - 1) + 1;
+      if (lineStart >= plaintextStart) return;
       if (markdownHeadingUsesListCodeTab(text.slice(lineStart, node.from)))
         return;
       const raw = text.slice(node.from, node.to);

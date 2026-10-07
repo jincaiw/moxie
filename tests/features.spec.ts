@@ -1797,6 +1797,12 @@ test("CommonMark HTML 区块按各自结束条件恢复标题扫描", () => {
   ]);
 });
 
+test("HTML plaintext 区块后面的文本不进入文档大纲", () => {
+  expect(headings("<plaintext>\n<h2>文本示例中的伪标题</h2>\n\n# 仍是纯文本\n")).toEqual(
+    [],
+  );
+});
+
 test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
