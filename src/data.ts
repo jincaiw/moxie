@@ -170,6 +170,7 @@ function htmlHeadingIsHidden(openingTag: string) {
   };
   const display = cssValue("display");
   const visibility = cssValue("visibility")?.toLowerCase();
+  const contentVisibility = cssValue("content-visibility")?.toLowerCase();
   const closedDetails =
     /^<details\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
   const closedDialog =
@@ -181,6 +182,7 @@ function htmlHeadingIsHidden(openingTag: string) {
     display?.toLowerCase() === "none" ||
     visibility === "hidden" ||
     visibility === "collapse" ||
+    contentVisibility === "hidden" ||
     closedDetails ||
     closedDialog ||
     closedPopover

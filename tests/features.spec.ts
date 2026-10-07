@@ -1804,6 +1804,14 @@ test("HTML 大纲跳过 visibility 隐藏的标题和容器", () => {
   expect(headings(source).map(({ title }) => title)).toEqual(["可见标题"]);
 });
 
+test("HTML 大纲跳过 content-visibility 隐藏的标题和容器", () => {
+  const source =
+    '<h2 style="content-visibility: hidden">隐藏标题</h2>\n\n' +
+    '<section style="content-visibility: hidden"><h3>隐藏容器标题</h3></section>\n\n' +
+    '<h4 style="content-visibility: visible">可见标题</h4>\n';
+  expect(headings(source).map(({ title }) => title)).toEqual(["可见标题"]);
+});
+
 test("HTML 标题大纲忽略 template 惰性内容", () => {
   const source =
     "<h2>可见<template>惰性内容<b>嵌套文字</b></template>标题</h2>\n";
