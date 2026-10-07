@@ -1050,4 +1050,4 @@
 
 - [x] HTML 标题大纲和 `[TOC]` 忽略 `hidden`、`aria-hidden="true"`、内联 `display:none` 子元素及其嵌套内容，只提取可见文字。
 - [x] 桌面逻辑 22 项、Playwright 110 项通过，3 项长文性能基准按配置跳过；生产构建成功。
-- [ ] 推送 v0.16.124 并核验 GitHub Actions 和正式 Release。
+- [x] GitHub Actions 源码验证及 macOS arm64/x64、Windows x64、Linux x64 构建全部成功；v0.16.124 正式 Release 已发布，20 项资产含三平台更新清单和 SHA256SUMS。
