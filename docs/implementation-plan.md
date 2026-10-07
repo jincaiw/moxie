@@ -1094,4 +1094,4 @@
 - [x] Markdown 标题内联 HTML 的 `hidden`、`aria-hidden="true"`、`display:none`、`visibility:hidden`、`content-visibility:hidden`、关闭 `<details>` / `<dialog>` 和 `popover` 子树文字不再进入大纲；可见标题文本保留。
 - [x] 增加 Chromium 实际 PDF 多页打印回归，使用长表格和长代码块验证分页输出及导出分页 CSS。
 - [x] 本地 Playwright 118 项、桌面逻辑 22 项、生产构建和精选主题目录校验通过；3 项性能基准按配置跳过。
-- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布待标签流水线完成。
+- [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
