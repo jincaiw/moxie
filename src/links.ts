@@ -187,6 +187,41 @@ export function headingSlug(title: string) {
     .trim()
     .replace(/\s+/g, "-");
 }
+export function headingElementIsHidden(element: Element) {
+  let current: Element | null = element;
+  while (current) {
+    const style = (current as HTMLElement).style;
+    if (
+      current.hasAttribute("hidden") ||
+      current.getAttribute("aria-hidden")?.toLowerCase() === "true" ||
+      style.display.toLowerCase() === "none" ||
+      style.visibility === "hidden" ||
+      style.visibility === "collapse" ||
+      style.contentVisibility === "hidden" ||
+      current.matches("details:not([open]), dialog:not([open]), [popover]")
+    )
+      return true;
+    current = current.parentElement;
+  }
+  return false;
+}
+export function visibleHeadingText(element: Element) {
+  let text = "";
+  const visit = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      text += node.textContent || "";
+      return;
+    }
+    if (!(node instanceof Element) || headingElementIsHidden(node)) return;
+    if (node.tagName === "BR") {
+      text += " ";
+      return;
+    }
+    node.childNodes.forEach(visit);
+  };
+  visit(element);
+  return text;
+}
 export function headingLabel(source: string) {
   const codeSpans = new Map<string, string>();
   const protectedSource = source.replace(
@@ -214,35 +249,9 @@ export function headingLabel(source: string) {
   element.innerHTML = DOMPurify.sanitize(
     marked.parseInline(visibleSource, { async: false }) as string,
   );
-  const isHidden = (node: Node) => {
-    let current = node.parentElement;
-    while (current && element.contains(current)) {
-      const { display, visibility, contentVisibility } = current.style;
-      if (
-        current.hasAttribute("hidden") ||
-        current.getAttribute("aria-hidden")?.toLowerCase() === "true" ||
-        display.toLowerCase() === "none" ||
-        visibility === "hidden" ||
-        visibility === "collapse" ||
-        contentVisibility === "hidden" ||
-        current.matches(
-          "details:not([open]), dialog:not([open]), [popover]",
-        )
-      )
-        return true;
-      current = current.parentElement;
-    }
-    return false;
-  };
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let visibleText = "";
-  while (walker.nextNode()) {
-    if (isHidden(walker.currentNode)) continue;
-    let text = walker.currentNode.textContent || "";
-    for (const [placeholder, code] of codeSpans) {
-      text = text.split(placeholder).join(code);
-    }
-    visibleText += text;
+  let visibleText = visibleHeadingText(element);
+  for (const [placeholder, code] of codeSpans) {
+    visibleText = visibleText.split(placeholder).join(code);
   }
   return visibleText;
 }

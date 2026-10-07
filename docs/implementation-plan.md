@@ -258,7 +258,7 @@
 本节是当前未完成事项的唯一主清单；更早的版本小节记录当时状态，后续完成情况以本节及相应后续版本小节为准。
 
 - [x] v0.16.80 修复图库主题安装/更新时的重复提交入口并补充进度状态，修正主清单中与 v0.16.79 实际完成情况不符的图库状态；详见 [主题图库计划](theme-gallery-plan.md)。
-- [ ] **持续补充** CommonMark/GFM 边界语料；现有回归覆盖裸网址、邮箱、列表/引用嵌套、硬换行、脚注、HTML 区块终止、原始文本元素、惰性模板、隐藏祖先、CSS 声明、带引号属性扫描、HTML5 命名实体解码、HTML 标题隐藏子树，以及 Markdown 标题内联 HTML 的 `hidden`、`aria-hidden`、`display`、`visibility`、`content-visibility`、关闭 `<details>`/`<dialog>` 和 `popover` 隐藏语义。发现具体兼容缺陷时新增样例与修复，不将规范语料视为一次性可穷尽任务。
+- [ ] **持续补充** CommonMark/GFM 边界语料；现有回归覆盖裸网址、邮箱、列表/引用嵌套、硬换行、脚注、HTML 区块终止、原始文本元素、惰性模板、隐藏祖先、CSS 声明、带引号属性扫描、HTML5 命名实体解码、HTML 标题隐藏子树，以及 Markdown 标题内联 HTML 的 `hidden`、`aria-hidden`、`display`、`visibility`、`content-visibility`、关闭 `<details>`/`<dialog>` 和 `popover` 隐藏语义；HTML 导出目录锚点与可见标题文本保持一致。发现具体兼容缺陷时新增样例与修复，不将规范语料视为一次性可穷尽任务。
 - [x] v0.16.96 修复“另存为”时 Typora 尺寸图片本地资源路径迁移，并按文档偏移从后往前替换，避免引用定义与多图片替换错位。
 - [x] v0.16.81 新增 GFM 列表内围栏代码、缩进代码与脚注定义样式文本组合回归；图库下载进行态增加 `aria-busy` 语义，辅助技术可感知正在安装。
 - [x] v0.16.81 已发布；源码验证、arm64/x64 macOS 构建、双架构自动更新清单及 Release 资源上传均成功。
@@ -1095,3 +1095,10 @@
 - [x] 增加 Chromium 实际 PDF 多页打印回归，使用长表格和长代码块验证分页输出及导出分页 CSS。
 - [x] 本地 Playwright 118 项、桌面逻辑 22 项、生产构建和精选主题目录校验通过；3 项性能基准按配置跳过。
 - [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
+
+## v0.16.132 统一 HTML 导出标题锚点
+
+- [x] HTML 导出的标题 ID 和 `[TOC]` 标签复用可见标题文本，排除隐藏子节点及整段隐藏标题；正文 Markdown 标题链接与导出锚点一致。
+- [x] 定向回归验证 Markdown/HTML 内联隐藏文本、大纲、导出锚点和目录标签。
+- [x] 本地 Playwright 119 项、桌面逻辑 22 项、生产构建和精选主题目录校验通过；3 项性能基准按配置跳过。
+- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布待标签流水线完成。

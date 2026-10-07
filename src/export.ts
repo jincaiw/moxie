@@ -1,7 +1,12 @@
 import { Lexer, Marked, type MarkedExtension, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import { resolveImage } from "./assets";
-import { headingSlug, markdownImageSizing } from "./links";
+import {
+  headingElementIsHidden,
+  headingSlug,
+  markdownImageSizing,
+  visibleHeadingText,
+} from "./links";
 import { renderMermaid } from "./mermaid";
 import { inlineMathMatches, renderMath } from "./math";
 import { themeCSSError } from "./theme-css";
@@ -583,21 +588,24 @@ export async function exportHTML(
   body = DOMPurify.sanitize(body);
   const content = document.createElement("div");
   content.innerHTML = body;
+  const headings = Array.from(
+    content.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
+  ).filter((heading) => !headingElementIsHidden(heading));
   const used = new Map<string, number>();
-  content.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach((heading) => {
-    const base = headingSlug(heading.textContent || ""),
+  headings.forEach((heading) => {
+    const base = headingSlug(visibleHeadingText(heading)),
       number = used.get(base) || 0;
     used.set(base, number + 1);
     heading.id = number ? `${base}-${number}` : base;
   });
   content.querySelectorAll<HTMLElement>(".moxie-toc").forEach((nav) => {
     const list = document.createElement("ol");
-    content.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach((heading) => {
+    headings.forEach((heading) => {
       const item = document.createElement("li");
       item.style.marginInlineStart = `${(Number(heading.tagName.slice(1)) - 1) * 14}px`;
       const link = document.createElement("a");
       link.href = `#${heading.id}`;
-      link.textContent = heading.textContent || "（无标题）";
+      link.textContent = visibleHeadingText(heading) || "（无标题）";
       item.append(link);
       list.append(item);
     });

@@ -1063,6 +1063,41 @@ test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page })
   }
 });
 
+test("HTML 导出的标题锚点和目录排除 Markdown/HTML 隐藏文字", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(
+      '[目标](#可见标题)\n\n[TOC]\n\n# 可见<span hidden>隐藏 Markdown</span>标题\n\n<h2>HTML <span aria-hidden="true">隐藏 HTML</span>标题</h2>\n\n<h3 hidden>整段隐藏标题</h3>',
+      "标题.md",
+    );
+  });
+  const exported = await page.evaluate((source) => {
+    const document = new DOMParser().parseFromString(source, "text/html");
+    return {
+      headingIds: Array.from(
+        document.querySelectorAll("h1,h2,h3"),
+        (heading) => heading.getAttribute("id"),
+      ),
+      toc: Array.from(
+        document.querySelectorAll(".moxie-toc a"),
+        (link) => [link.textContent, link.getAttribute("href")],
+      ),
+      target: document.querySelector("a[href^='#可见']")?.getAttribute("href"),
+    };
+  }, html);
+  expect(exported.headingIds).toEqual(["可见标题", "html-标题", null]);
+  expect(exported.toc).toEqual([
+    ["可见标题", "#可见标题"],
+    ["HTML 标题", "#html-标题"],
+  ]);
+  expect(exported.target).toBe("#可见标题");
+});
+
 test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部加载", async ({
   page,
 }) => {
