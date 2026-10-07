@@ -810,6 +810,24 @@ test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ pa
   expect(headerTop).toBeLessThan(dialogTop + 80);
 });
 
+test("导出菜单支持方向键、Home/End 和 Escape 焦点返回", async ({ page }) => {
+  await page.goto("/");
+
+  const trigger = page.getByRole("button", { name: "导出" });
+  await trigger.click();
+  const items = page.getByRole("menuitem");
+  await expect(items.nth(0)).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "HTML 网页" })).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(page.getByRole("menuitem", { name: "另存为…" })).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(items.nth(0)).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
+  await expect(items).toHaveCount(0);
+});
+
 test("即时排版隐藏水平线 Markdown 定界符", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".md-rule-text")).toHaveText("---");
@@ -1702,9 +1720,9 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
   ).toEqual(["真实列表标题"]);
   expect(headings("- \t# 制表符代码标题\n")).toEqual([]);
   expect(
-    headings("- 项目正文\n    # 缩进续行标题\n\n- 第二项\n      # 缩进代码伪标题\n").map(
-      ({ level, title }) => [level, title],
-    ),
+    headings(
+      "- 项目正文\n    # 缩进续行标题\n\n- 第二项\n      # 缩进代码伪标题\n",
+    ).map(({ level, title }) => [level, title]),
   ).toEqual([[1, "缩进续行标题"]]);
   expect(headings("- 普通列表项\n  - ---\n")).toEqual([]);
   expect(headings("1. 普通列表项\n   1. ---\n")).toEqual([]);

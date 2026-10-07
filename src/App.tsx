@@ -47,18 +47,22 @@ function Tool({
   onClick,
   active = false,
   disabled = false,
+  menuButton = false,
 }: {
   label: string;
   children: React.ReactNode;
-  onClick: () => void;
+  onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   active?: boolean;
   disabled?: boolean;
+  menuButton?: boolean;
 }) {
   return (
     <button
       className={"tool " + (active ? "active" : "")}
       title={label}
       aria-label={label}
+      aria-haspopup={menuButton ? "menu" : undefined}
+      aria-expanded={menuButton ? active : undefined}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
@@ -118,6 +122,8 @@ export default function App() {
   const [focus, setFocus] = useState(false);
   const [tab, setTab] = useState("files");
   const [menu, setMenu] = useState<"export" | "format" | "more" | null>(null);
+  const menuElement = useRef<HTMLDivElement>(null);
+  const menuOpener = useRef<HTMLElement | null>(null);
   const [settings, setSettings] = useState(false);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(() =>
     window.desktop?.checkForUpdates
@@ -253,19 +259,63 @@ export default function App() {
   }, [message]);
   useEffect(() => {
     if (!menu) return;
+    const items = () =>
+      Array.from(
+        menuElement.current?.querySelectorAll<HTMLElement>(
+          '[role="menuitem"]:not([disabled])',
+        ) || [],
+      );
+    items()[0]?.focus();
     const dismiss = (event: PointerEvent) => {
       if (!toolbar.current?.contains(event.target as Node)) setMenu(null);
     };
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMenu(null);
+      if (event.key === "Escape") {
+        setMenu(null);
+        menuOpener.current?.focus();
+      }
+    };
+    const navigate = (event: KeyboardEvent) => {
+      const menuItems = items();
+      if (
+        !menuItems.length ||
+        !menuElement.current?.contains(event.target as Node)
+      )
+        return;
+      const currentIndex = menuItems.indexOf(
+        document.activeElement as HTMLElement,
+      );
+      let nextIndex: number | undefined;
+      if (event.key === "ArrowDown")
+        nextIndex = (currentIndex + 1) % menuItems.length;
+      if (event.key === "ArrowUp")
+        nextIndex = (currentIndex - 1 + menuItems.length) % menuItems.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = menuItems.length - 1;
+      if (nextIndex !== undefined) {
+        event.preventDefault();
+        menuItems[nextIndex]?.focus();
+      } else if (event.key === "Tab") {
+        setMenu(null);
+      }
     };
     document.addEventListener("pointerdown", dismiss);
     document.addEventListener("keydown", escape);
+    document.addEventListener("keydown", navigate);
     return () => {
       document.removeEventListener("pointerdown", dismiss);
       document.removeEventListener("keydown", escape);
+      document.removeEventListener("keydown", navigate);
     };
   }, [menu]);
+
+  const toggleMenu = (
+    next: "export" | "format" | "more",
+    opener: HTMLElement,
+  ) => {
+    menuOpener.current = opener;
+    setMenu((value) => (value === next ? null : next));
+  };
 
   const open = async () => {
     try {
@@ -996,9 +1046,8 @@ export default function App() {
             <Tool
               label="格式"
               active={menu === "format"}
-              onClick={() =>
-                setMenu((value) => (value === "format" ? null : "format"))
-              }
+              menuButton
+              onClick={(event) => toggleMenu("format", event.currentTarget)}
             >
               <Type size={18} />
             </Tool>
@@ -1022,9 +1071,7 @@ export default function App() {
               className="tool mobile-more"
               aria-label="更多工具"
               aria-expanded={menu === "more"}
-              onClick={() =>
-                setMenu((value) => (value === "more" ? null : "more"))
-              }
+              onClick={(event) => toggleMenu("more", event.currentTarget)}
             >
               <MoreHorizontal size={19} />
             </button>
@@ -1032,9 +1079,8 @@ export default function App() {
               className="export-button"
               aria-label="导出"
               aria-expanded={menu === "export"}
-              onClick={() =>
-                setMenu((value) => (value === "export" ? null : "export"))
-              }
+              aria-haspopup="menu"
+              onClick={(event) => toggleMenu("export", event.currentTarget)}
             >
               <Upload size={16} />
               <span>导出</span>
@@ -1059,7 +1105,7 @@ export default function App() {
             </Tool>
           </div>
           {menu === "export" && (
-            <div className="export-menu" role="menu">
+            <div className="export-menu" role="menu" ref={menuElement}>
               <button role="menuitem" onClick={() => void performExport("md")}>
                 <FileText size={17} />
                 Markdown 文件
@@ -1104,7 +1150,11 @@ export default function App() {
             </div>
           )}
           {menu === "format" && (
-            <div className="export-menu format-menu" role="menu">
+            <div
+              className="export-menu format-menu"
+              role="menu"
+              ref={menuElement}
+            >
               {formats.map((format) => (
                 <button
                   role="menuitem"
