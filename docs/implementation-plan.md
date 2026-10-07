@@ -957,4 +957,4 @@
 - [x] 格式和导出菜单打开后聚焦首项，支持方向键循环移动、Home/End 跳转、Tab 关闭及 Escape 返回触发器。
 - [x] 格式和导出触发器声明 `aria-haspopup="menu"`，并通过 `aria-expanded` 暴露展开状态；新增键盘导航回归。
 - [x] 定向浏览器回归通过；TypeScript 检查与生产构建通过。
-- [ ] GitHub Actions 校验、arm64/x64 打包与 Release 发布待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.109 且含四条双架构 DMG/ZIP 更新记录。
