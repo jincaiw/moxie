@@ -1016,4 +1016,4 @@
 
 - [x] 内联样式含多条 `display` 声明时，按 CSS `!important` 与声明顺序选择生效值，避免隐藏标题被收录或可见标题被错误排除。
 - [x] 定向大纲回归验证 `display:none !important` 与后续 `display:block !important` 两种层叠情形；TypeScript 检查和生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.117 且含四条双架构 DMG/ZIP 更新记录。
