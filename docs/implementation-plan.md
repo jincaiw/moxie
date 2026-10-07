@@ -1023,4 +1023,4 @@
 
 - [x] 分号仅在 CSS 字符串外结束声明；注释不会拆断 `display:none` 值或制造伪声明。
 - [x] 定向大纲回归覆盖注释隐藏和字符串内分号/伪 `display` 声明；TypeScript 检查及生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.118 且含四条双架构 DMG/ZIP 更新记录。
