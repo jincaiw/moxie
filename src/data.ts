@@ -275,7 +275,9 @@ function stripHTMLHeadingMarkup(source: string) {
         index = htmlElementEnd(source, name, index);
       continue;
     }
-    if (!closing && (name === "script" || name === "style")) {
+    if (!closing && name === "template") {
+      index = htmlTemplateEnd(source, index);
+    } else if (!closing && (name === "script" || name === "style")) {
       const close = new RegExp(`<\\/${name}\\s*>`, "ig");
       close.lastIndex = index;
       const match = close.exec(source);
