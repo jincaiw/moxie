@@ -769,6 +769,32 @@ test("自动更新下载进度提供屏幕阅读器名称和百分比", async ({
   await expect(progress).toHaveAttribute("value", "42");
 });
 
+test("自动更新错误以 assertive 完整播报", async ({ page }) => {
+  await page.addInitScript(() => {
+    const status = {
+      status: "error",
+      message: "无法连接更新服务，请检查网络后重试。",
+    } as const;
+    window.desktop = {
+      getUpdateStatus: async () => status,
+      checkForUpdates: async () => status,
+      onUpdateStatus: (listener) => {
+        queueMicrotask(() => listener(status));
+        return () => {};
+      },
+      onAction: () => () => {},
+      recent: async () => [],
+      dirty: () => {},
+    } as unknown as NonNullable<typeof window.desktop>;
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  const status = page.getByRole("alert");
+  await expect(status).toHaveText("无法连接更新服务，请检查网络后重试。");
+  await expect(status).toHaveAttribute("aria-live", "assertive");
+  await expect(status).toHaveAttribute("aria-atomic", "true");
+});
+
 test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

@@ -776,7 +776,8 @@ export function Settings({
         <div
           className="update-status"
           role={updateStatus.status === "error" ? "alert" : "status"}
-          aria-live="polite"
+          aria-live={updateStatus.status === "error" ? "assertive" : "polite"}
+          aria-atomic="true"
         >
           {updateStatus.status === "checking" && "正在检查更新…"}
           {updateStatus.status === "idle" && "尚未检查更新。"}
