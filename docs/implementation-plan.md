@@ -971,4 +971,4 @@
 - [x] 识别 HTML `<plaintext>` 后文档剩余内容均为文本，不把后续 Markdown/HTML 标题加入大纲。
 - [x] 行级 HTML 状态、HTMLBlock 标题提取与语法树 Markdown 标题收集遵守相同的终止边界。
 - [x] 定向 HTML 标题与区块回归 3 项通过。
-- [ ] 生产构建及 GitHub Actions、双架构 Release 待完成。
+- [x] 生产构建、桌面逻辑回归和完整浏览器回归通过；GitHub Actions 双架构打包及 Release 发布成功，线上 15 项附件齐全，`latest-mac.yml` 为 0.16.111 且含四条双架构 DMG/ZIP 更新记录。
