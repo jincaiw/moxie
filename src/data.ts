@@ -148,7 +148,7 @@ function htmlHeadingTitle(source: string) {
 }
 function htmlHeadingClose(source: string, level: number) {
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<(script|style|textarea|title|xmp|iframe|noembed|noframes|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
+    `<!--[\\s\\S]*?-->|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<\\/h${level}\\s*>`,
     "gi",
   );
   let match: RegExpExecArray | null;
@@ -164,7 +164,7 @@ function htmlBlockHeadingNodes(source: string, from: number) {
       if (masked[index] !== "\n" && masked[index] !== "\r") masked[index] = " ";
     }
   };
-  const literals = /<!--|<(script|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b[^>]*>/gi;
+  const literals = /<!--|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|listing)\b[^>]*>/gi;
   let literal: RegExpExecArray | null;
   while ((literal = literals.exec(source))) {
     let end: number;

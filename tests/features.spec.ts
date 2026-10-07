@@ -1789,7 +1789,7 @@ test("HTML 块、注释和脚本中的 Markdown 标题语法不进入大纲", ()
 
 test("CommonMark HTML 区块按各自结束条件恢复标题扫描", () => {
   const source =
-    "<title>页面标题\n\n# title 区块后的 Markdown 标题\n\n<iframe>\n嵌入内容\n\n## iframe 区块后的 Markdown 标题\n\n<script>\n# 脚本内容\n\n## 关闭标签前仍是脚本文本\n</script>\n\n### 脚本结束后的 Markdown 标题\n";
+    "<title>页面标题\n\n# title 区块后的 Markdown 标题\n\n<iframe>\n嵌入内容\n\n## iframe 区块后的 Markdown 标题\n\n<script>\n# 脚本内容\n\n## 关闭标签前仍是脚本文本\n</script>\n\n<pre>\n<h2>代码示例中的伪标题</h2>\n</pre>\n\n### 脚本结束后的 Markdown 标题\n";
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [1, "title 区块后的 Markdown 标题"],
     [2, "iframe 区块后的 Markdown 标题"],
