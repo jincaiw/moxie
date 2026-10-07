@@ -964,4 +964,4 @@
 - [x] 将 HTMLBlock AST 标题提取器里的 `<pre>` 内容按原始文本处理，避免示例 `<h1>`–`<h6>` 进入文档大纲。
 - [x] HTML 标题关闭标签扫描跳过 `<pre>` 内部的伪关闭标签；HTMLBlock 后的真实 Markdown 标题仍恢复收集。
 - [x] HTML 区块结束规则和 HTML 标题原始文本回归 2 项通过；TypeScript 检查与生产构建通过。
-- [ ] GitHub Actions 校验、arm64/x64 打包与 Release 发布待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.110 且含四条双架构 DMG/ZIP 更新记录。
