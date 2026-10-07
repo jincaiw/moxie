@@ -1025,3 +1025,10 @@
 - [x] 定向大纲回归覆盖注释隐藏和字符串内分号/伪 `display` 声明；TypeScript 检查及生产构建成功。
 - [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.118 且含四条双架构 DMG/ZIP 更新记录。
 - [x] 后续浏览器实测确认 CSS 注释会分隔标识符；增加 `no/**/ne` 计算为 `block` 的 Playwright 回归，避免错误拼接成 `none`。
+
+
+## v0.16.119 按引号属性边界扫描 HTML
+
+- [x] HTML 标记扫描完整读取引号属性值，避免其中的伪起始/结束标签提前结束隐藏祖先、`<template>` 惰性范围或 HTML 标题。
+- [x] 定向回归覆盖隐藏容器、模板属性和标题属性中的伪关闭标签；生产构建成功。
+- [ ] GitHub Actions 完整回归、双架构 Release 待完成。

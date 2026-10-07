@@ -1741,12 +1741,13 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
   const source =
-    '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n<h3>\n多行 HTML 标题\n</h3>\n\n<h4>前半标题<br>后半标题</h4>\n\n<h5>可见<!-- 注释 --><script>隐藏脚本</script><style>.hidden {}</style>标题</h5>\n\n```html\n<h1>代码示例</h1>\n```\n';
+    '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n<h3>\n多行 HTML 标题\n</h3>\n\n<h4>前半标题<br>后半标题</h4>\n\n<h5>可见<!-- 注释 --><script>隐藏脚本</script><style>.hidden {}</style>标题</h5>\n\n```html\n<h1>代码示例</h1>\n```\n\n<h2 title="<span></h2>">属性值伪关闭后的完整标题</h2>\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [2, "HTML & 标题"],
     [3, "多行 HTML 标题"],
     [4, "前半标题 后半标题"],
     [5, "可见标题"],
+    [2, "属性值伪关闭后的完整标题"],
   ]);
   expect(headings("#title\n# title\n").map(({ title }) => title)).toEqual([
     "title",
@@ -1813,7 +1814,7 @@ test("HTML noscript 示例中的标签文本不进入文档大纲", () => {
 
 test("HTML template 惰性内容中的标题不进入文档大纲", () => {
   const source =
-    '```html\n<template><h2>代码示例中的伪标题</h2></template>\n```\n\n# 代码围栏后的标题\n\n<template>\n<!-- </template> -->\n<template><h3>嵌套模板伪标题</h3></template>\n<script>const closing = "</template>";</script>\n<h2>模板示例中的伪标题</h2>\n</template>\n\n# 真正的 Markdown 标题\n';
+    '```html\n<template><h2>代码示例中的伪标题</h2></template>\n```\n\n# 代码围栏后的标题\n\n<template>\n<!-- </template> -->\n<template><h3>嵌套模板伪标题</h3></template>\n<script>const closing = "</template>";</script>\n<h2>模板示例中的伪标题</h2>\n<div title="<span></template>">\n<h2>模板属性伪关闭后的示例标题</h2>\n</div>\n</template>\n\n# 真正的 Markdown 标题\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [1, "代码围栏后的标题"],
     [1, "真正的 Markdown 标题"],
@@ -1822,12 +1823,13 @@ test("HTML template 惰性内容中的标题不进入文档大纲", () => {
 
 test("hidden HTML 标题不进入文档大纲", () => {
   const source =
-    '```html\n<section hidden><h2>代码中的标题示例</h2></section>\n```\n\n# 围栏后的标题\n\n<h2 hidden>隐藏的标题</h2>\n\n<h2 style="display: none">内联隐藏标题</h2>\n\n<h2 style="display: /* CSS 注释 */ none">注释分隔的隐藏标题</h2>\n\n<h2 style="display: no/**/ne">注释分隔符后的可见标题</h2>\n\n<h2 style="display: none !important; display: block">important 优先的隐藏标题</h2>\n\n<section hidden>\n<h3>隐藏容器中的标题</h3>\n<section><h4>嵌套内容</h4></section>\n</section>\n\n<div aria-hidden="true">\n<h3>辅助技术隐藏的标题</h3>\n</div>\n\n<div style="color:red; display : none !important">\n<h3>内联隐藏容器中的标题</h3>\n</div>\n\n<h2 style="display: none; display: block !important">important 覆盖后的可见标题</h2>\n\n<h2 style=\'content: "示例; display:none"; display: block\'>字符串声明中的伪 display 保持可见</h2>\n\n# 可见的标题\n';
+    '```html\n<section hidden><h2>代码中的标题示例</h2></section>\n```\n\n# 围栏后的标题\n\n<h2 hidden>隐藏的标题</h2>\n\n<h2 style="display: none">内联隐藏标题</h2>\n\n<h2 style="display: /* CSS 注释 */ none">注释分隔的隐藏标题</h2>\n\n<h2 style="display: no/**/ne">注释分隔符后的可见标题</h2>\n\n<h2 style="display: none !important; display: block">important 优先的隐藏标题</h2>\n\n<section hidden>\n<h3>隐藏容器中的标题</h3>\n<section><h4>嵌套内容</h4></section>\n</section>\n\n<div aria-hidden="true">\n<h3>辅助技术隐藏的标题</h3>\n</div>\n\n<div style="color:red; display : none !important">\n<h3>内联隐藏容器中的标题</h3>\n</div>\n\n<h2 style="display: none; display: block !important">important 覆盖后的可见标题</h2>\n\n<h2 style=\'content: "示例; display:none"; display: block\'>字符串声明中的伪 display 保持可见</h2>\n\n<div hidden title="<span></div>">\n<h3>属性值关闭标签中的隐藏标题</h3>\n</div>\n\n<h3>隐藏容器之后的可见标题</h3>\n\n# 可见的标题\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [1, "围栏后的标题"],
     [2, "注释分隔符后的可见标题"],
     [2, "important 覆盖后的可见标题"],
     [2, "字符串声明中的伪 display 保持可见"],
+    [3, "隐藏容器之后的可见标题"],
     [1, "可见的标题"],
   ]);
 });

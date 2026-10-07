@@ -174,7 +174,7 @@ function htmlElementEnd(source: string, tag: string, openingEnd: number) {
   let depth = 1;
   const tagPattern = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<${tagPattern}\\b[^>]*>|<\\/${tagPattern}\\s*>`,
+    `<!--[\\s\\S]*?-->|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>|<${tagPattern}\\b${htmlAttributeSource}>|<\\/${tagPattern}\\s*>|<[A-Za-z][\\w:-]*\\b${htmlAttributeSource}>`,
     "gi",
   );
   tokens.lastIndex = openingEnd;
@@ -194,7 +194,7 @@ function htmlElementEnd(source: string, tag: string, openingEnd: number) {
       tokens.lastIndex = htmlTemplateEnd(source, tokens.lastIndex);
     } else if (/^<\//.test(match[0])) {
       if (--depth === 0) return tokens.lastIndex;
-    } else {
+    } else if (new RegExp(`^<${tagPattern}\\b`, "i").test(match[0])) {
       depth++;
     }
   }
@@ -220,7 +220,7 @@ function scanHtmlHiddenRanges(source: string, offset: number) {
     "wbr",
   ]);
   const openings = new RegExp(
-    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<([A-Za-z][\\w:-]*)\\b[^>]*>`,
+    `<!--[\\s\\S]*?-->|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>|<([A-Za-z][\\w:-]*)\\b${htmlAttributeSource}>`,
     "gi",
   );
   let match: RegExpExecArray | null;
@@ -280,11 +280,12 @@ function htmlHeadingTitle(source: string) {
 }
 const htmlRawTextElement =
   "script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing";
+const htmlAttributeSource = String.raw`(?:"[^"]*"|'[^']*'|[^'">])*`;
 
 function htmlTemplateEnd(source: string, openingEnd: number) {
   let depth = 1;
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<\\/template\\s*>`,
+    `<!--[\\s\\S]*?-->|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>|<\\/template\\s*>|<[A-Za-z][\\w:-]*\\b${htmlAttributeSource}>`,
     "gi",
   );
   tokens.lastIndex = openingEnd;
@@ -302,7 +303,8 @@ function htmlTemplateEnd(source: string, openingEnd: number) {
       continue;
     }
     if (/^<template\b/i.test(match[0])) depth++;
-    else if (--depth === 0) return tokens.lastIndex;
+    else if (/^<\/template\s*>/i.test(match[0]) && --depth === 0)
+      return tokens.lastIndex;
   }
   return source.length;
 }
@@ -310,7 +312,7 @@ function htmlTemplateEnd(source: string, openingEnd: number) {
 function scanHtmlTemplateRanges(source: string, offset: number) {
   const ranges: { from: number; to: number }[] = [];
   const openings = new RegExp(
-    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>`,
+    `<!--[\\s\\S]*?-->|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>`,
     "gi",
   );
   let match: RegExpExecArray | null;
@@ -333,7 +335,7 @@ function scanHtmlTemplateRanges(source: string, offset: number) {
 
 function htmlHeadingClose(source: string, level: number) {
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<template\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<plaintext\\b[^>]*>[\\s\\S]*$|<\\/h${level}\\s*>`,
+    `<!--[\\s\\S]*?-->|<template\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>[\\s\\S]*?<\\/\\1\\s*>|<plaintext\\b${htmlAttributeSource}>[\\s\\S]*$|<\\/h${level}\\s*>|<[A-Za-z][\\w:-]*\\b${htmlAttributeSource}>`,
     "gi",
   );
   let match: RegExpExecArray | null;
@@ -354,7 +356,7 @@ function htmlBlockHeadingNodes(source: string, from: number) {
     }
   };
   const literals = new RegExp(
-    `<!--|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>`,
+    `<!--|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>`,
     "gi",
   );
   let literal: RegExpExecArray | null;
@@ -381,7 +383,7 @@ function htmlBlockHeadingNodes(source: string, from: number) {
   }
 
   const result: { level: number; title: string; from: number }[] = [];
-  const opening = /<h([1-6])(?:\s[^>]*)?>/gi;
+  const opening = new RegExp(`<h([1-6])(?:\\s${htmlAttributeSource})?>`, "gi");
   let match: RegExpExecArray | null;
   while ((match = opening.exec(masked.join("")))) {
     if (htmlHeadingIsHidden(match[0])) continue;
@@ -571,9 +573,10 @@ export function headings(text: string) {
         const character = opening[1][0] === "`" ? "`" : "~";
         fence = new RegExp(`^${character}{${opening[1].length},}[ \\t]*$`);
       } else {
-        const htmlHeadingOpening = /^<h([1-6])(?:\s[^>]*)?>([\s\S]*)$/i.exec(
-          content,
-        );
+        const htmlHeadingOpening = new RegExp(
+          `^<h([1-6])(?:\\s${htmlAttributeSource})?>([\\s\\S]*)$`,
+          "i",
+        ).exec(content);
         if (
           htmlHeadingOpening &&
           !htmlHeadingIsHidden(
