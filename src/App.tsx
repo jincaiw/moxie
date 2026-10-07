@@ -1642,7 +1642,7 @@ export default function App() {
         }}
       />
       {message && (
-        <div className="toast" role="status">
+        <div className="toast" role="status" aria-atomic="true">
           {message}
         </div>
       )}

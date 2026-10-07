@@ -810,6 +810,14 @@ test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ pa
   expect(headerTop).toBeLessThan(dialogTop + 80);
 });
 
+test("动态提示以完整消息向辅助技术播报", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "设置图片尺寸" }).click();
+  const status = page.getByRole("status");
+  await expect(status).toHaveText("请先点击即时排版中的图片，再设置尺寸。");
+  await expect(status).toHaveAttribute("aria-atomic", "true");
+});
+
 test("导出菜单支持方向键、Home/End 和 Escape 焦点返回", async ({ page }) => {
   await page.goto("/");
 
@@ -1079,14 +1087,13 @@ test("HTML 导出的标题锚点和目录排除 Markdown/HTML 隐藏文字", asy
   const exported = await page.evaluate((source) => {
     const document = new DOMParser().parseFromString(source, "text/html");
     return {
-      headingIds: Array.from(
-        document.querySelectorAll("h1,h2,h3"),
-        (heading) => heading.getAttribute("id"),
+      headingIds: Array.from(document.querySelectorAll("h1,h2,h3"), (heading) =>
+        heading.getAttribute("id"),
       ),
-      toc: Array.from(
-        document.querySelectorAll(".moxie-toc a"),
-        (link) => [link.textContent, link.getAttribute("href")],
-      ),
+      toc: Array.from(document.querySelectorAll(".moxie-toc a"), (link) => [
+        link.textContent,
+        link.getAttribute("href"),
+      ]),
       target: document.querySelector("a[href^='#可见']")?.getAttribute("href"),
     };
   }, html);
