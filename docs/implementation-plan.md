@@ -312,7 +312,7 @@
 - [x] v0.16.79 为已安装图库主题增加来源 ID/版本跟踪、明确更新确认与撤回 tombstone 提示；主题包处理中禁用重复操作，避免并发安装。
 - [ ] **待反馈**：收集在线主题图库首轮安装反馈后再扩展主题数量；当前目录仍是 3 款维护者精选主题。
 - [ ] **受阻**：为 macOS 配置 Apple Developer 签名/公证密钥，并在真实设备验收 Gatekeeper 与自动升级。
-- [ ] **进行中**：Windows NSIS 与 Linux AppImage 安装、更新支持已实施；待本次跨平台 CI 产物、安装和升级验证成功后关闭。
+- [ ] **待真机验收**：Windows NSIS、Linux AppImage、macOS 双架构构建及 Release 上传均已由 GitHub Actions 成功验证；仍需在真实设备安装并验证应用内升级。macOS 自动安装受签名/公证状态限制。
 - [ ] **末位**：完成功能和体验验收后，对 1/5/10 MB 纯文本及混合媒体文档重复采样性能。
 
 ## v0.16.84 HTML 标题换行标签
@@ -1027,6 +1027,8 @@
 
 ## v0.16.121 跨平台安装与更新支持（实施中）
 
-- [ ] 增加 Windows NSIS、Linux AppImage 安装包，使用应用图标并在 GitHub Release 上传平台更新元数据；v0.16.120 远端校验发现 Linux `desktopName` 字段应位于 package 根配置，故改正后重发。
-- [ ] 自动更新仅对 macOS、Windows 和 Linux AppImage 启用；开发版及其他 Linux 安装方式显示手动下载提示。
-- [ ] 验证跨平台更新规则、平台 CI 构建、Release 资产与至少一个真实安装/升级流程。
+- [x] 增加 Windows NSIS、Linux AppImage 安装包，使用平台图标并在 GitHub Release 上传更新元数据；v0.16.120 暴露 Linux `desktopName` 字段位置错误，已在本版更正。
+- [x] 自动更新仅对 macOS、Windows 和 Linux AppImage 启用；开发版及其他 Linux 安装方式显示手动下载提示。
+- [x] 更新渠道规则 22 项桌面测试通过；完整浏览器回归 107 项通过、3 项性能基准按设计跳过；生产构建和本地 Linux AppImage 打包通过。
+- [x] GitHub Actions 跨平台验证及 macOS arm64/x64、Windows x64、Linux x64 构建全部成功；v0.16.121 正式 Release 已发布，20 项资产含三平台更新清单与 SHA256 校验。
+- [ ] 在实际 Windows、Linux AppImage 和已签名 macOS 设备完成安装/应用内更新 E2E；当前会话无对应桌面设备，macOS 还需签名与公证凭据。
