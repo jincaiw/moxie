@@ -979,4 +979,4 @@
 - [x] 将 `<noscript>` 内容按浏览器脚本启用时的原始文本处理，不把其中示例标题加入文档大纲。
 - [x] HTML 标题提取和逐行 HTML 区块扫描遵守 `<noscript>` 关闭标签边界。
 - [x] 定向 HTML 标题与区块回归 3 项通过；生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.112 且含四条双架构 DMG/ZIP 更新记录。
