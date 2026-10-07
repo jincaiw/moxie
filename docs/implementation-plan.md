@@ -1038,4 +1038,4 @@
 - [x] HTML 标题文本提取按引号边界扫描内部标签，避免属性值中的 `>` 将属性残片误纳入大纲标题。
 - [x] 回归覆盖 `<span title="2 > 1">`；既有 HTML 标题、注释、脚本、样式、`<br>` 和隐藏标题用例保持通过。
 - [x] 桌面逻辑 22 项、Playwright 108 项通过，3 项长文性能基准按配置跳过；生产构建通过。
-- [ ] 推送 v0.16.122 并核验 GitHub Actions 和正式 Release。
+- [x] GitHub Actions 源码验证及 macOS arm64/x64、Windows x64、Linux x64 打包全部成功；v0.16.122 正式 Release 已发布，20 项资产含三平台更新清单和 SHA256SUMS。
