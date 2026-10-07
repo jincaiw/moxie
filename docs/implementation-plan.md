@@ -1080,4 +1080,4 @@
 
 - [x] HTML 大纲跳过带 `popover` 属性且默认关闭的弹层标题，覆盖 auto 与 manual 模式。
 - [x] 桌面逻辑 22 项、Playwright 115 项通过，3 项性能基准按配置跳过；生产构建成功。
-- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 核验。
+- [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
