@@ -120,10 +120,43 @@ function htmlHeadingIsHidden(openingTag: string) {
     openingTag,
   );
   const displayValues = style?.[1] ?? style?.[2] ?? style?.[3] ?? "";
-  const displayDeclarations = displayValues
-    .split(";")
+  const declarations: string[] = [];
+  let declarationStart = 0;
+  let quote = "";
+  let escaped = false;
+  let inComment = false;
+  for (let index = 0; index < displayValues.length; index++) {
+    const character = displayValues[index];
+    const nextCharacter = displayValues[index + 1];
+    if (inComment) {
+      if (character === "*" && nextCharacter === "/") {
+        inComment = false;
+        index++;
+      }
+      continue;
+    }
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = "";
+      continue;
+    }
+    if (character === "/" && nextCharacter === "*") {
+      inComment = true;
+      index++;
+    } else if (character === "'" || character === '"') {
+      quote = character;
+    } else if (character === ";") {
+      declarations.push(displayValues.slice(declarationStart, index));
+      declarationStart = index + 1;
+    }
+  }
+  declarations.push(displayValues.slice(declarationStart));
+  const displayDeclarations = declarations
     .map((declaration) =>
-      /^\s*display\s*:\s*([^;]*?)(\s*!important)?\s*$/i.exec(declaration),
+      /^\s*display\s*:\s*([^;]*?)(\s*!important)?\s*$/i.exec(
+        declaration.replace(/\/\*[\s\S]*?\*\//g, " "),
+      ),
     )
     .filter(Boolean)
     .filter((declaration) => declaration?.[1] !== undefined);
