@@ -247,12 +247,57 @@ function scanHtmlHiddenRanges(source: string, offset: number) {
   }
   return ranges;
 }
+function stripHTMLHeadingMarkup(source: string) {
+  let result = "";
+  let index = 0;
+  while (index < source.length) {
+    if (source.startsWith("<!--", index)) {
+      const close = source.indexOf("-->", index + 4);
+      index = close < 0 ? source.length : close + 3;
+      continue;
+    }
+    if (source[index] !== "<") {
+      result += source[index++];
+      continue;
+    }
+    const tag = /^<\s*(\/?)\s*([A-Za-z][\w:-]*)/.exec(source.slice(index));
+    if (!tag) {
+      result += source[index++];
+      continue;
+    }
+    let quote = "";
+    let end = index + tag[0].length;
+    for (; end < source.length; end++) {
+      const character = source[end];
+      if (quote) {
+        if (character === quote) quote = "";
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === ">") {
+        break;
+      }
+    }
+    if (end >= source.length) {
+      result += source[index++];
+      continue;
+    }
+    const closing = tag[1] === "/";
+    const name = tag[2].toLowerCase();
+    index = end + 1;
+    if (!closing && (name === "script" || name === "style")) {
+      const close = new RegExp(`<\\/${name}\\s*>`, "ig");
+      close.lastIndex = index;
+      const match = close.exec(source);
+      index = match ? close.lastIndex : source.length;
+    } else if (!closing && name === "br") {
+      result += " ";
+    }
+  }
+  return result;
+}
+
 function htmlHeadingTitle(source: string) {
-  return source
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, "")
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<[^>]*>/g, "")
+  return stripHTMLHeadingMarkup(source)
     .replace(
       /&(#(?:x[\da-f]+|\d+)|amp|lt|gt|quot|apos);/gi,
       (match, entity: string) => {
