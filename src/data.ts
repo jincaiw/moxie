@@ -146,13 +146,70 @@ function htmlHeadingTitle(source: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+const htmlRawTextElement =
+  "script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing";
+
+function htmlTemplateEnd(source: string, openingEnd: number) {
+  let depth = 1;
+  const tokens = new RegExp(
+    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<\\/template\\s*>`,
+    "gi",
+  );
+  tokens.lastIndex = openingEnd;
+  let match: RegExpExecArray | null;
+  while ((match = tokens.exec(source))) {
+    if (match[0].startsWith("<!--")) continue;
+    if (/^<plaintext\b/i.test(match[0])) return source.length;
+    const rawTag = match[1];
+    if (rawTag) {
+      const close = new RegExp(`</${rawTag}\\s*>`, "ig");
+      close.lastIndex = tokens.lastIndex;
+      const closing = close.exec(source);
+      if (!closing) return source.length;
+      tokens.lastIndex = close.lastIndex;
+      continue;
+    }
+    if (/^<template\b/i.test(match[0])) depth++;
+    else if (--depth === 0) return tokens.lastIndex;
+  }
+  return source.length;
+}
+
+function scanHtmlTemplateRanges(source: string, offset: number) {
+  const ranges: { from: number; to: number }[] = [];
+  const openings = new RegExp(
+    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>`,
+    "gi",
+  );
+  let match: RegExpExecArray | null;
+  while ((match = openings.exec(source))) {
+    if (match[0].startsWith("<!--")) continue;
+    if (/^<plaintext\b/i.test(match[0])) break;
+    if (match[1]) {
+      const close = new RegExp(`</${match[1]}\\s*>`, "ig");
+      close.lastIndex = openings.lastIndex;
+      const closing = close.exec(source);
+      openings.lastIndex = closing ? close.lastIndex : source.length;
+    } else {
+      const to = htmlTemplateEnd(source, openings.lastIndex);
+      ranges.push({ from: offset + match.index, to: offset + to });
+      openings.lastIndex = to;
+    }
+  }
+  return ranges;
+}
+
 function htmlHeadingClose(source: string, level: number) {
   const tokens = new RegExp(
-    `<!--[\\s\\S]*?-->|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing)\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<plaintext\\b[^>]*>[\\s\\S]*$|<\\/h${level}\\s*>`,
+    `<!--[\\s\\S]*?-->|<template\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>|<plaintext\\b[^>]*>[\\s\\S]*$|<\\/h${level}\\s*>`,
     "gi",
   );
   let match: RegExpExecArray | null;
   while ((match = tokens.exec(source))) {
+    if (/^<template\b/i.test(match[0])) {
+      tokens.lastIndex = htmlTemplateEnd(source, tokens.lastIndex);
+      continue;
+    }
     if (/^<\/h/i.test(match[0])) return match;
   }
   return null;
@@ -164,13 +221,18 @@ function htmlBlockHeadingNodes(source: string, from: number) {
       if (masked[index] !== "\n" && masked[index] !== "\r") masked[index] = " ";
     }
   };
-  const literals = /<!--|<plaintext\b[^>]*>|<(script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing)\b[^>]*>/gi;
+  const literals = new RegExp(
+    `<!--|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>`,
+    "gi",
+  );
   let literal: RegExpExecArray | null;
   while ((literal = literals.exec(source))) {
     let end: number;
     if (literal[0] === "<!--") {
       const close = source.indexOf("-->", literal.index + 4);
       end = close < 0 ? source.length : close + 3;
+    } else if (/^<template\b/i.test(literal[0])) {
+      end = htmlTemplateEnd(source, literals.lastIndex);
     } else {
       const tag = /^<([A-Za-z][\w-]*)/.exec(literal[0])?.[1];
       if (tag?.toLowerCase() === "plaintext") {
@@ -240,10 +302,14 @@ export function headings(text: string) {
   const markdownHeadings: { level: number; title: string; from: number }[] = [];
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
   let plaintextStart = Number.POSITIVE_INFINITY;
+  const templateRanges: { from: number; to: number }[] = [];
+  const inTemplate = (from: number) =>
+    templateRanges.some((range) => from >= range.from && from < range.to);
   markdownParser.configure(GFM).parse(text).iterate({
     enter(node) {
       if (node.name === "HTMLBlock") {
         const html = text.slice(node.from, node.to);
+        templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
         const plaintext = /<plaintext\b/i.exec(html);
         if (plaintext)
           plaintextStart = Math.min(plaintextStart, node.from + plaintext.index);
@@ -253,6 +319,7 @@ export function headings(text: string) {
         );
         return;
       }
+      if (inTemplate(node.from)) return;
       const atx = /^ATXHeading([1-6])$/.exec(node.name);
       const setext = /^SetextHeading([12])$/.exec(node.name);
       if (!atx && !setext) return;
@@ -302,6 +369,10 @@ export function headings(text: string) {
     { level: number; from: number; content: string } | undefined;
   let line: ReturnType<typeof lineAt> | null = lineAt(0);
   while (line) {
+    if (inTemplate(line.from)) {
+      line = line.next <= text.length ? lineAt(line.next) : null;
+      continue;
+    }
     const content = markdownContainerContent(line.text);
     const previousLineEnd =
       line.from > 1 &&
@@ -396,6 +467,7 @@ export function headings(text: string) {
   );
   const scannedHtmlHeadings = result.filter(
     (heading) =>
+      !inTemplate(heading.from) &&
       !htmlStarts.has(
         JSON.stringify([heading.level, heading.title, heading.from]),
       ),
