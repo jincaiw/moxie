@@ -174,6 +174,7 @@ function htmlHeadingIsHidden(openingTag: string) {
     /^<details\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
   const closedDialog =
     /^<dialog\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
+  const closedPopover = /\spopover(?:\s|=|\/?>)/i.test(openingTag);
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||
@@ -181,7 +182,8 @@ function htmlHeadingIsHidden(openingTag: string) {
     visibility === "hidden" ||
     visibility === "collapse" ||
     closedDetails ||
-    closedDialog
+    closedDialog ||
+    closedPopover
   );
 }
 function htmlElementEnd(source: string, tag: string, openingEnd: number) {

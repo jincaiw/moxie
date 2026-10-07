@@ -1836,6 +1836,14 @@ test("HTML 标题内原始文本、样式和注释中的伪关闭标签不会截
   ]);
 });
 
+test("HTML 大纲跳过默认关闭的 popover 标题", () => {
+  const source =
+    "<div popover><h2>自动弹层标题</h2></div>\n\n" +
+    '<section popover="manual"><h3>手动弹层标题</h3></section>\n\n' +
+    "# 文档可见标题\n";
+  expect(headings(source).map(({ title }) => title)).toEqual(["文档可见标题"]);
+});
+
 test("HTML 块、注释和脚本中的 Markdown 标题语法不进入大纲", () => {
   const source =
     '<div class="literal">\n# div 中的普通文本\n<h2>真实 HTML 子标题</h2>\n</div>\n\n> <section>\n> #### 引用中的普通文本\n> </section>\n\n- <div>\n  ##### 列表中的普通文本\n  </div>\n\n<moxie-card>\n###### 自定义 HTML 块中的普通文本\n</moxie-card>\n\n<!--\n## 注释中的普通文本\n-->\n\n<script>\n### 脚本中的普通文本\n</script>\n\n# 真正的 Markdown 标题\n';
