@@ -1003,3 +1003,10 @@
 - [x] HTML 注释和原始文本元素中的伪关闭标签不会提前结束隐藏范围；代码围栏中的示例不会影响后续标题。
 - [x] 定向 HTML 大纲回归 4 项通过；生产构建成功。
 - [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.115 且含四条双架构 DMG/ZIP 更新记录。
+
+
+## v0.16.116 排除内联样式隐藏标题
+
+- [x] 大纲排除自身或祖先容器通过内联 `display: none` 隐藏的 HTML 标题，支持空格和 `!important` 声明。
+- [x] 定向隐藏 HTML 大纲回归通过；TypeScript 检查和生产构建成功。
+- [ ] GitHub Actions 完整回归、双架构 Release 待完成。

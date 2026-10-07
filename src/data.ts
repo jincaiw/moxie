@@ -116,9 +116,21 @@ function markdownHeadingUsesListCodeTab(prefix: string) {
   }
 }
 function htmlHeadingIsHidden(openingTag: string) {
+  const style = /\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(
+    openingTag,
+  );
+  const displayValues = style?.[1] ?? style?.[2] ?? style?.[3] ?? "";
+  const display = displayValues
+    .split(";")
+    .map((declaration) => /^\s*display\s*:\s*([^;]+)/i.exec(declaration))
+    .filter(Boolean)
+    .at(-1)?.[1]
+    .replace(/\s*!important\s*$/i, "")
+    .trim();
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
-    /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag)
+    /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||
+    display?.toLowerCase() === "none"
   );
 }
 function htmlElementEnd(source: string, tag: string, openingEnd: number) {
