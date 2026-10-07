@@ -153,24 +153,31 @@ function htmlHeadingIsHidden(openingTag: string) {
     }
   }
   declarations.push(displayValues.slice(declarationStart));
-  const displayDeclarations = declarations
-    .map((declaration) =>
-      /^\s*display\s*:\s*([^;]*?)(\s*!important)?\s*$/i.exec(
-        declaration.replace(/\/\*[\s\S]*?\*\//g, " "),
-      ),
-    )
-    .filter(Boolean)
-    .filter((declaration) => declaration?.[1] !== undefined);
-  const displayDeclaration =
-    displayDeclarations.filter((declaration) => declaration?.[2]).at(-1) ??
-    displayDeclarations.at(-1);
-  const display = displayDeclaration?.[1].trim();
+  const cssValue = (property: string) => {
+    const matchingDeclarations = declarations
+      .map((declaration) =>
+        new RegExp(
+          `^\\s*${property}\\s*:\\s*([^;]*?)(\\s*!important)?\\s*$`,
+          "i",
+        ).exec(declaration.replace(/\/\*[\s\S]*?\*\//g, " ")),
+      )
+      .filter((declaration) => declaration?.[1] !== undefined);
+    return (
+      matchingDeclarations
+        .filter((declaration) => declaration?.[2])
+        .at(-1)?.[1] ?? matchingDeclarations.at(-1)?.[1]
+    )?.trim();
+  };
+  const display = cssValue("display");
+  const visibility = cssValue("visibility")?.toLowerCase();
   const closedDetails =
     /^<details\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||
     display?.toLowerCase() === "none" ||
+    visibility === "hidden" ||
+    visibility === "collapse" ||
     closedDetails
   );
 }

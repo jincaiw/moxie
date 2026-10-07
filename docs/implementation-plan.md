@@ -1063,3 +1063,9 @@
 - [x] HTML 大纲跳过未展开 `<details>` 中的标题；带 `open` 属性的展开内容仍进入导航（HTML 布尔属性即使值为 `false` 也表示存在）。
 - [x] 桌面逻辑 22 项、Playwright 112 项通过，3 项长文性能基准按配置跳过；生产构建成功。
 - [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
+
+## v0.16.127 过滤 visibility 隐藏标题
+
+- [x] HTML 标题大纲与 `[TOC]` 过滤内联 `visibility:hidden` / `visibility:collapse` 的标题、容器和标题内部文字。
+- [x] 桌面逻辑 22 项、Playwright 113 项通过，3 项性能基准按配置跳过；生产构建成功。
+- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 核验。

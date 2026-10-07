@@ -1784,12 +1784,24 @@ test("HTML 标题大纲忽略不可见的内部标签文字", () => {
   const source =
     "<h2>可见<span hidden>隐藏<b>嵌套</b></span>标题</h2>\n\n" +
     '<h3>可见<span aria-hidden="true">辅助隐藏</span>标题</h3>\n\n' +
-    '<h4>可见<span style="display: none">样式隐藏</span>标题</h4>\n';
+    '<h4>可见<span style="display: none">样式隐藏</span>标题</h4>\n\n' +
+    '<h5>可见<span style="visibility: hidden">不可见文字</span>标题</h5>\n\n' +
+    '<h6>可见<span style="visibility: collapse">折叠文字</span>标题</h6>\n';
   expect(headings(source).map(({ title }) => title)).toEqual([
     "可见标题",
     "可见标题",
     "可见标题",
+    "可见标题",
+    "可见标题",
   ]);
+});
+
+test("HTML 大纲跳过 visibility 隐藏的标题和容器", () => {
+  const source =
+    '<h2 style="visibility: hidden">隐藏标题</h2>\n\n' +
+    '<section style="visibility: collapse"><h3>折叠容器标题</h3></section>\n\n' +
+    '<h4 style="visibility: visible">可见标题</h4>\n';
+  expect(headings(source).map(({ title }) => title)).toEqual(["可见标题"]);
 });
 
 test("HTML 标题大纲忽略 template 惰性内容", () => {
