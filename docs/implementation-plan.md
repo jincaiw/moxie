@@ -1002,4 +1002,4 @@
 - [x] 大纲递归排除 `hidden` / `aria-hidden="true"` 容器中的标题，支持同名嵌套元素。
 - [x] HTML 注释和原始文本元素中的伪关闭标签不会提前结束隐藏范围；代码围栏中的示例不会影响后续标题。
 - [x] 定向 HTML 大纲回归 4 项通过；生产构建成功。
-- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
+- [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.115 且含四条双架构 DMG/ZIP 更新记录。
