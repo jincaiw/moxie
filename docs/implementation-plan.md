@@ -1044,4 +1044,4 @@
 
 - [x] HTML 标题导航使用完整 HTML5 命名字符引用解码，修复 `&nbsp;`、`&copy;`、`&NotEqualTilde;` 等实体原样出现在大纲的问题；空白继续规范化。
 - [x] 桌面逻辑 22 项、Playwright 109 项通过，3 项性能基准按配置跳过；生产构建成功。
-- [ ] 推送 v0.16.123 并核验 GitHub Actions 和正式 Release。
+- [x] GitHub Actions 源码验证和 macOS arm64/x64、Windows x64、Linux x64 打包全部成功；v0.16.123 正式 Release 已发布，20 项资产含三平台更新清单和 SHA256SUMS。
