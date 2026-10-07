@@ -120,13 +120,17 @@ function htmlHeadingIsHidden(openingTag: string) {
     openingTag,
   );
   const displayValues = style?.[1] ?? style?.[2] ?? style?.[3] ?? "";
-  const display = displayValues
+  const displayDeclarations = displayValues
     .split(";")
-    .map((declaration) => /^\s*display\s*:\s*([^;]+)/i.exec(declaration))
+    .map((declaration) =>
+      /^\s*display\s*:\s*([^;]*?)(\s*!important)?\s*$/i.exec(declaration),
+    )
     .filter(Boolean)
-    .at(-1)?.[1]
-    .replace(/\s*!important\s*$/i, "")
-    .trim();
+    .filter((declaration) => declaration?.[1] !== undefined);
+  const displayDeclaration =
+    displayDeclarations.filter((declaration) => declaration?.[2]).at(-1) ??
+    displayDeclarations.at(-1);
+  const display = displayDeclaration?.[1].trim();
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||

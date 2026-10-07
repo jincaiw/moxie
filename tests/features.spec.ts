@@ -1822,9 +1822,10 @@ test("HTML template 惰性内容中的标题不进入文档大纲", () => {
 
 test("hidden HTML 标题不进入文档大纲", () => {
   const source =
-    '```html\n<section hidden><h2>代码中的标题示例</h2></section>\n```\n\n# 围栏后的标题\n\n<h2 hidden>隐藏的标题</h2>\n\n<h2 style="display: none">内联隐藏标题</h2>\n\n<section hidden>\n<h3>隐藏容器中的标题</h3>\n<section><h4>嵌套内容</h4></section>\n</section>\n\n<div aria-hidden="true">\n<h3>辅助技术隐藏的标题</h3>\n</div>\n\n<div style="color:red; display : none !important">\n<h3>内联隐藏容器中的标题</h3>\n</div>\n\n# 可见的标题\n';
+    '```html\n<section hidden><h2>代码中的标题示例</h2></section>\n```\n\n# 围栏后的标题\n\n<h2 hidden>隐藏的标题</h2>\n\n<h2 style="display: none">内联隐藏标题</h2>\n\n<h2 style="display: none !important; display: block">important 优先的隐藏标题</h2>\n\n<section hidden>\n<h3>隐藏容器中的标题</h3>\n<section><h4>嵌套内容</h4></section>\n</section>\n\n<div aria-hidden="true">\n<h3>辅助技术隐藏的标题</h3>\n</div>\n\n<div style="color:red; display : none !important">\n<h3>内联隐藏容器中的标题</h3>\n</div>\n\n<h2 style="display: none; display: block !important">important 覆盖后的可见标题</h2>\n\n# 可见的标题\n';
   expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
     [1, "围栏后的标题"],
+    [2, "important 覆盖后的可见标题"],
     [1, "可见的标题"],
   ]);
 });

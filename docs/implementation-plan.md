@@ -1010,3 +1010,10 @@
 - [x] 大纲排除自身或祖先容器通过内联 `display: none` 隐藏的 HTML 标题，支持空格和 `!important` 声明。
 - [x] 定向隐藏 HTML 大纲回归通过；TypeScript 检查和生产构建成功。
 - [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.116 且含四条双架构 DMG/ZIP 更新记录。
+
+
+## v0.16.117 按 CSS 优先级判断标题可见性
+
+- [x] 内联样式含多条 `display` 声明时，按 CSS `!important` 与声明顺序选择生效值，避免隐藏标题被收录或可见标题被错误排除。
+- [x] 定向大纲回归验证 `display:none !important` 与后续 `display:block !important` 两种层叠情形；TypeScript 检查和生产构建成功。
+- [ ] GitHub Actions 完整回归、双架构 Release 待完成。
