@@ -172,13 +172,16 @@ function htmlHeadingIsHidden(openingTag: string) {
   const visibility = cssValue("visibility")?.toLowerCase();
   const closedDetails =
     /^<details\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
+  const closedDialog =
+    /^<dialog\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||
     display?.toLowerCase() === "none" ||
     visibility === "hidden" ||
     visibility === "collapse" ||
-    closedDetails
+    closedDetails ||
+    closedDialog
   );
 }
 function htmlElementEnd(source: string, tag: string, openingEnd: number) {
