@@ -1101,4 +1101,4 @@
 - [x] HTML 导出的标题 ID 和 `[TOC]` 标签复用可见标题文本，排除隐藏子节点及整段隐藏标题；正文 Markdown 标题链接与导出锚点一致。
 - [x] 定向回归验证 Markdown/HTML 内联隐藏文本、大纲、导出锚点和目录标签。
 - [x] 本地 Playwright 119 项、桌面逻辑 22 项、生产构建和精选主题目录校验通过；3 项性能基准按配置跳过。
-- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布待标签流水线完成。
+- [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
