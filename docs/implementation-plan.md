@@ -1056,4 +1056,4 @@
 
 - [x] 提取 HTML 标题可见文字时跳过 `<template>` 惰性内容，避免未渲染文本进入大纲、`[TOC]` 和锚点。
 - [x] 桌面逻辑 22 项、Playwright 111 项通过，3 项长文性能基准按配置跳过；生产构建成功。
-- [ ] 推送 v0.16.125 并核验 GitHub Actions 和正式 Release。
+- [x] GitHub Actions 源码验证及 macOS arm64/x64、Windows x64、Linux x64 构建全部成功；首次 arm64 下载遇到上游 HTTP 500，重跑失败 job 后通过。v0.16.125 正式 Release 已发布，20 项资产含三平台更新清单和 SHA256SUMS。
