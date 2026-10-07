@@ -1,9 +1,10 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.120",
+  "version": "0.16.121",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
+  "desktopName": "moxie-editor",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
@@ -106,7 +107,7 @@
     },
     "linux": {
       "icon": "build/icon.png",
-      "desktopName": "moxie-editor",
+      "syncDesktopName": true,
       "synopsis": "本地 Markdown 写作编辑器",
       "category": "Office",
       "target": [

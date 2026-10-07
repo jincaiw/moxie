@@ -39,7 +39,7 @@ npm run package:mac
 
 ## Windows 与 Linux 安装包
 
-Windows 使用 NSIS 安装器，Linux 提供 AppImage；对应构建命令为 `npm run package:win` 和 `npm run package:linux`。Windows 安装版与 Linux AppImage 接入 GitHub Releases 应用内更新；Linux 其他打包格式及开发运行不启用自动更新。v0.16.120 起发布工作流会为三个桌面平台构建安装包。
+Windows 使用 NSIS 安装器，Linux 提供 AppImage；对应构建命令为 `npm run package:win` 和 `npm run package:linux`。Windows 安装版与 Linux AppImage 接入 GitHub Releases 应用内更新；Linux 其他打包格式及开发运行不启用自动更新。v0.16.121 起发布工作流会为三个桌面平台构建安装包。
 
 ## v0.16.39 已发布
 

@@ -813,9 +813,12 @@ test("自动更新只对正式支持的安装格式启用", () => {
 });
 
 test("Windows 与 Linux 发布目标及平台图标已配置", () => {
-  const build = require("../package.json").build;
+  const config = require("../package.json");
+  const build = config.build;
   assert.equal(build.win.target[0].target, "nsis");
   assert.equal(build.linux.target[0].target, "AppImage");
+  assert.equal(config.desktopName, "moxie-editor");
+  assert.equal(build.linux.syncDesktopName, true);
   assert.equal(syncFS.existsSync(build.win.icon), true);
   assert.equal(syncFS.existsSync(build.linux.icon), true);
 });

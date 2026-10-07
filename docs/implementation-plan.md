@@ -1025,8 +1025,8 @@
 - [x] 定向回归覆盖隐藏容器、模板属性和标题属性中的伪关闭标签；生产构建成功。
 - [x] GitHub Actions 源码校验、完整回归、arm64/x64 打包与 Release 发布成功；线上 15 项附件齐全，`latest-mac.yml` 为 0.16.119 且含四条双架构 DMG/ZIP 更新记录。
 
-## v0.16.120 跨平台安装与更新支持（实施中）
+## v0.16.121 跨平台安装与更新支持（实施中）
 
-- [ ] 增加 Windows NSIS、Linux AppImage 安装包，使用应用图标并在 GitHub Release 上传平台更新元数据。
+- [ ] 增加 Windows NSIS、Linux AppImage 安装包，使用应用图标并在 GitHub Release 上传平台更新元数据；v0.16.120 远端校验发现 Linux `desktopName` 字段应位于 package 根配置，故改正后重发。
 - [ ] 自动更新仅对 macOS、Windows 和 Linux AppImage 启用；开发版及其他 Linux 安装方式显示手动下载提示。
 - [ ] 验证跨平台更新规则、平台 CI 构建、Release 资产与至少一个真实安装/升级流程。
