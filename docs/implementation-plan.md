@@ -1086,4 +1086,4 @@
 
 - [x] HTML 大纲和 `[TOC]` 跳过 `content-visibility:hidden` 的标题及祖先容器，并保留显式 `visible` 内容。
 - [x] 桌面逻辑 22 项、Playwright 116 项通过，3 项性能基准按配置跳过；生产构建和精选主题目录校验成功。
-- [ ] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布待标签流水线完成。
+- [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
