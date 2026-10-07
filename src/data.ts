@@ -121,6 +121,83 @@ function htmlHeadingIsHidden(openingTag: string) {
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag)
   );
 }
+function htmlElementEnd(source: string, tag: string, openingEnd: number) {
+  let depth = 1;
+  const tagPattern = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tokens = new RegExp(
+    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<${tagPattern}\\b[^>]*>|<\\/${tagPattern}\\s*>`,
+    "gi",
+  );
+  tokens.lastIndex = openingEnd;
+  let match: RegExpExecArray | null;
+  while ((match = tokens.exec(source))) {
+    if (match[0].startsWith("<!--")) continue;
+    if (/^<plaintext\b/i.test(match[0])) return source.length;
+    if (match[1]) {
+      const close = new RegExp(`</${match[1]}\\s*>`, "ig");
+      close.lastIndex = tokens.lastIndex;
+      const closing = close.exec(source);
+      if (!closing) return source.length;
+      tokens.lastIndex = close.lastIndex;
+      continue;
+    }
+    if (/^<template\b/i.test(match[0])) {
+      tokens.lastIndex = htmlTemplateEnd(source, tokens.lastIndex);
+    } else if (/^<\//.test(match[0])) {
+      if (--depth === 0) return tokens.lastIndex;
+    } else {
+      depth++;
+    }
+  }
+  return source.length;
+}
+
+function scanHtmlHiddenRanges(source: string, offset: number) {
+  const ranges: { from: number; to: number }[] = [];
+  const voidElements = new Set([
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+  ]);
+  const openings = new RegExp(
+    `<!--[\\s\\S]*?-->|<plaintext\\b[^>]*>|<(${htmlRawTextElement})\\b[^>]*>|<template\\b[^>]*>|<([A-Za-z][\\w:-]*)\\b[^>]*>`,
+    "gi",
+  );
+  let match: RegExpExecArray | null;
+  while ((match = openings.exec(source))) {
+    if (match[0].startsWith("<!--")) continue;
+    if (/^<plaintext\b/i.test(match[0])) break;
+    const rawTag = match[1];
+    if (rawTag) {
+      const close = new RegExp(`</${rawTag}\\s*>`, "ig");
+      close.lastIndex = openings.lastIndex;
+      const closing = close.exec(source);
+      openings.lastIndex = closing ? close.lastIndex : source.length;
+      continue;
+    }
+    if (/^<template\b/i.test(match[0])) {
+      openings.lastIndex = htmlTemplateEnd(source, openings.lastIndex);
+      continue;
+    }
+    const tag = match[2].toLowerCase();
+    if (voidElements.has(tag) || !htmlHeadingIsHidden(match[0])) continue;
+    const to = htmlElementEnd(source, tag, openings.lastIndex);
+    ranges.push({ from: offset + match.index, to: offset + to });
+    openings.lastIndex = to;
+  }
+  return ranges;
+}
 function htmlHeadingTitle(source: string) {
   return source
     .replace(/<!--[\s\S]*?-->/g, "")
@@ -313,8 +390,11 @@ export function headings(text: string) {
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
   let plaintextStart = Number.POSITIVE_INFINITY;
   const templateRanges: { from: number; to: number }[] = [];
+  const hiddenRanges: { from: number; to: number }[] = [];
   const inTemplate = (from: number) =>
     templateRanges.some((range) => from >= range.from && from < range.to);
+  const inHiddenElement = (from: number) =>
+    hiddenRanges.some((range) => from >= range.from && from < range.to);
   markdownParser
     .configure(GFM)
     .parse(text)
@@ -323,6 +403,7 @@ export function headings(text: string) {
         if (node.name === "HTMLBlock") {
           const html = text.slice(node.from, node.to);
           templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
+          hiddenRanges.push(...scanHtmlHiddenRanges(html, node.from));
           const plaintext = /<plaintext\b/i.exec(html);
           if (plaintext)
             plaintextStart = Math.min(
@@ -497,7 +578,7 @@ export function headings(text: string) {
         JSON.stringify([heading.level, heading.title, heading.from]),
       ),
   );
-  return [...scannedHtmlHeadings, ...htmlHeadings, ...markdownHeadings].sort(
-    (a, b) => a.from - b.from,
-  );
+  return [...scannedHtmlHeadings, ...htmlHeadings, ...markdownHeadings]
+    .sort((a, b) => a.from - b.from)
+    .filter((heading) => !inHiddenElement(heading.from));
 }
