@@ -165,10 +165,13 @@ function htmlHeadingIsHidden(openingTag: string) {
     displayDeclarations.filter((declaration) => declaration?.[2]).at(-1) ??
     displayDeclarations.at(-1);
   const display = displayDeclaration?.[1].trim();
+  const closedDetails =
+    /^<details\b/i.test(openingTag) && !/\sopen(?:\s|=|\/?>)/i.test(openingTag);
   return (
     /\shidden(?:\s|=|\/?>)/i.test(openingTag) ||
     /\baria-hidden\s*=\s*(?:"true"|'true'|true)(?:\s|\/?>)/i.test(openingTag) ||
-    display?.toLowerCase() === "none"
+    display?.toLowerCase() === "none" ||
+    closedDetails
   );
 }
 function htmlElementEnd(source: string, tag: string, openingEnd: number) {
