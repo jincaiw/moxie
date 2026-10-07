@@ -1062,4 +1062,4 @@
 
 - [x] HTML 大纲跳过未展开 `<details>` 中的标题；带 `open` 属性的展开内容仍进入导航（HTML 布尔属性即使值为 `false` 也表示存在）。
 - [x] 桌面逻辑 22 项、Playwright 112 项通过，3 项长文性能基准按配置跳过；生产构建成功。
-- [ ] 推送 v0.16.126 并核验 GitHub Actions 和正式 Release。
+- [x] GitHub Actions 源码验证、macOS arm64/x64、Windows x64、Linux x64 构建及 Release 发布全部成功；20 项资产含三平台更新清单和 SHA256SUMS。
