@@ -1780,6 +1780,18 @@ test("HTML 标题导航解码 HTML5 命名实体", () => {
   ]);
 });
 
+test("HTML 标题大纲忽略不可见的内部标签文字", () => {
+  const source =
+    "<h2>可见<span hidden>隐藏<b>嵌套</b></span>标题</h2>\n\n" +
+    '<h3>可见<span aria-hidden="true">辅助隐藏</span>标题</h3>\n\n' +
+    '<h4>可见<span style="display: none">样式隐藏</span>标题</h4>\n';
+  expect(headings(source).map(({ title }) => title)).toEqual([
+    "可见标题",
+    "可见标题",
+    "可见标题",
+  ]);
+});
+
 test("HTML 标题内原始文本、样式和注释中的伪关闭标签不会截断标题", () => {
   const source =
     '<h2>可见前缀<script>const sample = "</h2>";</script>可见后缀</h2>\n\n<h3>跨行前缀\n<style>.example::after { content: "</h3>"; }</style>跨行后缀</h3>\n\n<h4>注释前缀<!-- </h4> -->注释后缀</h4>\n\n<h5>文本域前缀<textarea>字面量 </h5> 不会关闭</textarea>文本域后缀</h5>\n\n<h6>XMP 前缀<xmp><b>原样 </h6> 文本</b></xmp>XMP 后缀</h6>\n';

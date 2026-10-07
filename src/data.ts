@@ -204,22 +204,6 @@ function htmlElementEnd(source: string, tag: string, openingEnd: number) {
 
 function scanHtmlHiddenRanges(source: string, offset: number) {
   const ranges: { from: number; to: number }[] = [];
-  const voidElements = new Set([
-    "area",
-    "base",
-    "br",
-    "col",
-    "embed",
-    "hr",
-    "img",
-    "input",
-    "link",
-    "meta",
-    "param",
-    "source",
-    "track",
-    "wbr",
-  ]);
   const openings = new RegExp(
     `<!--[\\s\\S]*?-->|<plaintext\\b${htmlAttributeSource}>|<(${htmlRawTextElement})\\b${htmlAttributeSource}>|<template\\b${htmlAttributeSource}>|<([A-Za-z][\\w:-]*)\\b${htmlAttributeSource}>`,
     "gi",
@@ -241,7 +225,7 @@ function scanHtmlHiddenRanges(source: string, offset: number) {
       continue;
     }
     const tag = match[2].toLowerCase();
-    if (voidElements.has(tag) || !htmlHeadingIsHidden(match[0])) continue;
+    if (htmlVoidElements.has(tag) || !htmlHeadingIsHidden(match[0])) continue;
     const to = htmlElementEnd(source, tag, openings.lastIndex);
     ranges.push({ from: offset + match.index, to: offset + to });
     openings.lastIndex = to;
@@ -284,7 +268,13 @@ function stripHTMLHeadingMarkup(source: string) {
     }
     const closing = tag[1] === "/";
     const name = tag[2].toLowerCase();
+    const openingTag = source.slice(index, end + 1);
     index = end + 1;
+    if (!closing && htmlHeadingIsHidden(openingTag)) {
+      if (!htmlVoidElements.has(name))
+        index = htmlElementEnd(source, name, index);
+      continue;
+    }
     if (!closing && (name === "script" || name === "style")) {
       const close = new RegExp(`<\\/${name}\\s*>`, "ig");
       close.lastIndex = index;
@@ -303,6 +293,22 @@ function htmlHeadingTitle(source: string) {
 const htmlRawTextElement =
   "script|pre|style|textarea|title|xmp|iframe|noembed|noframes|noscript|listing";
 const htmlAttributeSource = String.raw`(?:"[^"]*"|'[^']*'|[^'">])*`;
+const htmlVoidElements = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
 
 function htmlTemplateEnd(source: string, openingEnd: number) {
   let depth = 1;
