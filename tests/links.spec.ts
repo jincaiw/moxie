@@ -121,6 +121,38 @@ test("引用链接标签按 CommonMark 折叠空白并保留标题与嵌套格�
   );
 });
 
+test("引用块和嵌套列表中的引用链接与导出保持一致", async ({ page }) => {
+  const source =
+    '> [引用块链接][guide]\n>\n> [guide]: <https://example.com/quote> "引用块标题"\n\n' +
+    '- [列表链接][manual]\n\n  [manual]: https://example.com/list "列表标题"';
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-reference-links.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const quoteLink = page.getByRole("link", { name: "引用块链接", exact: true });
+  const listLink = page.getByRole("link", { name: "列表链接", exact: true });
+  await expect(quoteLink).toHaveAttribute("href", "https://example.com/quote");
+  await expect(quoteLink).toHaveAttribute("title", /^引用块标题/);
+  await expect(listLink).toHaveAttribute("href", "https://example.com/list");
+  await expect(listLink).toHaveAttribute("title", /^列表标题/);
+
+  const exportedTitles = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    const html = await module.exportHTML(markdown, "nested-reference-links.md");
+    const exported = new DOMParser().parseFromString(html, "text/html");
+    return [
+      exported.querySelector('a[href="https://example.com/quote"]')?.title,
+      exported.querySelector('a[href="https://example.com/list"]')?.title,
+    ];
+  }, source);
+  expect(exportedTitles).toEqual(["引用块标题", "列表标题"]);
+});
+
 test("转义括号和管道符链接在即时预览与 HTML 导出中保持一致", async ({
   page,
 }) => {
