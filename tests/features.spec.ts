@@ -31,6 +31,10 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
 );
+const bmp = Buffer.from(
+  "424d3a000000000000003600000028000000010000000100000001001800000000000400000000000000000000000000000000000000000000ff0000",
+  "hex",
+);
 
 function themeCatalogFixture(css: string) {
   return {
@@ -553,6 +557,17 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
       .getByRole("img", { name: "pixel.png" })
       .evaluate((img: HTMLImageElement) => img.naturalWidth),
   ).toBe(1);
+  await page
+    .locator("input[data-kind=image]")
+    .setInputFiles({ name: "pixel.bmp", mimeType: "image/bmp", buffer: bmp });
+  await expect(page.getByRole("img", { name: "pixel.bmp" })).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("img", { name: "pixel.bmp" })
+        .evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBe(1);
   await page.evaluate((base64) => {
     const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
     const transfer = new DataTransfer();

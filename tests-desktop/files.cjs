@@ -487,6 +487,16 @@ const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
 );
+const bmp = Buffer.from(
+  "424d3a000000000000003600000028000000010000000100000001001800000000000400000000000000000000000000000000000000000000ff0000",
+  "hex",
+);
+const avif = Buffer.alloc(24);
+avif.writeUInt32BE(24, 0);
+avif.write("ftyp", 4);
+avif.write("avif", 8);
+avif.write("mif1", 16);
+avif.write("avif", 20);
 test("图片资源写入、读取、非法格式、越界与符号链接检查", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-images-"));
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-outside-"));
@@ -504,6 +514,23 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
       }),
       "data:image/png;base64," + png.toString("base64"),
     );
+    for (const [bytes, extension, mime] of [
+      [bmp, "bmp", "image/bmp"],
+      [avif, "avif", "image/avif"],
+    ]) {
+      const storedImage = await store.storeImage({ documentPath, bytes });
+      assert.match(
+        storedImage.relativePath,
+        new RegExp(`^note\\.assets/[\\w-]+\\.${extension}$`),
+      );
+      assert.equal(
+        await store.readImage({
+          documentPath,
+          relativePath: storedImage.relativePath,
+        }),
+        `data:${mime};base64,${bytes.toString("base64")}`,
+      );
+    }
     const copied = await store.storeImage({
       documentPath,
       bytes: png,

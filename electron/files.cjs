@@ -66,7 +66,10 @@ async function downloadRemoteImage(urlValue) {
       const request = https.get(
         url,
         {
-          headers: { accept: "image/png,image/jpeg,image/gif,image/webp" },
+          headers: {
+            accept:
+              "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
+          },
           lookup: (_hostname, _options, callback) =>
             callback(null, address.address, address.family),
         },
@@ -164,7 +167,26 @@ function imageType(bytes) {
     bytes.subarray(8, 12).toString() === "WEBP"
   )
     return { extension: "webp", mime: "image/webp" };
-  throw Error("图片格式无效，支持 PNG、JPEG、GIF 和 WebP");
+  if (bytes.length >= 26 && bytes.subarray(0, 2).toString() === "BM")
+    return { extension: "bmp", mime: "image/bmp" };
+  if (bytes.length >= 16 && bytes.subarray(4, 8).toString() === "ftyp") {
+    const boxSize = bytes.readUInt32BE(0);
+    const majorBrand = bytes.subarray(8, 12).toString();
+    const compatibleBrands = Array.from(
+      { length: Math.max(0, (boxSize - 16) / 4) },
+      (_, index) => bytes.subarray(16 + index * 4, 20 + index * 4).toString(),
+    );
+    if (
+      boxSize >= 16 &&
+      boxSize <= bytes.length &&
+      boxSize % 4 === 0 &&
+      [majorBrand, ...compatibleBrands].some(
+        (brand) => brand === "avif" || brand === "avis",
+      )
+    )
+      return { extension: "avif", mime: "image/avif" };
+  }
+  throw Error("图片格式无效，支持 PNG、JPEG、GIF、WebP、BMP 和 AVIF");
 }
 function inside(root, target) {
   const relative = path.relative(root, target);

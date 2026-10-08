@@ -13,6 +13,8 @@ export const imageTypes = new Set([
   "image/jpeg",
   "image/gif",
   "image/webp",
+  "image/bmp",
+  "image/avif",
 ]);
 export async function imageSource(
   file: File,
@@ -20,7 +22,7 @@ export async function imageSource(
   targetDirectory?: string,
 ): Promise<string> {
   if (!imageTypes.has(file.type))
-    throw new Error("支持 PNG、JPEG、GIF 和 WebP 图片。");
+    throw new Error("支持 PNG、JPEG、GIF、WebP、BMP 和 AVIF 图片。");
   if (file.size > 10 * 1024 * 1024) throw new Error("单张图片不能超过 10 MB。");
   if (window.desktop && documentPath) {
     const stored = await window.desktop.storeImage({
@@ -41,7 +43,11 @@ export async function resolveImage(
   src: string,
   documentPath?: string,
 ): Promise<string> {
-  if (/^(https:\/\/|data:image\/(?:png|jpeg|gif|webp);base64,)/i.test(src))
+  if (
+    /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|bmp|avif);base64,)/i.test(
+      src,
+    )
+  )
     return src;
   if (window.desktop && documentPath && !/^[a-z][a-z0-9+.-]*:/i.test(src))
     return window.desktop.readImage({
