@@ -159,6 +159,42 @@ test("转义括号和管道符链接在即时预览与 HTML 导出中保持一�
   expect(html).toContain('<a href="https://example.org/a%7Cb">管道路径</a>');
 });
 
+test("嵌套括号目标与转义引用标签在预览和导出中正确解析", async ({ page }) => {
+  const source =
+    '[嵌套括号](https://example.org/a_(b_(c))) 和 [转义标签][A \\[guide\\]]\n\n[a \\[Guide\\]]: https://example.org/guide "引用标题"\n\n后续正文。';
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-link-destinations.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-line").last().click();
+
+  await expect(
+    page.getByRole("link", { name: "嵌套括号", exact: true }),
+  ).toHaveAttribute("href", "https://example.org/a_(b_(c))");
+  const reference = page.getByRole("link", {
+    name: "转义标签",
+    exact: true,
+  });
+  await expect(reference).toHaveAttribute("href", "https://example.org/guide");
+  await expect(reference).toHaveAttribute("title", /^引用标题/);
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "nested-link-destinations.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.org/a_(b_(c))">嵌套括号</a>',
+  );
+  expect(html).toContain(
+    '<a href="https://example.org/guide" title="引用标题">转义标签</a>',
+  );
+});
+
 test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
