@@ -175,7 +175,7 @@ function imageType(bytes) {
     .replace(/^\uFEFF/, "")
     .trimStart();
   if (
-    /^(?:<\?xml[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i.test(
+    /^(?:<\?xml\b[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!doctype\s+svg(?:\s+(?:public\s+["'][^"']*["']\s+["'][^"']*["']|system\s+["'][^"']*["']))?\s*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i.test(
       svgHeader,
     )
   )

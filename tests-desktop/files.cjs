@@ -371,7 +371,7 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
       "hex",
     );
     const svg = Buffer.from(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
+      '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
     );
     assert.equal(
       await h.call("file:export", {

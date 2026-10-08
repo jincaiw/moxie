@@ -52,7 +52,7 @@ const webp = Buffer.from(
   "base64",
 );
 const svg = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" onload="alert(1)"><script>alert(1)</script><rect width="16" height="16" fill="#c33"/></svg>',
+  '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" onload="alert(1)"><script>alert(1)</script><rect width="16" height="16" fill="#c33"/></svg>',
 );
 
 function themeCatalogFixture(css: string) {
@@ -669,6 +669,7 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   expect(exportedSVG).toBeTruthy();
   const exportedSVGText = Buffer.from(exportedSVG![1], "base64").toString();
   expect(exportedSVGText).toContain("<rect");
+  expect(exportedSVGText).not.toMatch(/<!doctype|svg11\.dtd/i);
   expect(exportedSVGText).not.toMatch(/<script|onload|alert\(/i);
   expect(html).toContain("<math");
   expect(html).not.toContain("$$");
