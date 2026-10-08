@@ -487,6 +487,7 @@ export function headings(text: string) {
   const markdownHeadings: { level: number; title: string; from: number }[] = [];
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
   let plaintextStart = Number.POSITIVE_INFINITY;
+  const hasCarriageReturns = text.includes("\r");
   const templateRanges: { from: number; to: number }[] = [];
   const hiddenRanges: { from: number; to: number }[] = [];
   const inTemplate = (from: number) =>
@@ -541,7 +542,7 @@ export function headings(text: string) {
     });
   const lineAt = (from: number) => {
     const lf = text.indexOf("\n", from);
-    const cr = text.indexOf("\r", from);
+    const cr = hasCarriageReturns ? text.indexOf("\r", from) : -1;
     const newline = cr >= 0 && (lf < 0 || cr < lf) ? cr : lf;
     const end = newline < 0 ? text.length : newline;
     const next =

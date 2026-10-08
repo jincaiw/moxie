@@ -1892,6 +1892,19 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
   ).toEqual([[2, "段落标题第一行 段落标题第二行"]]);
 });
 
+test("大纲扫描在 LF 与 CRLF 文档中保持标题定位一致", () => {
+  for (const newline of ["\n", "\r\n"]) {
+    const source = [`# 第一章`, ``, `## 第二章`, ``, `<h3>HTML 标题</h3>`].join(
+      newline,
+    );
+    expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+      [1, "第一章"],
+      [2, "第二章"],
+      [3, "HTML 标题"],
+    ]);
+  }
+});
+
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
   const source =
     '<h2 id="custom"><em>HTML</em> &amp; 标题</h2>\n\n<h3>\n多行 HTML 标题\n</h3>\n\n<h4>前半标题<br>后半标题</h4>\n\n<h5>可见<!-- 注释 --><script>隐藏脚本</script><style>.hidden {}</style>标题</h5>\n\n```html\n<h1>代码示例</h1>\n```\n\n<h2 title="<span></h2>">属性值伪关闭后的完整标题</h2>\n';
