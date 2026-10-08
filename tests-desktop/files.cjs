@@ -777,6 +777,51 @@ test("自动更新检查、下载进度、未保存拦截和安装流程", async
   assert.equal(installed, true);
 });
 
+test("多窗口同时请求时合并自动更新检查与下载", async () => {
+  const updater = new EventEmitter();
+  let checks = 0;
+  let downloads = 0;
+  let finishCheck;
+  let finishDownload;
+  updater.checkForUpdates = () => {
+    checks += 1;
+    return new Promise((resolve) => {
+      finishCheck = () => {
+        updater.emit("update-available", { version: "0.17.0" });
+        resolve();
+      };
+    });
+  };
+  updater.downloadUpdate = () => {
+    downloads += 1;
+    return new Promise((resolve) => {
+      finishDownload = () => {
+        updater.emit("update-downloaded", { version: "0.17.0" });
+        resolve();
+      };
+    });
+  };
+  const controller = new UpdateController({
+    updater,
+    supported: true,
+    hasUnsavedChanges: () => false,
+  });
+
+  const firstCheck = controller.check();
+  const secondCheck = controller.check();
+  assert.equal(checks, 1);
+  finishCheck();
+  assert.deepEqual(await firstCheck, await secondCheck);
+  assert.equal(controller.getStatus().status, "available");
+
+  const firstDownload = controller.download();
+  const secondDownload = controller.download();
+  assert.equal(downloads, 1);
+  finishDownload();
+  assert.deepEqual(await firstDownload, await secondDownload);
+  assert.equal(controller.getStatus().status, "downloaded");
+});
+
 test("自动更新只对正式支持的安装格式启用", () => {
   assert.equal(
     supportsAutoUpdate({ isPackaged: true, platform: "darwin" }),

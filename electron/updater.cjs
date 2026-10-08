@@ -24,6 +24,8 @@ class UpdateController {
     this.supported = supported;
     this.hasUnsavedChanges = hasUnsavedChanges;
     this.onStatus = onStatus;
+    this.checkPromise = null;
+    this.downloadPromise = null;
     this.value = supported
       ? { status: "idle" }
       : {
@@ -68,28 +70,40 @@ class UpdateController {
     return { ...this.value };
   }
 
-  async check() {
-    if (!this.supported) return this.getStatus();
+  check() {
+    if (!this.supported) return Promise.resolve(this.getStatus());
+    if (this.checkPromise) return this.checkPromise;
     this.publish({ status: "checking" });
-    try {
-      await this.updater.checkForUpdates();
-    } catch (error) {
-      this.publish({ status: "error", message: describeUpdateError(error) });
-    }
-    return this.getStatus();
+    this.checkPromise = (async () => {
+      try {
+        await this.updater.checkForUpdates();
+      } catch (error) {
+        this.publish({ status: "error", message: describeUpdateError(error) });
+      } finally {
+        this.checkPromise = null;
+      }
+      return this.getStatus();
+    })();
+    return this.checkPromise;
   }
 
-  async download() {
-    if (!this.supported) return this.getStatus();
+  download() {
+    if (!this.supported) return Promise.resolve(this.getStatus());
+    if (this.downloadPromise) return this.downloadPromise;
     if (this.value.status !== "available")
-      throw Error("当前没有可下载的更新。");
+      return Promise.reject(Error("当前没有可下载的更新。"));
     this.publish({ status: "downloading", percent: 0 });
-    try {
-      await this.updater.downloadUpdate();
-    } catch (error) {
-      this.publish({ status: "error", message: describeUpdateError(error) });
-    }
-    return this.getStatus();
+    this.downloadPromise = (async () => {
+      try {
+        await this.updater.downloadUpdate();
+      } catch (error) {
+        this.publish({ status: "error", message: describeUpdateError(error) });
+      } finally {
+        this.downloadPromise = null;
+      }
+      return this.getStatus();
+    })();
+    return this.downloadPromise;
   }
 
   install() {
