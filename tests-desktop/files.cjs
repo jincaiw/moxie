@@ -205,7 +205,7 @@ async function harness(userData) {
     },
     nativeImage: {
       createFromDataURL: (dataURL) => ({
-        isEmpty: () => !dataURL.startsWith("data:image/avif;base64,"),
+        isEmpty: () => !/^data:image\/(?:avif|bmp);base64,/.test(dataURL),
         getSize: () => ({ width: 1, height: 1 }),
         toPNG: () =>
           Buffer.from(
@@ -353,7 +353,7 @@ test("PDF 导出等待图片与字体就绪后再生成并原子写入", async (
     await fs.rm(root, { recursive: true, force: true });
   }
 });
-test("DOCX 导出将 AVIF 图片转换为 Word 兼容的 PNG", async () => {
+test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-docx-test-"));
   try {
     const target = path.join(root, "output.docx");
@@ -365,9 +365,13 @@ test("DOCX 导出将 AVIF 图片转换为 Word 兼容的 PNG", async () => {
     avif.write("avif", 8);
     avif.write("mif1", 16);
     avif.write("avif", 20);
+    const bmp = Buffer.from(
+      "424d3a000000000000003600000028000000010000000100000001001800000000000400000000000000000000000000000000000000000000ff0000",
+      "hex",
+    );
     assert.equal(
       await h.call("file:export", {
-        html: `<html><body><img alt="AVIF" src="data:image/avif;base64,${avif.toString("base64")}"></body></html>`,
+        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src="data:image/avif;base64,${avif.toString("base64")}"></body></html>`,
         name: "report.md",
         format: "docx",
       }),
@@ -380,6 +384,11 @@ test("DOCX 导出将 AVIF 图片转换为 Word 兼容的 PNG", async () => {
     );
     assert.ok(imageEntries.length > 0);
     assert.ok(imageEntries.every((name) => name.endsWith(".png")));
+    const contentTypes = await archive
+      .file("[Content_Types].xml")
+      .async("string");
+    assert.match(contentTypes, /Extension="png"/);
+    assert.doesNotMatch(contentTypes, /Extension="bmp"/);
     for (const name of imageEntries)
       assert.deepEqual(
         await archive.file(name).async("nodebuffer"),
