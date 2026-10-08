@@ -20,7 +20,7 @@
 
 截图证据：`audit-captures/01-writing-surface.png`、`02-writing-content.png`、`03-export-menu.png`、`04-mobile-surface.png`、`05-mobile-sidebar-toggle.png`、`06-preferences.png`。这些是本地验收截图，不代表原生系统外观。
 
-v0.16.177 扩展 CommonMark 容器内 Moxie 行内格式回归，覆盖引用块和有序列表中的高亮、上标、下标，并验证 HTML 导出结果一致；Playwright 145 项通过、3 项性能基准按配置跳过，桌面逻辑 24 项和生产构建通过。
+v0.16.177 扩展 CommonMark 容器内 Moxie 行内格式回归，覆盖引用块和有序列表中的高亮、上标、下标，并验证 HTML 导出结果一致；Playwright 145 项通过、3 项性能基准按配置跳过，桌面逻辑 24 项和生产构建通过。Run #145 成功；正式 Release 已核验 20 项应用资产和 2 项源码归档，三平台更新清单版本均为 0.16.177，SHA256SUMS 含 9 项安装包/更新块记录。
 
 v0.16.176 增加侧栏切换按钮展开状态播报，覆盖桌面/窄屏读屏语义及 Enter 键切换回归；全量 Playwright 144 项通过、3 项性能基准按配置跳过，桌面逻辑 24 项和生产构建通过。Run #144 发布工作流成功；正式 Release 已核验 20 项应用资产和 2 项源码归档，三平台更新清单版本均为 0.16.176，SHA256SUMS 含 9 项安装包/更新块校验记录。
 
