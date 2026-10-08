@@ -1147,3 +1147,11 @@
 - [x] 桌面逻辑回归验证并发调用只触发一次检查和一次下载。
 - [x] 桌面逻辑 23 项和生产构建通过。
 - [x] GitHub Actions 源码校验、Playwright、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
+
+
+## v0.16.139 编辑时保留换行格式
+
+- [x] 识别文档原有 LF、CR、CRLF 换行；CodeMirror 编辑后将规范化换行恢复为文档原有格式。
+- [x] 回归覆盖三种换行格式的检测与编辑后恢复，且无换行文档默认使用 LF。
+- [x] 换行/大纲定向回归 2 项、桌面逻辑 23 项和生产构建通过。
+- [ ] 待 GitHub Actions 完成完整验证、四平台打包与正式 Release 资产核验。

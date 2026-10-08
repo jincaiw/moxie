@@ -32,6 +32,7 @@ import { livePreview, documentPath, previewTheme } from "./live";
 import { imageTypes } from "./assets";
 import { linkHandler } from "./link-widget";
 import { markdownImageEnd, markdownImageSizing, markdownLink } from "./links";
+import { detectLineEnding, restoreLineEnding } from "./data";
 
 const sessions = new Map<string, EditorState>();
 export type Format =
@@ -397,7 +398,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
       view: EditorView;
       id: string;
       onChange: Props["onChange"];
-      crlf: boolean;
+    lineEnding: ReturnType<typeof detectLineEnding>;
     } | null>(null);
     const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latest = useRef(props);
@@ -415,7 +416,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
       if (!change || view.current !== change.view) return;
       const value = change.view.state.doc.toString();
       docSnapshot.current = value.replace(/\r\n?/g, "\n");
-      change.onChange(change.crlf ? value.replace(/\n/g, "\r\n") : value);
+      change.onChange(restoreLineEnding(value, change.lineEnding));
     };
     const flushChangeRef = useRef(flushChange);
     flushChangeRef.current = flushChange;
@@ -785,7 +786,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
                     view: update.view,
                     id,
                     onChange: latest.current.onChange,
-                    crlf: latest.current.text.includes("\r\n"),
+                    lineEnding: detectLineEnding(latest.current.text),
                   };
                   if (changeTimer.current) clearTimeout(changeTimer.current);
                   changeTimer.current = setTimeout(

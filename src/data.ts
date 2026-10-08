@@ -83,6 +83,16 @@ export type DocumentFile = {
   dirty?: boolean;
   group?: string;
 };
+
+export type LineEnding = "\n" | "\r" | "\r\n";
+
+export function detectLineEnding(text: string): LineEnding {
+  return (text.match(/\r\n|\r|\n/)?.[0] as LineEnding | undefined) || "\n";
+}
+
+export function restoreLineEnding(text: string, lineEnding: LineEnding) {
+  return lineEnding === "\n" ? text : text.replace(/\n/g, lineEnding);
+}
 function markdownContainerContent(line: string) {
   let content = line;
   while (true) {

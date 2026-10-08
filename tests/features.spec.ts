@@ -17,7 +17,7 @@ import {
   tableColumnAlignment,
 } from "../src/table";
 import { inlineMathMatches } from "../src/math";
-import { headings } from "../src/data";
+import { detectLineEnding, headings, restoreLineEnding } from "../src/data";
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
@@ -1915,6 +1915,17 @@ test("大纲扫描在 LF、CR 和 CRLF 文档中保持标题定位一致", () =>
       source.indexOf("<h3>"),
     ]);
   }
+});
+
+test("编辑器保存修改时保留文档原有换行格式", () => {
+  for (const lineEnding of ["\n", "\r", "\r\n"] as const) {
+    const source = `# 标题${lineEnding}正文`;
+    expect(detectLineEnding(source)).toBe(lineEnding);
+    expect(restoreLineEnding("# 标题\n正文\n续行", lineEnding)).toBe(
+      `# 标题${lineEnding}正文${lineEnding}续行`,
+    );
+  }
+  expect(detectLineEnding("无换行的文档")).toBe("\n");
 });
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {
