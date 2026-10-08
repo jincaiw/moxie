@@ -49,6 +49,12 @@ function hydrateHTMLImages(
   const candidates = htmlImages(source);
   root.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
     const source = image.getAttribute("src") || "";
+    image.tabIndex = 0;
+    image.setAttribute("role", "img");
+    image.setAttribute(
+      "aria-label",
+      `${image.alt || "图片"}；按 Shift+F10 打开图片管理菜单`,
+    );
     image.addEventListener("load", () => view.requestMeasure());
     image.addEventListener("error", () => {
       image.removeAttribute("src");
@@ -154,6 +160,17 @@ function hydrateHTMLImages(
       } catch (error) {
         window.alert(error instanceof Error ? error.message : String(error));
       }
+    });
+    image.addEventListener("keydown", (event) => {
+      if (
+        event.key !== "ContextMenu" &&
+        !(event.key === "F10" && event.shiftKey)
+      )
+        return;
+      event.preventDefault();
+      image.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
     });
   });
 }
