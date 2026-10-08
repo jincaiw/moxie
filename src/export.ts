@@ -679,7 +679,7 @@ svg{max-width:100%;height:auto}
 .moxie-toc ol{margin:0;padding-left:24px}.moxie-toc li{margin:4px 0}
 math[display=block]{margin:24px 0}a{color:var(--accent)}
 @media print{
-  body{margin:0;max-width:none}
+  body{margin:0;max-width:none;padding:0}
   h1,h2,h3,h4,h5,h6{break-after:avoid;page-break-after:avoid}
   table,tr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes{break-inside:avoid;page-break-inside:avoid}
   pre,table{break-inside:auto;page-break-inside:auto}

@@ -1293,6 +1293,7 @@ test("浏览器 PDF 打印采用纸张方向和页边距设置", async ({ page }
   expect(html).toContain("size: Letter landscape; margin: 24mm 24mm");
   expect(html).toContain('content: "欢迎使用.md"');
   expect(html).toContain('counter(page) " / " counter(pages)');
+  expect(html).toContain("body{margin:0;max-width:none;padding:0}");
   expect(html).toContain("h1,h2,h3,h4,h5,h6{break-after:avoid");
   expect(html).toContain(
     "table,tr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes",
