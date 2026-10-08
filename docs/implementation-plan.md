@@ -1325,4 +1325,9 @@
 
 - [x] 导出菜单增加“文档属性”表单，编辑标题、作者、描述、关键词、主题和创建者并写回 YAML Front Matter。
 - [x] 使用保留注释的 YAML 文档更新器，仅更新对应字段；保留其他键、BOM、原有换行格式和正文内容，拒绝覆盖格式错误的 Front Matter。
-- [x] TypeScript/Vite 生产构建通过；完整回归、四平台打包与正式 Release 待验证。
+- [x] TypeScript/Vite 生产构建通过；首轮 Playwright 发现导出菜单键盘回归仍断言旧菜单首项，修复已同步到 v0.16.168，未生成 Release。
+
+## v0.16.168 文档属性回归同步
+
+- [x] 更新既有导出菜单键盘回归，按“文档属性”“Markdown”“HTML”名称验证焦点顺序。
+- [x] TypeScript/Vite 生产构建、完整回归、四平台打包与正式 Release 待验证。

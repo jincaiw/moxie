@@ -941,13 +941,17 @@ test("导出菜单支持方向键、Home/End 和 Escape 焦点返回", async ({ 
   const trigger = page.getByRole("button", { name: "导出" });
   await trigger.click();
   const items = page.getByRole("menuitem");
-  await expect(items.nth(0)).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "文档属性…" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(
+    page.getByRole("menuitem", { name: "Markdown 文件" }),
+  ).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("menuitem", { name: "HTML 网页" })).toBeFocused();
   await page.keyboard.press("End");
   await expect(page.getByRole("menuitem", { name: "另存为…" })).toBeFocused();
   await page.keyboard.press("Home");
-  await expect(items.nth(0)).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "文档属性…" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
   await expect(items).toHaveCount(0);
