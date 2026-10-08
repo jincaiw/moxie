@@ -2901,6 +2901,37 @@ test("上标下标即时预览、兼容删除线并隔离代码导出", async ({
   expect(html).toContain("^代码^ ~代码~");
 });
 
+test("GFM 删除线可在引用和列表中包含 Moxie 下标与链接", async ({ page }) => {
+  const source =
+    "> ~~旧式 H~2~O~~\n\n- ~~移除 [旧链接](https://example.com)~~\n\n结束";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-strikethrough.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.locator(".cm-line").last().click();
+  await expect(page.locator(".md-strike sub")).toHaveText("2");
+  await expect(
+    page.locator(".md-strike").getByRole("link", { name: "旧链接" }),
+  ).toHaveAttribute("href", "https://example.com");
+
+  const output = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as {
+      exportHTML: (source: string, name: string) => Promise<string>;
+    };
+    const html = await module.exportHTML(markdown, "nested-strikethrough.md");
+    const document = new DOMParser().parseFromString(html, "text/html");
+    return {
+      subscript: document.querySelector("del sub")?.textContent,
+      link: document.querySelector("li del a")?.getAttribute("href"),
+    };
+  }, source);
+  expect(output).toEqual({ subscript: "2", link: "https://example.com" });
+});
+
 test("脚注重复引用、大小写标签、多行内容与围栏隔离正确导出", async ({
   page,
 }) => {
