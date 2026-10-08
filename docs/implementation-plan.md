@@ -1194,4 +1194,4 @@
 - [x] 偏好设置增加可独立开关、持久化的智能引号和智能破折号。
 - [x] 转换仅作用于逐字输入；尊重 Markdown 围栏代码、行内/块级数学和 YAML Front Matter，不改写这些语境中的文字符号。
 - [x] 设置持久化和智能标点上下文 Playwright 定向回归通过；完整 Playwright 131 项（128 通过、3 项性能基准跳过）、桌面逻辑 24 项与生产构建通过。
-- [ ] 完整 Playwright 回归、GitHub Actions、四平台安装包和正式 Release 待完成。
+- [x] GitHub Actions 主分支 CI、发布源验证、macOS arm64/x64、Windows x64、Linux x64 打包和正式 Release 全部成功；20 项资产已核验，两个 macOS DMG 均通过校验。
