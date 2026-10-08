@@ -121,6 +121,42 @@ test("引用链接标签按 CommonMark 折叠空白并保留标题与嵌套格�
   );
 });
 
+test("CommonMark 折叠与快捷引用链接在预览和 HTML 导出中一致", async ({
+  page,
+}) => {
+  const source =
+    "[阅读指南][] 和 [项目主页]\n\n" +
+    '[阅读指南]: <https://example.com/guide_(v2)> "阅读指南标题"\n' +
+    "[项目主页]: https://example.org/project";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "reference-link-forms.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const collapsed = page.getByRole("link", { name: "阅读指南", exact: true });
+  await expect(collapsed).toHaveAttribute(
+    "href",
+    "https://example.com/guide_(v2)",
+  );
+  await expect(collapsed).toHaveAttribute("title", /阅读指南标题/);
+  await expect(
+    page.getByRole("link", { name: "项目主页", exact: true }),
+  ).toHaveAttribute("href", "https://example.org/project");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "reference-link-forms.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.com/guide_(v2)" title="阅读指南标题">阅读指南</a>',
+  );
+  expect(html).toContain('<a href="https://example.org/project">项目主页</a>');
+});
+
 test("引用块和嵌套列表中的引用链接与导出保持一致", async ({ page }) => {
   const source =
     '> [引用块链接][guide]\n>\n> [guide]: <https://example.com/quote> "引用块标题"\n\n' +
