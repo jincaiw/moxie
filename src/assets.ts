@@ -1,7 +1,11 @@
 import type { DocumentFile } from "./data";
 import { lineBoundsAt } from "./data";
 import { parser } from "@lezer/markdown";
-import { htmlImage, markdownImageDestination, markdownImageEnd } from "./links";
+import {
+  htmlImages,
+  markdownImageDestination,
+  markdownImageEnd,
+} from "./links";
 import { parseFrontMatter } from "./front-matter";
 
 export const imageTypes = new Set([
@@ -97,14 +101,15 @@ export async function rehomeImages(
         linkReferenceDefinitions.push({ raw, from: node.from });
       } else if (node.name === "HTMLTag" || node.name === "HTMLBlock") {
         const trimmed = raw.trim();
-        const image = htmlImage(trimmed);
-        if (!image) return;
+        const images = htmlImages(trimmed);
+        if (!images.length) return;
         const leading = raw.indexOf(trimmed);
-        matches.push({
-          src: image.src,
-          start: node.from + leading + image.start,
-          end: node.from + leading + image.end,
-        });
+        for (const image of images)
+          matches.push({
+            src: image.src,
+            start: node.from + leading + image.start,
+            end: node.from + leading + image.end,
+          });
       }
     },
   });
@@ -192,14 +197,17 @@ export async function downloadRemoteImages(
         definitions.push({ raw, from: node.from });
       } else if (node.name === "HTMLTag" || node.name === "HTMLBlock") {
         const trimmed = raw.trim();
-        const image = htmlImage(trimmed);
-        if (!image || !/^https:\/\//i.test(image.src)) return;
+        const images = htmlImages(trimmed).filter((image) =>
+          /^https:\/\//i.test(image.src),
+        );
+        if (!images.length) return;
         const leading = raw.indexOf(trimmed);
-        matches.push({
-          url: image.src,
-          start: node.from + leading + image.start,
-          end: node.from + leading + image.end,
-        });
+        for (const image of images)
+          matches.push({
+            url: image.src,
+            start: node.from + leading + image.start,
+            end: node.from + leading + image.end,
+          });
       }
     },
   });
@@ -308,19 +316,19 @@ export async function manageLocalImages(
         definitions.push({ raw, from: node.from });
       } else if (node.name === "HTMLTag" || node.name === "HTMLBlock") {
         const trimmed = raw.trim();
-        const image = htmlImage(trimmed);
-        if (
-          !image ||
-          /^[a-z][a-z0-9+.-]*:/i.test(image.src) ||
-          image.src.startsWith("/")
-        )
-          return;
+        const images = htmlImages(trimmed).filter(
+          (image) =>
+            !/^[a-z][a-z0-9+.-]*:/i.test(image.src) &&
+            !image.src.startsWith("/"),
+        );
+        if (!images.length) return;
         const leading = raw.indexOf(trimmed);
-        matches.push({
-          url: image.src,
-          start: node.from + leading + image.start,
-          end: node.from + leading + image.end,
-        });
+        for (const image of images)
+          matches.push({
+            url: image.src,
+            start: node.from + leading + image.start,
+            end: node.from + leading + image.end,
+          });
       }
     },
   });

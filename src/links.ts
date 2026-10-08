@@ -172,6 +172,68 @@ export function htmlImage(raw: string) {
     end: start + rawSource.length,
   };
 }
+export function htmlImages(raw: string) {
+  const images: { src: string; alt: string; start: number; end: number }[] = [];
+  const lower = raw.toLowerCase();
+  const rawTextElements = new Set([
+    "script",
+    "style",
+    "textarea",
+    "title",
+    "xmp",
+    "iframe",
+    "noembed",
+    "noframes",
+    "plaintext",
+  ]);
+  let cursor = 0;
+  while (cursor < raw.length) {
+    if (raw.startsWith("<!--", cursor)) {
+      const end = raw.indexOf("-->", cursor + 4);
+      cursor = end < 0 ? raw.length : end + 3;
+      continue;
+    }
+    if (raw[cursor] !== "<") {
+      cursor++;
+      continue;
+    }
+    const opening = /^<([a-z][a-z\d:-]*)\b/i.exec(raw.slice(cursor));
+    if (!opening) {
+      cursor++;
+      continue;
+    }
+    const tagName = opening[1].toLowerCase();
+    const tagStart = cursor;
+    const nameEnd = cursor + opening[0].length;
+    let quote = "";
+    let end = nameEnd;
+    for (; end < raw.length; end++) {
+      const character = raw[end];
+      if (quote) {
+        if (character === quote) quote = "";
+      } else if (character === '"' || character === "'") quote = character;
+      else if (character === ">") break;
+    }
+    if (end >= raw.length) break;
+    if (tagName === "img") {
+      const image = htmlImage(raw.slice(tagStart, end + 1));
+      if (image)
+        images.push({
+          ...image,
+          start: tagStart + image.start,
+          end: tagStart + image.end,
+        });
+    }
+    cursor = end + 1;
+    if (rawTextElements.has(tagName)) {
+      if (tagName === "plaintext") break;
+      const closing = lower.indexOf(`</${tagName}`, cursor);
+      if (closing < 0) break;
+      cursor = closing;
+    }
+  }
+  return images;
+}
 export function usableLink(href: string) {
   return (
     href.length <= 8192 &&
