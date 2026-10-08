@@ -92,6 +92,7 @@ declare global {
         sourcePath: string;
         targetPath: string;
         mode: "copy" | "move";
+        avoidCollision?: boolean;
       }) => Promise<{ relativePath: string }>;
       downloadRemoteImage: (input: {
         documentPath: string;

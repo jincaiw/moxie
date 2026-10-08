@@ -371,6 +371,7 @@ export async function manageLocalImages(
         sourcePath,
         targetPath,
         mode,
+        avoidCollision: true,
       });
       operations.push({ sourcePath, targetPath: result.relativePath });
       replacements.set(

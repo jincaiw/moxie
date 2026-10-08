@@ -601,8 +601,15 @@ class FileStore {
     const type = imageType(bytes);
     return `data:${type.mime};base64,${bytes.toString("base64")}`;
   }
-  async manageImage({ documentPath, sourcePath, targetPath, mode }) {
+  async manageImage({
+    documentPath,
+    sourcePath,
+    targetPath,
+    mode,
+    avoidCollision = false,
+  }) {
     if (!["copy", "move"].includes(mode)) throw Error("图片操作无效");
+    if (typeof avoidCollision !== "boolean") throw Error("图片操作参数无效");
     for (const value of [sourcePath, targetPath])
       if (
         typeof value !== "string" ||
@@ -615,12 +622,8 @@ class FileStore {
     const rootPath = await fs.realpath(root);
     const source = path.resolve(directory, sourcePath);
     const target = path.resolve(directory, targetPath);
-    if (
-      !inside(rootPath, source) ||
-      !inside(rootPath, target) ||
-      source === target
-    )
-      throw Error("图片必须位于已打开的文件夹内，且目标路径不能与原图相同");
+    if (!inside(rootPath, source) || !inside(rootPath, target))
+      throw Error("图片必须位于已打开的文件夹内");
     const sourceStat = await fs.lstat(source);
     if (!sourceStat.isFile() || sourceStat.isSymbolicLink())
       throw Error("只能操作普通图片文件");
@@ -628,24 +631,48 @@ class FileStore {
     if (!inside(rootPath, resolved))
       throw Error("图片不能指向已打开文件夹之外");
     imageType(await fs.readFile(resolved));
+    if (source === target) {
+      if (!avoidCollision) throw Error("图片目标路径不能与原图相同");
+      return {
+        relativePath: path
+          .relative(directory, source)
+          .split(path.sep)
+          .join("/"),
+      };
+    }
     const targetDirectory = await createAuthorizedDirectory(
       rootPath,
       path.dirname(target),
     );
-    const finalTarget = path.join(targetDirectory, path.basename(target));
-    const targetExists = await fs.lstat(finalTarget).then(
-      () => true,
-      (error) => {
-        if (error.code === "ENOENT") return false;
-        throw error;
-      },
-    );
-    if (targetExists) throw Error("目标位置已存在同名文件");
-    await fs.copyFile(
-      resolved,
-      finalTarget,
-      require("node:fs").constants.COPYFILE_EXCL,
-    );
+    const constants = require("node:fs").constants;
+    const requestedName = path.basename(target);
+    const parsedName = path.parse(requestedName);
+    let finalTarget = path.join(targetDirectory, requestedName);
+    if (avoidCollision) {
+      for (let suffix = 1; ; suffix++) {
+        try {
+          await fs.copyFile(resolved, finalTarget, constants.COPYFILE_EXCL);
+          break;
+        } catch (error) {
+          if (error.code !== "EEXIST") throw error;
+          if (suffix >= 10000) throw Error("无法为图片分配唯一文件名");
+          finalTarget = path.join(
+            targetDirectory,
+            `${parsedName.name} (${suffix + 1})${parsedName.ext}`,
+          );
+        }
+      }
+    } else {
+      const targetExists = await fs.lstat(finalTarget).then(
+        () => true,
+        (error) => {
+          if (error.code === "ENOENT") return false;
+          throw error;
+        },
+      );
+      if (targetExists) throw Error("目标位置已存在同名文件");
+      await fs.copyFile(resolved, finalTarget, constants.COPYFILE_EXCL);
+    }
     if (mode === "move") await fs.rm(resolved);
     return {
       relativePath: path
