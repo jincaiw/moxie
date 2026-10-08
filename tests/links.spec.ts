@@ -195,9 +195,7 @@ test("嵌套括号目标与转义引用标签在预览和导出中正确解析",
   );
 });
 
-test("多行链接目标与标题在即时预览和 HTML 导出中保持一致", async ({
-  page,
-}) => {
+test("多行链接目标与标题在即时预览和 HTML 导出中保持一致", async ({ page }) => {
   const source =
     '[多行链接](<https://example.org/a path>\n  "多行标题")\n\n后续正文。';
   await page.goto("/");
@@ -222,6 +220,59 @@ test("多行链接目标与标题在即时预览和 HTML 导出中保持一致",
   expect(html).toContain(
     '<a href="https://example.org/a%20path" title="多行标题">多行链接</a>',
   );
+});
+
+test("Unicode 与 URI 保留字符链接在即时预览和 HTML 导出中一致编码", async ({
+  page,
+}) => {
+  const cases = [
+    [
+      "中文",
+      "https://example.org/中文",
+      "https://example.org/%E4%B8%AD%E6%96%87",
+    ],
+    [
+      "方括号",
+      String.raw`https://example.org/a\[b\]`,
+      "https://example.org/a%5Bb%5D",
+    ],
+    ["花括号", "https://example.org/a{b}", "https://example.org/a%7Bb%7D"],
+    ["插入符", "https://example.org/a^b", "https://example.org/a%5Eb"],
+    [
+      "反斜线",
+      String.raw`https://example.org/a\\b`,
+      "https://example.org/a%5Cb",
+    ],
+  ] as const;
+  const source =
+    cases
+      .map(([label, destination]) => `[${label}](${destination})`)
+      .join("\n\n") + "\n\n结束。";
+
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "encoded-link-destinations.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-line").last().click();
+
+  for (const [label, , href] of cases) {
+    await expect(
+      page.getByRole("link", { name: label, exact: true }),
+    ).toHaveAttribute("href", href);
+  }
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "encoded-link-destinations.md");
+  }, source);
+  for (const [label, , href] of cases) {
+    expect(html).toContain(`<a href="${href}">${label}</a>`);
+  }
 });
 
 test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
