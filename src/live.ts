@@ -18,7 +18,7 @@ import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
-import { htmlImages, markdownImageDestination } from "./links";
+import { htmlImageCandidates, markdownImageDestination } from "./links";
 import {
   headingLabel,
   htmlImage,
@@ -46,8 +46,17 @@ function hydrateHTMLImages(
   source = "",
   from = 0,
 ) {
-  const candidates = htmlImages(source);
-  root.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
+  const parsedCandidates = htmlImageCandidates(source);
+  const previewImages = [...root.querySelectorAll<HTMLImageElement>("img")];
+  const previewPictures = [...root.querySelectorAll("picture")];
+  previewImages.forEach((image, imageIndex) => {
+    const picture = image.closest("picture");
+    const group = picture
+      ? `picture-${previewPictures.indexOf(picture)}`
+      : `image-${imageIndex}`;
+    const candidates = parsedCandidates.filter(
+      (candidate) => candidate.group === group,
+    );
     const source = image.getAttribute("src") || "";
     image.tabIndex = 0;
     image.setAttribute("role", "img");

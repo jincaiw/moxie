@@ -172,8 +172,16 @@ export function htmlImage(raw: string) {
     end: start + rawSource.length,
   };
 }
-export function htmlImages(raw: string) {
-  const images: { src: string; alt: string; start: number; end: number }[] = [];
+export type HTMLImageCandidate = {
+  src: string;
+  alt: string;
+  start: number;
+  end: number;
+  group: string | null;
+};
+
+export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
+  const images: HTMLImageCandidate[] = [];
   const lower = raw.toLowerCase();
   const rawTextElements = new Set([
     "script",
@@ -187,6 +195,9 @@ export function htmlImages(raw: string) {
     "plaintext",
   ]);
   let cursor = 0;
+  let imageIndex = 0;
+  let pictureIndex = 0;
+  let pictureGroup: string | null = null;
   while (cursor < raw.length) {
     if (raw.startsWith("<!--", cursor)) {
       const end = raw.indexOf("-->", cursor + 4);
@@ -197,12 +208,25 @@ export function htmlImages(raw: string) {
       cursor++;
       continue;
     }
+    const closingPicture = /^<\/\s*picture\s*>/i.exec(raw.slice(cursor));
+    if (closingPicture) {
+      pictureGroup = null;
+      cursor += closingPicture[0].length;
+      continue;
+    }
     const opening = /^<([a-z][a-z\d:-]*)\b/i.exec(raw.slice(cursor));
     if (!opening) {
       cursor++;
       continue;
     }
     const tagName = opening[1].toLowerCase();
+    if (tagName === "picture") pictureGroup = `picture-${pictureIndex++}`;
+    const imageGroup =
+      tagName === "img"
+        ? (pictureGroup ?? `image-${imageIndex}`)
+        : tagName === "source"
+          ? pictureGroup
+          : null;
     const tagStart = cursor;
     const nameEnd = cursor + opening[0].length;
     let quote = "";
@@ -223,6 +247,7 @@ export function htmlImages(raw: string) {
           ...image,
           start: tagStart + image.start,
           end: tagStart + image.end,
+          group: imageGroup,
         });
     }
     if (tagName === "img" || tagName === "source") {
@@ -249,6 +274,7 @@ export function htmlImages(raw: string) {
               alt: "",
               start: tagStart + valueStart + start,
               end: tagStart + valueStart + urlEnd,
+              group: imageGroup,
             });
           }
           if (urlEnd < position) continue;
@@ -258,6 +284,7 @@ export function htmlImages(raw: string) {
         }
       }
     }
+    if (tagName === "img") imageIndex++;
     cursor = end + 1;
     if (rawTextElements.has(tagName)) {
       if (tagName === "plaintext") break;
@@ -267,6 +294,9 @@ export function htmlImages(raw: string) {
     }
   }
   return images;
+}
+export function htmlImages(raw: string) {
+  return htmlImageCandidates(raw).map(({ group: _group, ...image }) => image);
 }
 export function usableLink(href: string) {
   return (
