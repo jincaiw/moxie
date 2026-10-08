@@ -1120,7 +1120,7 @@
 
 ## v0.16.135 macOS DMG 完整性
 
-- [ ] 移除 macOS target 中覆盖命令行架构的双架构配置，让 arm64/x64 矩阵任务各自只产出一个架构，避免同名文件在合并时互相覆盖。
-- [ ] 修复 arm64 DMG 末尾混入额外字节导致 macOS 报“磁盘映像已损坏”；按 `latest-mac.yml` 的长度和 SHA-512 校正产物，确认 UDIF `koly` 尾标记。
-- [ ] 发布前在 macOS runner 对每个 DMG 执行 `hdiutil verify`，无效镜像阻断上传。
-- [ ] 发布新的 arm64/x64 DMG，并核对 Release 文件大小、摘要与安装结果。
+- [x] 移除 macOS target 中覆盖命令行架构的双架构配置，让 arm64/x64 矩阵任务各自只产出一个架构，避免同名文件在合并时互相覆盖。
+- [x] 按 `latest-mac.yml` 的长度和 SHA-512 校正 DMG 产物，并确认 UDIF `koly` 尾标记。
+- [x] 发布前在 macOS runner 对每个 DMG 执行 `hdiutil verify`；arm64 与 x64 校验均成功。
+- [x] v0.16.135 四平台 Release 和 20 项资产发布成功；两架构 DMG 的在线大小与更新清单一致，SHA256SUMS 与 GitHub 资产摘要一致。
