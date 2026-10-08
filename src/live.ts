@@ -18,7 +18,7 @@ import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
-import { markdownImageDestination } from "./links";
+import { htmlImages, markdownImageDestination } from "./links";
 import {
   headingLabel,
   htmlImage,
@@ -43,7 +43,10 @@ function hydrateHTMLImages(
   root: HTMLElement,
   view: EditorView,
   documentPath: string | undefined,
+  source = "",
+  from = 0,
 ) {
+  const candidates = htmlImages(source);
   root.querySelectorAll<HTMLImageElement>("img").forEach((image) => {
     const source = image.getAttribute("src") || "";
     image.addEventListener("load", () => view.requestMeasure());
@@ -64,6 +67,93 @@ function hydrateHTMLImages(
         view.requestMeasure();
       },
     );
+    image.addEventListener("contextmenu", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const snapshot = view.state.doc.toString();
+      if (!window.desktop?.manageImage || !documentPath) {
+        window.alert("图片管理仅在桌面版中可用。");
+        return;
+      }
+      const resolved = await Promise.all(
+        candidates.map(async (candidate) => ({
+          candidate,
+          url: await resolveImage(candidate.src, documentPath).catch(() => ""),
+        })),
+      );
+      const selected = resolved.find(
+        ({ url }) =>
+          url && new URL(url, document.baseURI).href === image.currentSrc,
+      )?.candidate;
+      if (view.state.doc.toString() !== snapshot) {
+        window.alert("操作期间文档内容已变化，请重新打开图片菜单后重试。");
+        return;
+      }
+      if (!selected) {
+        window.alert("无法定位当前显示的 HTML 图片来源，请直接编辑图片标签。");
+        return;
+      }
+      let sourcePath: string;
+      try {
+        sourcePath = decodeURIComponent(selected.src);
+      } catch {
+        window.alert("图片路径编码无效。");
+        return;
+      }
+      if (/^[a-z][a-z0-9+.-]*:/i.test(sourcePath)) {
+        window.alert("只能管理文档文件夹中的本地图片。");
+        return;
+      }
+      const modeInput = window.prompt(
+        "输入操作：copy（复制）或 move（移动/重命名）",
+        "copy",
+      );
+      if (!modeInput) return;
+      const mode = modeInput.trim().toLowerCase();
+      if (mode !== "copy" && mode !== "move") {
+        window.alert("请输入 copy 或 move。");
+        return;
+      }
+      const targetPath = window.prompt(
+        "输入目标相对路径（相对于文档所在文件夹）",
+        sourcePath,
+      );
+      if (!targetPath?.trim()) return;
+      try {
+        const result = await window.desktop.manageImage({
+          documentPath,
+          sourcePath,
+          targetPath: targetPath.trim(),
+          mode,
+        });
+        if (view.state.doc.toString() !== snapshot) {
+          if (mode === "move")
+            await window.desktop.manageImage({
+              documentPath,
+              sourcePath: result.relativePath,
+              targetPath: sourcePath,
+              mode: "move",
+            });
+          window.alert("操作期间文档内容发生变化，图片移动已撤销。请重试。");
+          return;
+        }
+        const encoded = result.relativePath
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/");
+        const start = from + selected.start;
+        view.dispatch({
+          changes: {
+            from: start,
+            to: from + selected.end,
+            insert: encoded,
+          },
+        });
+        view.focus();
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
+    });
   });
 }
 
@@ -72,16 +162,17 @@ function renderInlineHTMLPreview(
   view: EditorView,
   source: string,
   path: string | undefined,
+  from: number,
 ) {
   element.innerHTML = DOMPurify.sanitize(
     marked.parseInline(source, { async: false }) as string,
   );
-  hydrateHTMLImages(element, view, path);
+  hydrateHTMLImages(element, view, path, source, from);
   void renderInlineHTMLMarkdown(source)
     .then((html) => {
       if (!element.isConnected) return;
       element.innerHTML = DOMPurify.sanitize(html);
-      hydrateHTMLImages(element, view, path);
+      hydrateHTMLImages(element, view, path, source, from);
       view.requestMeasure();
     })
     .catch(() => {});
@@ -178,7 +269,7 @@ class RawHTMLWidget extends WidgetType {
     el.innerHTML = DOMPurify.sanitize(
       marked.parse(this.source, { async: false }) as string,
     );
-    hydrateHTMLImages(el, view, this.path);
+    hydrateHTMLImages(el, view, this.path, this.source, this.from);
     enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
@@ -206,7 +297,7 @@ class InlineHTMLWidget extends WidgetType {
     const el = document.createElement("span");
     el.className = "md-inline-html-preview";
     el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
-    renderInlineHTMLPreview(el, view, this.source, this.path);
+    renderInlineHTMLPreview(el, view, this.source, this.path, this.from);
     el.title = "点击编辑原文";
     enableHTMLSourceEditing(el, view, this.from);
     return el;
@@ -236,7 +327,7 @@ class InlineHTMLParagraphWidget extends WidgetType {
     el.className = "md-inline-html-paragraph-preview";
     el.setAttribute("aria-label", "HTML 预览，点击编辑原文");
     el.title = "点击编辑原文";
-    renderInlineHTMLPreview(el, view, this.source, this.path);
+    renderInlineHTMLPreview(el, view, this.source, this.path, this.from);
     enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
