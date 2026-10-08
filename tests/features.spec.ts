@@ -1032,7 +1032,7 @@ test("浏览器 PDF 打印采用纸张方向和页边距设置", async ({ page }
   expect(html).toContain("p{orphans:3;widows:3}");
 });
 
-test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page }) => {
+test("Chromium PDF 分页可容纳长表格、代码及图片标题混排", async ({ page }) => {
   test.setTimeout(60_000);
   await page.addInitScript(() => {
     const state = window as typeof window & { __printHtml?: string };
@@ -1056,11 +1056,16 @@ test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page })
     { length: 100 },
     (_, index) => `const row${index} = "long code pagination sample";`,
   ).join("\n");
+  const images = Array.from(
+    { length: 5 },
+    (_, index) =>
+      `## 图片章节 ${index + 1}\n\n图片前的说明文字，用于检查标题、正文和图片组合分页。\n\n![分页图片 ${index + 1}](data:image/png;base64,${png.toString("base64")} =480x420)\n\n图片后的说明文字。\n\n`,
+  ).join("");
   await page.locator(".md-input").setInputFiles({
     name: "分页校对.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      `# 分页校对\n\n| 标题 | 内容 |\n| --- | --- |\n${rows}\n\n\`\`\`ts\n${code}\n\`\`\`\n`,
+      `# 分页校对\n\n${images}\n| 标题 | 内容 |\n| --- | --- |\n${rows}\n\n\`\`\`ts\n${code}\n\`\`\`\n`,
     ),
   });
   await page.getByRole("button", { name: "导出", exact: true }).click();
@@ -1079,6 +1084,8 @@ test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page })
     );
   expect(html).toContain("thead{display:table-header-group}");
   expect(html).toContain("pre,table{break-inside:auto;page-break-inside:auto}");
+  expect(html).toContain("分页图片 5");
+  expect(html).toContain("break-inside:avoid;page-break-inside:avoid");
 
   const printPage = await page.context().newPage();
   try {
@@ -1091,7 +1098,7 @@ test("Chromium PDF 分页可容纳跨页长表格与代码块", async ({ page })
     });
     const bytes = Buffer.from(pdf.data, "base64").toString("latin1");
     expect(bytes.startsWith("%PDF-")).toBe(true);
-    expect(bytes.match(/\/Type\s*\/Page\b/g)?.length ?? 0).toBeGreaterThan(2);
+    expect(bytes.match(/\/Type\s*\/Page\b/g)?.length ?? 0).toBeGreaterThan(4);
   } finally {
     await printPage.close();
   }
