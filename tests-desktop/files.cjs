@@ -371,7 +371,7 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
     );
     assert.equal(
       await h.call("file:export", {
-        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src="data:image/avif;base64,${avif.toString("base64")}"></body></html>`,
+        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src=data:image/avif;base64,${avif.toString("base64")}></body></html>`,
         name: "report.md",
         format: "docx",
       }),

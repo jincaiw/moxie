@@ -24,7 +24,7 @@ let store,
 
 function docxCompatibleImages(html) {
   return html.replace(
-    /(\bsrc\s*=\s*)(["'])((?:data:image\/(?:avif|bmp);base64,)[A-Za-z\d+/=]+)(\2)/gi,
+    /(\bsrc\s*=\s*)(["']?)((?:data:image\/(?:avif|bmp);base64,)[A-Za-z\d+/=]+)\2/gi,
     (_match, attribute, quote, source) => {
       const image = nativeImage.createFromDataURL(source);
       const { width, height } = image.getSize();
