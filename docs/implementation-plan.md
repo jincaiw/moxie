@@ -1337,4 +1337,4 @@
 - [x] 文档属性编辑器改用 YAML Core schema，接受标准 YAML 未加引号字符串，修复普通 Front Matter 被误判为无效的问题。
 - [x] 编辑现有 `tags` 时保留原键名、数组结构及其他 YAML 属性，不再改写为 `keywords` 或删除标签字段。
 - [x] 新增浏览器回归覆盖 `tags`、普通未加引号值和自定义属性保留；定向回归、TypeScript/Vite 生产构建及桌面逻辑测试通过。
-- [ ] 完整浏览器回归、远端 CI、四平台打包及正式 Release 核验。
+- [x] 全量浏览器回归 130 项通过、3 项性能用例按配置跳过；桌面逻辑 24 项、生产构建通过。远端 Release 校验及 macOS arm64/x64、Windows x64、Linux x64 打包成功；正式 Release 发布完成，20 项应用资产与 2 项 GitHub 源码归档已核验。
