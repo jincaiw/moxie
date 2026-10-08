@@ -1,6 +1,114 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const dns = require("node:dns").promises;
+const https = require("node:https");
+
+function isPublicAddress(address, family) {
+  if (family === 4) {
+    const octets = address.split(".").map(Number);
+    const [a, b, c] = octets;
+    return !(
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 192 && b === 88 && c === 99) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113) ||
+      a >= 224
+    );
+  }
+  if (family !== 6) return false;
+  const normalized = address.toLowerCase();
+  return (
+    /^[23]/.test(normalized) &&
+    !normalized.startsWith("2001:db8:") &&
+    !normalized.startsWith("2001:0db8:")
+  );
+}
+
+async function downloadRemoteImage(urlValue) {
+  let url;
+  try {
+    url = new URL(urlValue);
+  } catch {
+    throw Error("远程图片地址无效");
+  }
+  for (let redirects = 0; redirects <= 4; redirects++) {
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".localhost") ||
+      hostname.endsWith(".internal")
+    )
+      throw Error("只允许下载公开 HTTPS 图片地址");
+    const addresses = await dns.lookup(hostname, {
+      all: true,
+      verbatim: true,
+    });
+    if (
+      !addresses.length ||
+      addresses.some(({ address, family }) => !isPublicAddress(address, family))
+    )
+      throw Error("远程图片地址解析到了非公开网络");
+    const address = addresses[0];
+    const response = await new Promise((resolve, reject) => {
+      const request = https.get(
+        url,
+        {
+          headers: { accept: "image/png,image/jpeg,image/gif,image/webp" },
+          lookup: (_hostname, _options, callback) =>
+            callback(null, address.address, address.family),
+        },
+        (res) => {
+          const chunks = [];
+          let size = 0;
+          res.on("data", (chunk) => {
+            size += chunk.length;
+            if (size > 10 * 1024 * 1024) {
+              res.destroy(Error("远程图片不能超过 10 MB"));
+              return;
+            }
+            chunks.push(chunk);
+          });
+          res.on("end", () =>
+            resolve({
+              status: res.statusCode,
+              location: res.headers.location,
+              bytes: Buffer.concat(chunks),
+            }),
+          );
+          res.on("error", reject);
+        },
+      );
+      request.setTimeout(15000, () =>
+        request.destroy(Error("远程图片下载超时")),
+      );
+      request.on("error", reject);
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      if (!response.location || redirects === 4)
+        throw Error("远程图片重定向次数超出限制");
+      url = new URL(response.location, url);
+      continue;
+    }
+    if (response.status !== 200)
+      throw Error(`远程图片下载失败（${response.status}）`);
+    imageType(response.bytes);
+    return response.bytes;
+  }
+  throw Error("无法下载远程图片");
+}
 
 function validateText(text) {
   if (
@@ -468,6 +576,12 @@ class FileStore {
         .split(path.sep)
         .join("/"),
     };
+  }
+  async downloadRemoteImage({ documentPath, url, targetDirectory }) {
+    if (typeof url !== "string" || url.length > 8192)
+      throw Error("远程图片地址无效");
+    const bytes = await downloadRemoteImage(url);
+    return this.storeImage({ documentPath, bytes, targetDirectory });
   }
   async readImage({ documentPath, relativePath }) {
     const { directory, root } = await this.resourceRoot(documentPath);

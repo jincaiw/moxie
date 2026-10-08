@@ -197,6 +197,7 @@ function setupIPC() {
   handle("image:store", (input) => store.storeImage(input));
   handle("image:read", (input) => store.readImage(input));
   handle("image:manage", (input) => store.manageImage(input));
+  handle("image:download-remote", (input) => store.downloadRemoteImage(input));
   handle("pdf:preview", async (input) => {
     validateText(input.html);
     const html = input.html.replace(
@@ -460,6 +461,7 @@ function createMenu() {
           command("任务列表", "format-task"),
           command("表格", "format-table"),
           command("插入图片…", "image"),
+          command("下载文档中的远程图片", "download-remote-images"),
         ],
       },
       {

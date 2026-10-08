@@ -1211,3 +1211,10 @@
 - [x] 桌面文件 API 校验图片来源及目标均在已授权文件夹内，拒绝符号链接和覆盖已有文件；文件操作仅支持本地 Markdown 图片。
 - [ ] Typora 图片菜单仍有批量复制/移动和远程图片下载，保留为后续高优先级事项。
 - [x] TypeScript 与 Vite 生产构建通过；Electron CommonJS 文件语法检查通过。
+
+## v0.16.147 批量下载远程图片
+
+- [x] 扫描 Markdown 行内/引用式图片及简单 HTML 图片；重复远程 URL 仅下载一次，成功后改写为本地相对路径。
+- [x] 图片保存遵循 `typora-copy-images-to`；仅请求公开 HTTPS 地址，限制重定向、支持格式和单文件大小。
+- [ ] 批量本地图片复制/移动、复杂 HTML 图片结构，以及 macOS 原生交互验收仍待完成。
+- [x] TypeScript 与 Vite 生产构建通过；Electron CommonJS 语法检查通过。

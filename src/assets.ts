@@ -142,6 +142,120 @@ export async function rehomeImages(
   }
   return text;
 }
+export async function downloadRemoteImages(
+  text: string,
+  documentPath?: string,
+) {
+  if (!window.desktop?.downloadRemoteImage || !documentPath)
+    throw new Error("请在桌面版打开并保存文档后下载远程图片。");
+  const matches: { url: string; start: number; end: number }[] = [];
+  const imageReferences = new Set<string>();
+  const definitions: { raw: string; from: number }[] = [];
+  const parserText = text.replace(/\r(?!\n)/g, "\n");
+  parser.parse(parserText).iterate({
+    enter(node) {
+      const raw = text.slice(node.from, node.to);
+      if (node.name === "Image") {
+        let sourceRaw = raw;
+        let destination = markdownImageDestination(sourceRaw);
+        if (!destination) {
+          const lineEnd = lineBoundsAt(text, node.from).to;
+          const line = text.slice(node.from, lineEnd);
+          const imageLength = markdownImageEnd(line);
+          const candidate = imageLength ? line.slice(0, imageLength) : "";
+          if (/[ \t]+=\d*x\d*\)$/.test(candidate)) {
+            sourceRaw = candidate;
+            destination = markdownImageDestination(sourceRaw);
+          }
+        }
+        if (destination) {
+          const url = sourceRaw
+            .slice(destination.start, destination.end)
+            .replace(/\\([\\()])/g, "$1");
+          if (/^https:\/\//i.test(url))
+            matches.push({
+              url,
+              start: node.from + destination.start,
+              end: node.from + destination.end,
+            });
+          return;
+        }
+        const reference = /^!\[([^\]]*)\](?:\[([^\]]*)\])?$/.exec(raw);
+        if (reference)
+          imageReferences.add(
+            (reference[2] || reference[1])
+              .trim()
+              .replace(/\s+/g, " ")
+              .toLowerCase(),
+          );
+      } else if (node.name === "LinkReference") {
+        definitions.push({ raw, from: node.from });
+      } else if (node.name === "HTMLTag" || node.name === "HTMLBlock") {
+        const trimmed = raw.trim();
+        const image = htmlImage(trimmed);
+        if (!image || !/^https:\/\//i.test(image.src)) return;
+        const leading = raw.indexOf(trimmed);
+        matches.push({
+          url: image.src,
+          start: node.from + leading + image.start,
+          end: node.from + leading + image.end,
+        });
+      }
+    },
+  });
+  for (const { raw, from } of definitions) {
+    const reference = /^\[([^\]]+)\]:[ \t]*(<[^>]+>|\S+)/.exec(raw);
+    if (!reference) continue;
+    const label = reference[1].trim().replace(/\s+/g, " ").toLowerCase();
+    if (!imageReferences.has(label)) continue;
+    const target = reference[2];
+    const url = target.startsWith("<") ? target.slice(1, -1) : target;
+    if (!/^https:\/\//i.test(url)) continue;
+    const offset = from + reference.index + reference[0].indexOf(target);
+    matches.push({
+      url,
+      start: offset + (target.startsWith("<") ? 1 : 0),
+      end: offset + target.length - (target.startsWith("<") ? 1 : 0),
+    });
+  }
+  if (matches.length > 100) throw new Error("单次最多下载 100 张远程图片。");
+  const targetValue = parseFrontMatter(text)?.metadata["typora-copy-images-to"];
+  const targetDirectory =
+    typeof targetValue === "string"
+      ? targetValue.trim() || undefined
+      : undefined;
+  const replacements = new Map<string, string>();
+  let failed = 0;
+  for (const url of new Set(matches.map((match) => match.url))) {
+    try {
+      const stored = await window.desktop.downloadRemoteImage({
+        documentPath,
+        url,
+        targetDirectory,
+      });
+      replacements.set(
+        url,
+        stored.relativePath.split("/").map(encodeURIComponent).join("/"),
+      );
+    } catch {
+      failed++;
+    }
+  }
+  const updates = matches
+    .filter((match) => replacements.has(match.url))
+    .sort((a, b) => b.start - a.start);
+  for (const match of updates)
+    text =
+      text.slice(0, match.start) +
+      replacements.get(match.url)! +
+      text.slice(match.end);
+  return {
+    text,
+    downloaded: replacements.size,
+    failed,
+    found: new Set(matches.map((match) => match.url)).size,
+  };
+}
 export function withImages(document: DocumentFile) {
   const value = parseFrontMatter(document.text)?.metadata[
     "typora-copy-images-to"

@@ -93,6 +93,11 @@ declare global {
         targetPath: string;
         mode: "copy" | "move";
       }) => Promise<{ relativePath: string }>;
+      downloadRemoteImage: (input: {
+        documentPath: string;
+        url: string;
+        targetDirectory?: string;
+      }) => Promise<{ relativePath: string }>;
       previewPDF: (input: {
         html: string;
         pdf: {

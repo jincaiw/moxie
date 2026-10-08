@@ -25,6 +25,7 @@ import {
   Clock,
   AlertCircle,
   MoreHorizontal,
+  Download,
 } from "lucide-react";
 import { Editor, type EditorHandle, type Format } from "./Editor";
 import { headings, lineBoundsAt, type DocumentFile } from "./data";
@@ -32,7 +33,7 @@ import { download } from "./bridge";
 import { useFolder } from "./useFolder";
 import { FolderBrowser } from "./FolderBrowser";
 import { exportHTML } from "./export";
-import { withImages } from "./assets";
+import { downloadRemoteImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
 import { usePreferences } from "./preferences";
 import { Settings } from "./Settings";
@@ -196,6 +197,30 @@ export default function App() {
       return;
     }
     setImageSizeDialog(size);
+  };
+  const downloadDocumentImages = async () => {
+    const originalText = current.text;
+    const documentId = current.id;
+    try {
+      const result = await downloadRemoteImages(originalText, current.path);
+      const latest = workspace.docsRef.current.find(
+        (document) => document.id === documentId,
+      );
+      if (latest?.text !== originalText) {
+        setMessage(
+          "下载期间文档内容已变化，未覆盖编辑；请重新下载并更新图片引用。",
+        );
+        return;
+      }
+      if (result.text !== originalText) workspace.edit(documentId, result.text);
+      setMessage(
+        result.found === 0
+          ? "文档中没有 HTTPS 远程图片。"
+          : `远程图片：成功下载 ${result.downloaded} 张，失败 ${result.failed} 张。`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
   };
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
@@ -613,6 +638,7 @@ export default function App() {
     if (action === "settings") setSettings(true);
     if (action === "focus") setFocus((value) => !value);
     if (action === "image") imageUpload.current?.click();
+    if (action === "download-remote-images") void downloadDocumentImages();
     if (action === "close-document") requestClose();
     if (action === "previous-document" || action === "next-document") {
       if (docs.length > 1) {
@@ -1167,6 +1193,19 @@ export default function App() {
                   {format.shortcut && <kbd>{format.shortcut}</kbd>}
                 </button>
               ))}
+              {window.desktop && (
+                <button
+                  role="menuitem"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setMenu(null);
+                    void downloadDocumentImages();
+                  }}
+                >
+                  <Download size={17} />
+                  下载文档中的远程图片
+                </button>
+              )}
             </div>
           )}
           {menu === "more" && (
