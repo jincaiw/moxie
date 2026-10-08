@@ -36,7 +36,7 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
     name: "链接.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n裸链接 https://bare.example/path 和 www.example.net/guide\n\n邮箱 writer@example.org\n\n`https://code.example/path` 和 `[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
+      "# 链接\n\n[打开网站](https://example.com) 和 [**使用说明**][manual]\n\n<https://example.org>\n\n裸链接 https://bare.example/path 和 www.example.net/guide\n\n括号网址 https://bare.example/guide_(v1), 后有标点。\n\n邮箱 writer@example.org\n\n`https://code.example/path` 和 `[代码示例](https://code.example)`\n\n[manual]: https://example.com/manual\n\n",
     ),
   });
   const website = page.getByRole("link", { name: "打开网站", exact: true });
@@ -53,6 +53,12 @@ test("链接即时排版、引用链接、修饰键打开与普通点击编辑",
       exact: true,
     }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("link", {
+      name: "https://bare.example/guide_(v1)",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", "https://bare.example/guide_(v1)");
   await expect(
     page.getByRole("link", {
       name: "www.example.net/guide",
@@ -251,9 +257,7 @@ test("无效百分号编码的标题链接显示提示且不改变文档", async
     "标题链接包含无效的百分号编码",
   );
   await page.getByRole("button", { name: "源码", exact: true }).click();
-  await expect(page.locator(".cm-content")).toContainText(
-    "[无效锚点](#bad%)",
-  );
+  await expect(page.locator(".cm-content")).toContainText("[无效锚点](#bad%)");
 });
 
 test("HTML 导出的文内链接与重复标题锚点一致", async ({ page }) => {
@@ -317,7 +321,7 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
     name: "gfm-autolinks.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "https://bare.example/path\n\nwww.example.net/guide\n\nwriter@example.org\n\n`https://code.example/path`",
+      "https://bare.example/path\n\nhttps://bare.example/guide_(v1), 后有标点。\n\nwww.example.net/guide\n\nwriter@example.org\n\n`https://code.example/path`",
     ),
   });
   await page.evaluate(() => {
@@ -329,13 +333,19 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
   const html = await fs.readFile((await (await downloading).path())!, "utf8");
   const preview = await page.context().newPage();
   await preview.setContent(html);
-  await expect(preview.locator("a")).toHaveCount(3);
+  await expect(preview.locator("a")).toHaveCount(4);
   await expect(
     preview.getByRole("link", { name: "https://bare.example/path" }),
   ).toHaveAttribute("href", "https://bare.example/path");
   await expect(
     preview.getByRole("link", { name: "www.example.net/guide" }),
   ).toHaveAttribute("href", "http://www.example.net/guide");
+  await expect(
+    preview.getByRole("link", {
+      name: "https://bare.example/guide_(v1)",
+      exact: true,
+    }),
+  ).toHaveAttribute("href", "https://bare.example/guide_(v1)");
   await expect(
     preview.getByRole("link", { name: "writer@example.org" }),
   ).toHaveAttribute("href", "mailto:writer@example.org");
