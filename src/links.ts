@@ -232,6 +232,11 @@ export type HTMLImageCandidate = {
   start: number;
   end: number;
   group: string | null;
+  tag: "img" | "source";
+  targetIndex: number;
+  attribute: "src" | "srcset";
+  valueStart?: number;
+  valueEnd?: number;
 };
 
 export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
@@ -251,6 +256,7 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
   let cursor = 0;
   let imageIndex = 0;
   let pictureIndex = 0;
+  let pictureElementIndex = 0;
   let pictureGroup: string | null = null;
   while (cursor < raw.length) {
     if (raw.startsWith("<!--", cursor)) {
@@ -274,7 +280,16 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
       continue;
     }
     const tagName = opening[1].toLowerCase();
-    if (tagName === "picture") pictureGroup = `picture-${pictureIndex++}`;
+    if (tagName === "picture") {
+      pictureGroup = `picture-${pictureIndex++}`;
+      pictureElementIndex = 0;
+    }
+    const targetIndex =
+      pictureGroup && (tagName === "img" || tagName === "source")
+        ? pictureElementIndex++
+        : tagName === "img"
+          ? imageIndex
+          : -1;
     const imageGroup =
       tagName === "img"
         ? (pictureGroup ?? `image-${imageIndex}`)
@@ -302,6 +317,9 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
           start: tagStart + image.start,
           end: tagStart + image.end,
           group: imageGroup,
+          tag: "img",
+          targetIndex,
+          attribute: "src",
         });
     }
     if (tagName === "img" || tagName === "source") {
@@ -310,6 +328,7 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
       if (sourceSet) {
         const rawValue = sourceSet[1] ?? sourceSet[2] ?? sourceSet[3];
         const valueStart = sourceSet.index + sourceSet[0].lastIndexOf(rawValue);
+        const absoluteValueStart = tagStart + valueStart;
         const decoded = document.createElement("textarea");
         let position = 0;
         while (position < rawValue.length) {
@@ -326,9 +345,14 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
             images.push({
               src: decoded.value,
               alt: "",
-              start: tagStart + valueStart + start,
-              end: tagStart + valueStart + urlEnd,
+              start: absoluteValueStart + start,
+              end: absoluteValueStart + urlEnd,
               group: imageGroup,
+              tag: tagName as "img" | "source",
+              targetIndex,
+              attribute: "srcset",
+              valueStart: absoluteValueStart,
+              valueEnd: absoluteValueStart + rawValue.length,
             });
           }
           if (urlEnd < position) continue;
@@ -350,7 +374,17 @@ export function htmlImageCandidates(raw: string): HTMLImageCandidate[] {
   return images;
 }
 export function htmlImages(raw: string) {
-  return htmlImageCandidates(raw).map(({ group: _group, ...image }) => image);
+  return htmlImageCandidates(raw).map(
+    ({
+      group: _group,
+      tag: _tag,
+      targetIndex: _targetIndex,
+      attribute: _attribute,
+      valueStart: _valueStart,
+      valueEnd: _valueEnd,
+      ...image
+    }) => image,
+  );
 }
 export function usableLink(href: string) {
   return (

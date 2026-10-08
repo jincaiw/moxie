@@ -707,6 +707,180 @@ test("图片加载失败时状态消息会通知辅助技术", async ({ page }) 
   await expect(status).toContainText("无法显示图片：示例图片");
 });
 
+test("HTML srcset 候选保留 picture 分组、实体 URL 与源码偏移", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const module = (await new Function("return import('/src/links.ts')")()) as {
+      htmlImageCandidates: (source: string) => {
+        src: string;
+        alt: string;
+        start: number;
+        end: number;
+        group: string | null;
+      }[];
+    };
+    const source = `<!-- <img src="ignored.png"> -->
+<picture>
+  <source srcset="wide.webp 2x, data:image/svg+xml,%3Csvg%3E 1x, icon.png?x=1&amp;y=2 3x">
+  <img src="fallback.png" srcset="small.png 1x, large.png 2x" alt="响应式图片">
+</picture>
+<img srcset="only-srcset.png 1x" alt="无默认源">`;
+    return module.htmlImageCandidates(source).map((candidate) => ({
+      src: candidate.src,
+      alt: candidate.alt,
+      group: candidate.group,
+      raw: source.slice(candidate.start, candidate.end),
+    }));
+  });
+  expect(result).toEqual([
+    {
+      src: "wide.webp",
+      alt: "",
+      group: "picture-0",
+      raw: "wide.webp",
+    },
+    {
+      src: "data:image/svg+xml,%3Csvg%3E",
+      alt: "",
+      group: "picture-0",
+      raw: "data:image/svg+xml,%3Csvg%3E",
+    },
+    {
+      src: "icon.png?x=1&y=2",
+      alt: "",
+      group: "picture-0",
+      raw: "icon.png?x=1&amp;y=2",
+    },
+    {
+      src: "fallback.png",
+      alt: "响应式图片",
+      group: "picture-0",
+      raw: "fallback.png",
+    },
+    {
+      src: "small.png",
+      alt: "",
+      group: "picture-0",
+      raw: "small.png",
+    },
+    {
+      src: "large.png",
+      alt: "",
+      group: "picture-0",
+      raw: "large.png",
+    },
+    {
+      src: "only-srcset.png",
+      alt: "",
+      group: "image-1",
+      raw: "only-srcset.png",
+    },
+  ]);
+});
+
+test("HTML picture 预览按浏览器媒体条件切换实际图片来源", async ({ page }) => {
+  const wide = `data:image/png;base64,${png.toString("base64")}`;
+  const fallback = `data:image/png;base64,${png.toString("base64")}`;
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "responsive-picture.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      `# 响应式图片\n\n<picture>\n  <source media="(min-width: 700px)" srcset="${wide} 1x">\n  <img src="${fallback}" alt="响应式预览">\n</picture>`,
+    ),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press(documentStart);
+  const image = page.getByRole("img", { name: /响应式预览/ });
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() =>
+      image.evaluate((element: HTMLImageElement) => element.currentSrc),
+    )
+    .toBe(wide);
+
+  await page.setViewportSize({ width: 600, height: 700 });
+  await expect
+    .poll(() =>
+      image.evaluate((element: HTMLImageElement) => element.currentSrc),
+    )
+    .toBe(fallback);
+});
+
+test("桌面 HTML picture 会把相对 srcset 路径解析为文档资源", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const dataImage = (color: string) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d")!;
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return canvas.toDataURL("image/png");
+    };
+    const images = {
+      "wide.png": dataImage("red"),
+      "fallback.png": dataImage("blue"),
+    };
+    (
+      window as unknown as { __responsiveImages: typeof images }
+    ).__responsiveImages = images;
+    window.desktop = {
+      recent: async () => [],
+      open: async () => ({
+        path: "/docs/responsive.md",
+        name: "responsive.md",
+        text: '# 响应式图片\n\n<picture>\n  <source media="(min-width: 700px)" srcset="wide.png 1x">\n  <img src="fallback.png" alt="桌面响应式图片">\n</picture>',
+        version: "v1",
+      }),
+      dirty: () => {},
+      onAction: () => () => {},
+      readImage: async ({ relativePath }: { relativePath: string }) => {
+        const image = images[relativePath as keyof typeof images];
+        if (!image) throw new Error(`未知图片：${relativePath}`);
+        return image;
+      },
+    } as unknown as NonNullable<typeof window.desktop>;
+  });
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /打开文件/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-content").press(documentStart);
+
+  const image = page.getByRole("img", { name: /桌面响应式图片/ });
+  await expect(image).toBeVisible();
+  await expect
+    .poll(() =>
+      image.evaluate((element: HTMLImageElement) => element.currentSrc),
+    )
+    .toMatch(/^data:image\/png;base64,/);
+  const wideSource = await image.evaluate(
+    (element: HTMLImageElement) => element.currentSrc,
+  );
+  const expectedWideSource = await page.evaluate(
+    () =>
+      (window as unknown as { __responsiveImages: Record<string, string> })
+        .__responsiveImages["wide.png"],
+  );
+  expect(wideSource).toBe(expectedWideSource);
+
+  await page.setViewportSize({ width: 600, height: 700 });
+  await expect
+    .poll(() =>
+      image.evaluate((element: HTMLImageElement) => element.currentSrc),
+    )
+    .not.toBe(wideSource);
+});
+
 test("设置持久化、专注模式和对话框键盘退出", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "偏好设置" }).click();

@@ -131,7 +131,9 @@ function hydrateHTMLImages(
   from = 0,
 ) {
   const parsedCandidates = htmlImageCandidates(source);
-  const previewImages = [...root.querySelectorAll<HTMLImageElement>("img")];
+  const previewImages = [
+    ...root.querySelectorAll<HTMLImageElement>("img"),
+  ].filter((image) => !image.closest(".image-preview"));
   const previewPictures = [...root.querySelectorAll("picture")];
   previewImages.forEach((image, imageIndex) => {
     const picture = image.closest("picture");
@@ -141,6 +143,68 @@ function hydrateHTMLImages(
     const candidates = parsedCandidates.filter(
       (candidate) => candidate.group === group,
     );
+    const srcsets = new Map<
+      string,
+      {
+        targetIndex: number;
+        valueStart: number;
+        valueEnd: number;
+        candidates: typeof candidates;
+      }
+    >();
+    for (const candidate of candidates) {
+      if (
+        candidate.attribute !== "srcset" ||
+        candidate.valueStart === undefined ||
+        candidate.valueEnd === undefined
+      )
+        continue;
+      const key = `${candidate.targetIndex}:${candidate.valueStart}:${candidate.valueEnd}`;
+      const attribute = srcsets.get(key) ?? {
+        targetIndex: candidate.targetIndex,
+        valueStart: candidate.valueStart,
+        valueEnd: candidate.valueEnd,
+        candidates: [],
+      };
+      attribute.candidates.push(candidate);
+      srcsets.set(key, attribute);
+    }
+    const pictureElements = picture
+      ? [
+          ...picture.querySelectorAll<HTMLSourceElement | HTMLImageElement>(
+            "source, img",
+          ),
+        ]
+      : previewImages;
+    for (const attribute of srcsets.values()) {
+      const target = pictureElements[attribute.targetIndex];
+      target?.removeAttribute("srcset");
+      if (!target) continue;
+      void Promise.all(
+        attribute.candidates.map(async (candidate) => ({
+          candidate,
+          resolved: await resolveImage(candidate.src, documentPath).catch(
+            () => null,
+          ),
+        })),
+      ).then((resolved) => {
+        if (!root.isConnected) return;
+        if (resolved.some(({ resolved: url }) => !url)) {
+          target.removeAttribute("srcset");
+          return;
+        }
+        let value = source.slice(attribute.valueStart, attribute.valueEnd);
+        for (const { candidate, resolved: url } of resolved.sort(
+          (a, b) => b.candidate.start - a.candidate.start,
+        )) {
+          const start = candidate.start - attribute.valueStart;
+          const end = candidate.end - attribute.valueStart;
+          value = value.slice(0, start) + url! + value.slice(end);
+        }
+        target.setAttribute("srcset", value);
+        view.requestMeasure();
+      });
+    }
     const source = image.getAttribute("src") || "";
     image.tabIndex = 0;
     image.setAttribute("role", "img");
