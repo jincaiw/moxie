@@ -582,7 +582,7 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   expect(html).not.toContain("<script>");
   expect(errors).toEqual([]);
   const imagePreview = page.getByRole("button", {
-    name: "编辑图片：pixel.png",
+    name: "图片预览：pixel.png；Enter 编辑路径，Shift+F10 打开图片操作菜单",
   });
   await imagePreview.evaluate((element: HTMLElement) =>
     element.focus({ focusVisible: true }),
