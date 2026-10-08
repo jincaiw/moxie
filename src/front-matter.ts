@@ -59,7 +59,7 @@ export function updateDocumentMetadata(
     return source;
   const lineEnding = existing?.[1] || content.match(/\r\n|\r|\n/)?.[0] || "\n";
   const document = parseDocument(existing?.[2] || "", {
-    schema: "json",
+    schema: "core",
     uniqueKeys: true,
   });
   if (document.errors.length)
@@ -78,16 +78,16 @@ export function updateDocumentMetadata(
     if (value) document.set(key, value);
     else document.delete(key);
   }
+  const keywordKey =
+    document.has("keywords") || !document.has("tags") ? "keywords" : "tags";
   const keywords = metadata.keywords
     .split(",")
     .map((keyword) => keyword.trim())
     .filter(Boolean);
   if (keywords.length) {
-    document.set("keywords", keywords);
-    document.delete("tags");
+    document.set(keywordKey, keywords);
   } else {
-    document.delete("keywords");
-    document.delete("tags");
+    document.delete(keywordKey);
   }
 
   const yaml = document

@@ -1295,6 +1295,47 @@ test("HTML/PDF 导出读取 YAML Front Matter 元数据并从正文移除", asyn
   expect(result.heading).toBe("正文标题");
 });
 
+test("编辑文档属性保留 tags 字段名及其他 YAML 属性", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/front-matter.ts')",
+    )()) as {
+      updateDocumentMetadata: (
+        source: string,
+        metadata: {
+          title: string;
+          author: string;
+          description: string;
+          keywords: string;
+          subject: string;
+          creator: string;
+        },
+      ) => string;
+      parseFrontMatter: (
+        source: string,
+      ) => { metadata: Record<string, unknown> } | null;
+    };
+    const source = "---\ntags: [old, label]\ncustom: keep\n---\n正文";
+    const updated = module.updateDocumentMetadata(source, {
+      title: "标题",
+      author: "",
+      description: "",
+      keywords: "new, label",
+      subject: "",
+      creator: "",
+    });
+    return { updated, metadata: module.parseFrontMatter(updated)?.metadata };
+  });
+  expect(result.metadata).toMatchObject({
+    title: "标题",
+    tags: ["new", "label"],
+    custom: "keep",
+  });
+  expect(result.metadata).not.toHaveProperty("keywords");
+  expect(result.updated).toContain("正文");
+});
+
 test("无效 YAML Front Matter 不会导致导出丢弃原始内容", async ({ page }) => {
   await page.goto("/");
   const body = await page.evaluate(async () => {

@@ -1331,3 +1331,10 @@
 
 - [x] 更新既有导出菜单键盘回归，按“文档属性”“Markdown”“HTML”名称验证焦点顺序。
 - [x] TypeScript/Vite 生产构建、完整 CI 回归、macOS arm64/x64、Windows x64、Linux x64 打包成功；v0.16.168 正式 Release 已核验 20 项资产。
+
+## v0.16.169 Front Matter YAML 兼容性与字段保留
+
+- [x] 文档属性编辑器改用 YAML Core schema，接受标准 YAML 未加引号字符串，修复普通 Front Matter 被误判为无效的问题。
+- [x] 编辑现有 `tags` 时保留原键名、数组结构及其他 YAML 属性，不再改写为 `keywords` 或删除标签字段。
+- [x] 新增浏览器回归覆盖 `tags`、普通未加引号值和自定义属性保留；定向回归、TypeScript/Vite 生产构建及桌面逻辑测试通过。
+- [ ] 完整浏览器回归、远端 CI、四平台打包及正式 Release 核验。
