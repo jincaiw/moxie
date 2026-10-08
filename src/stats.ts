@@ -45,7 +45,10 @@ export function documentStats(markdown: string): DocumentStats {
       .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
       .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
       .replace(/`+([^`]*?)`+/g, "$1")
-      .replace(/[*_~^=]+/g, "")
+      // Underscores inside words (for example `file_name`) are literal text,
+      // while underscores at word boundaries can delimit emphasis.
+      .replace(/(?<![\p{L}\p{N}])_+|_+(?![\p{L}\p{N}])/gu, "")
+      .replace(/[*~^=]+/g, "")
       .replace(/<[^>]*>/g, "")
       .replace(/\\([\\`*{}\[\]()#+.!_>~-])/g, "$1");
 

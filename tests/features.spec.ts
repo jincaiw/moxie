@@ -3114,6 +3114,17 @@ test("字数统计展示字数、字符、段落与预计阅读时间", async ({
   await expect(rows.nth(5)).toContainText("1 分钟");
 });
 
+test("字数统计保留普通标识符中的下划线并忽略强调标记", async ({ page }) => {
+  await page.goto("/");
+  const stats = await page.evaluate(async () => {
+    const module = (await new Function("return import('/src/stats.ts')")()) as {
+      documentStats: (markdown: string) => { characters: number };
+    };
+    return module.documentStats("file_name _hello_");
+  });
+  expect(stats.characters).toBe("file_name hello".length);
+});
+
 test("字数统计分批处理时仍以换行隔开词语", async ({ page }) => {
   await page.goto("/");
   const text = Array.from({ length: 257 }, () => "hello").join("\n");
