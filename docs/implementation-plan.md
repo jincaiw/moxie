@@ -1376,4 +1376,4 @@
 
 - [x] 统计行内代码时保留可见代码字符，避免将 `*`、`<` 等内容误作为 Markdown/HTML 语法剥除。
 - [x] 统计专项 4 项、完整 Playwright 141 项通过（3 项性能基准按配置跳过），桌面逻辑 24 项及 TypeScript/Vite 生产构建通过。
-- [ ] 发布 v0.16.174 并核验正式资产；持续补充 CommonMark/GFM 与统计边界语料。
+- [x] v0.16.174 发布工作流成功；正式 Release 已发布 20 项资产，含 macOS、Windows、Linux 更新清单及 SHA256 校验清单。持续补充 CommonMark/GFM 与统计边界语料。
