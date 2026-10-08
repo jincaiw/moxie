@@ -66,6 +66,27 @@ function inside(root, target) {
     !path.isAbsolute(relative)
   );
 }
+async function createAuthorizedDirectory(root, target) {
+  const relative = path.relative(root, target);
+  if (!inside(root, target)) throw Error("图片目录必须位于已打开的文件夹内");
+  if (!relative) return root;
+  let current = root;
+  for (const segment of relative.split(path.sep)) {
+    current = path.join(current, segment);
+    try {
+      await fs.mkdir(current);
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+    const stat = await fs.lstat(current);
+    if (!stat.isDirectory() || stat.isSymbolicLink())
+      throw Error("图片目录不能包含符号链接");
+    const resolved = await fs.realpath(current);
+    if (!inside(root, resolved)) throw Error("图片目录不能指向授权目录之外");
+    current = resolved;
+  }
+  return current;
+}
 
 class FileStore {
   constructor(stateFile) {
@@ -410,22 +431,43 @@ class FileStore {
       throw Error("文档位置已改变，请重新打开");
     return { directory, root };
   }
-  async storeImage({ documentPath, bytes }) {
+  async storeImage({ documentPath, bytes, targetDirectory }) {
     const buffer = Buffer.from(bytes);
     const type = imageType(buffer);
-    const { directory: root } = await this.resourceRoot(documentPath);
-    const directoryName =
-      path.basename(documentPath, path.extname(documentPath)) + ".assets";
-    const directory = path.join(root, directoryName);
-    await fs.mkdir(directory, { recursive: true });
-    if (!inside(root, await fs.realpath(directory)))
-      throw Error("图片目录不能指向文档目录之外");
+    const { directory, root } = await this.resourceRoot(documentPath);
+    const rootPath = await fs.realpath(root);
+    let outputDirectory;
+    if (targetDirectory !== undefined) {
+      if (
+        typeof targetDirectory !== "string" ||
+        !targetDirectory.trim() ||
+        targetDirectory.length > 512 ||
+        targetDirectory.includes("\0") ||
+        path.isAbsolute(targetDirectory)
+      )
+        throw Error("图片目标目录无效");
+      const target = path.resolve(directory, targetDirectory);
+      outputDirectory = await createAuthorizedDirectory(rootPath, target);
+    } else {
+      const directoryName =
+        path.basename(documentPath, path.extname(documentPath)) + ".assets";
+      outputDirectory = path.join(rootPath, directoryName);
+      await fs.mkdir(outputDirectory, { recursive: true });
+      outputDirectory = await fs.realpath(outputDirectory);
+      if (!inside(rootPath, outputDirectory))
+        throw Error("图片目录不能指向文档目录之外");
+    }
     const fileName = crypto.randomUUID() + "." + type.extension;
-    await fs.writeFile(path.join(directory, fileName), buffer, {
+    await fs.writeFile(path.join(outputDirectory, fileName), buffer, {
       flag: "wx",
       mode: 0o600,
     });
-    return { relativePath: directoryName + "/" + fileName };
+    return {
+      relativePath: path
+        .relative(directory, path.join(outputDirectory, fileName))
+        .split(path.sep)
+        .join("/"),
+    };
   }
   async readImage({ documentPath, relativePath }) {
     const { directory, root } = await this.resourceRoot(documentPath);

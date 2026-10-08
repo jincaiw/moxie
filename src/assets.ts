@@ -2,6 +2,7 @@ import type { DocumentFile } from "./data";
 import { lineBoundsAt } from "./data";
 import { parser } from "@lezer/markdown";
 import { htmlImage, markdownImageDestination, markdownImageEnd } from "./links";
+import { parseFrontMatter } from "./front-matter";
 
 export const imageTypes = new Set([
   "image/png",
@@ -12,6 +13,7 @@ export const imageTypes = new Set([
 export async function imageSource(
   file: File,
   documentPath?: string,
+  targetDirectory?: string,
 ): Promise<string> {
   if (!imageTypes.has(file.type))
     throw new Error("支持 PNG、JPEG、GIF 和 WebP 图片。");
@@ -20,6 +22,7 @@ export async function imageSource(
     const stored = await window.desktop.storeImage({
       documentPath,
       bytes: new Uint8Array(await file.arrayBuffer()),
+      targetDirectory,
     });
     return stored.relativePath.split("/").map(encodeURIComponent).join("/");
   }
@@ -62,10 +65,7 @@ export async function rehomeImages(
         let inline = markdownImageDestination(imageRaw);
         if (!inline) {
           const lineEnd = lineBoundsAt(text, node.from).to;
-          const rawLine = text.slice(
-            node.from,
-            lineEnd,
-          );
+          const rawLine = text.slice(node.from, lineEnd);
           const imageLength = markdownImageEnd(rawLine);
           const candidate = imageLength ? rawLine.slice(0, imageLength) : "";
           if (/[ \t]+=\d*x\d*\)$/.test(candidate)) {
@@ -143,9 +143,14 @@ export async function rehomeImages(
   return text;
 }
 export function withImages(document: DocumentFile) {
+  const value = parseFrontMatter(document.text)?.metadata[
+    "typora-copy-images-to"
+  ];
+  const targetDirectory =
+    typeof value === "string" ? value.trim() || undefined : undefined;
   return async (files: File[]) => {
     const sources = await Promise.all(
-      files.map((file) => imageSource(file, document.path)),
+      files.map((file) => imageSource(file, document.path, targetDirectory)),
     );
     return files
       .map(

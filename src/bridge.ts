@@ -81,6 +81,7 @@ declare global {
       storeImage: (input: {
         documentPath: string;
         bytes: Uint8Array;
+        targetDirectory?: string;
       }) => Promise<{ relativePath: string }>;
       readImage: (input: {
         documentPath: string;

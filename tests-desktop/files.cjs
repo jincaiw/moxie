@@ -504,6 +504,19 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
       }),
       "data:image/png;base64," + png.toString("base64"),
     );
+    const copied = await store.storeImage({
+      documentPath,
+      bytes: png,
+      targetDirectory: "_media/month",
+    });
+    assert.match(copied.relativePath, /^_media\/month\/[\w-]+\.png$/);
+    assert.equal(
+      await store.readImage({
+        documentPath,
+        relativePath: copied.relativePath,
+      }),
+      "data:image/png;base64," + png.toString("base64"),
+    );
     await assert.rejects(
       () =>
         store.storeImage({
@@ -524,6 +537,25 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
     await assert.rejects(
       () => store.readImage({ documentPath, relativePath: "linked.png" }),
       /已打开文件夹之外/,
+    );
+    await fs.symlink(outside, path.join(root, "linked-directory"));
+    await assert.rejects(
+      () =>
+        store.storeImage({
+          documentPath,
+          bytes: png,
+          targetDirectory: "linked-directory/nested",
+        }),
+      /符号链接/,
+    );
+    await assert.rejects(
+      () =>
+        store.storeImage({
+          documentPath,
+          bytes: png,
+          targetDirectory: "../../outside",
+        }),
+      /授权|文件夹内/,
     );
     const otherDoc = path.join(root, "other.md");
     await fs.writeFile(otherDoc, "");

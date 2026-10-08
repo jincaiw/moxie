@@ -1195,3 +1195,11 @@
 - [x] 转换仅作用于逐字输入；尊重 Markdown 围栏代码、行内/块级数学和 YAML Front Matter，不改写这些语境中的文字符号。
 - [x] 设置持久化和智能标点上下文 Playwright 定向回归通过；完整 Playwright 131 项（128 通过、3 项性能基准跳过）、桌面逻辑 24 项与生产构建通过。
 - [x] GitHub Actions 主分支 CI、发布源验证、macOS arm64/x64、Windows x64、Linux x64 打包和正式 Release 全部成功；20 项资产已核验，两个 macOS DMG 均通过校验。
+
+
+## v0.16.145 按 Front Matter 指定新插入图片目录
+
+- [x] 解析 `typora-copy-images-to` 并将新插入的图片写入该相对目录，Markdown 图片引用保持相对文档路径。
+- [x] 限定目标目录位于已授权文件夹内，逐级拒绝符号链接，并保留默认图片资源目录行为。
+- [x] 图片插入/资源迁移定向浏览器回归 2 项、完整 Playwright 132 项（129 通过、3 项性能基准跳过）、桌面逻辑 24 项及生产构建通过。
+- [ ] 完整 Playwright 回归、GitHub Actions、四平台安装包和正式 Release 待完成。

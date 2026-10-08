@@ -593,6 +593,35 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   await expect(page.locator(".cm-content")).toContainText("pixel.png");
 });
 
+test("Typora 图片 Front Matter 会将新图片保存到指定资源目录", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    let targetDirectory: string | undefined;
+    window.desktop = {
+      storeImage: async (input) => {
+        targetDirectory = input.targetDirectory;
+        return { relativePath: "_media/month/copied.png" };
+      },
+    } as unknown as NonNullable<typeof window.desktop>;
+    // @ts-expect-error runtime URL is served by the development server
+    const { withImages } = await import("/src/assets.ts");
+    const insert = withImages({
+      path: "/authorized/post.md",
+      text: "---\ntypora-copy-images-to: _media/month\n---\n正文",
+    });
+    const file = new File([new Uint8Array([1, 2, 3])], "photo.png", {
+      type: "image/png",
+    });
+    return { markdown: await insert([file]), targetDirectory };
+  });
+  expect(result).toEqual({
+    markdown: "![photo.png](_media/month/copied.png)",
+    targetDirectory: "_media/month",
+  });
+});
+
 test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async ({ page }) => {
   await page.goto("/");
   const image = `data:image/png;base64,${png.toString("base64")}`;
