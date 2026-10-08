@@ -1289,4 +1289,4 @@
 ## v0.16.160 容器内引用图片管理
 
 - [x] 单图操作根据 Markdown 语法树定位 `LinkReference` 定义，覆盖引用块和列表中的定义，按编辑器语法树偏移更新目标。
-- [x] TypeScript/Vite 生产构建通过；发布 CI 将执行完整回归和四平台打包。
+- [x] TypeScript/Vite 生产构建、发布源码验证、完整 Playwright 与四平台打包成功；v0.16.160 正式 Release 已核验 20 项资产。
