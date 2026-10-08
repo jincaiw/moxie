@@ -1632,6 +1632,13 @@ p {
   outline-offset: 3px;
   border-radius: 4px;
 }
+.html-block-preview img:focus-visible,
+.md-inline-html-preview img:focus-visible,
+.md-inline-html-paragraph-preview img:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
 .image-preview img {
   max-width: 100%;
   height: auto;
