@@ -93,6 +93,17 @@ export function detectLineEnding(text: string): LineEnding {
 export function restoreLineEnding(text: string, lineEnding: LineEnding) {
   return lineEnding === "\n" ? text : text.replace(/\n/g, lineEnding);
 }
+
+export function lineBoundsAt(text: string, position: number) {
+  const before = Math.max(
+    text.lastIndexOf("\n", position - 1),
+    text.lastIndexOf("\r", position - 1),
+  );
+  const after = [text.indexOf("\n", position), text.indexOf("\r", position)]
+    .filter((offset) => offset >= 0)
+    .reduce((nearest, offset) => Math.min(nearest, offset), text.length);
+  return { from: before + 1, to: after };
+}
 function markdownContainerContent(line: string) {
   let content = line;
   while (true) {

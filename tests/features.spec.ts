@@ -17,7 +17,12 @@ import {
   tableColumnAlignment,
 } from "../src/table";
 import { inlineMathMatches } from "../src/math";
-import { detectLineEnding, headings, restoreLineEnding } from "../src/data";
+import {
+  detectLineEnding,
+  headings,
+  lineBoundsAt,
+  restoreLineEnding,
+} from "../src/data";
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",
@@ -1949,6 +1954,15 @@ test("编辑器保存修改时保留文档原有换行格式", () => {
     );
   }
   expect(detectLineEnding("无换行的文档")).toBe("\n");
+});
+
+test("跨文档搜索按 LF、CR 和 CRLF 提取正确的结果行", () => {
+  for (const lineEnding of ["\n", "\r", "\r\n"] as const) {
+    const source = `前一行${lineEnding}结果关键词在本行${lineEnding}后一行`;
+    const position = source.indexOf("关键词");
+    const { from, to } = lineBoundsAt(source, position);
+    expect(source.slice(from, to)).toBe("结果关键词在本行");
+  }
 });
 
 test("HTML h1-h6 标题加入导航并跳过代码围栏", () => {

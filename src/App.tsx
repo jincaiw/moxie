@@ -27,7 +27,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { Editor, type EditorHandle, type Format } from "./Editor";
-import { headings, type DocumentFile } from "./data";
+import { headings, lineBoundsAt, type DocumentFile } from "./data";
 import { download } from "./bridge";
 import { useFolder } from "./useFolder";
 import { FolderBrowser } from "./FolderBrowser";
@@ -722,9 +722,7 @@ export default function App() {
       while (results.length < 100) {
         const index = lower.indexOf(normalized, from);
         if (index < 0) break;
-        const start = Math.max(0, text.lastIndexOf("\n", index - 1) + 1);
-        const lineEnd = text.indexOf("\n", index);
-        const end = lineEnd < 0 ? text.length : lineEnd;
+        const { from: start, to: end } = lineBoundsAt(text, index);
         const line = text.slice(start, end).trim();
         const excerpt =
           line.length > 180

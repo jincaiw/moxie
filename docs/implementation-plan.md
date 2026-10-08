@@ -1163,3 +1163,11 @@
 - [x] 浏览器回归验证标题文本保持完整，尖括号内容不会被解析为 HTML 元素。
 - [x] 导出定向回归 2 项和生产构建通过。
 - [x] GitHub Actions 完整 Playwright/源码校验、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
+
+
+## v0.16.141 跨文档搜索兼容 CR 换行
+
+- [x] 搜索结果摘录按 LF、CR、CRLF 识别当前行，纯 CR 文档不再把整篇内容当成一行。
+- [x] 定向回归覆盖三种换行文档中的结果行边界。
+- [x] 跨文档搜索换行回归 1 项、桌面逻辑 23 项和生产构建通过。
+- [ ] 待 GitHub Actions 完成完整验证、四平台打包与正式 Release 资产核验。
