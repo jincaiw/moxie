@@ -256,6 +256,139 @@ export async function downloadRemoteImages(
     found: new Set(matches.map((match) => match.url)).size,
   };
 }
+export async function manageLocalImages(
+  text: string,
+  documentPath: string | undefined,
+  targetDirectory: string,
+  mode: "copy" | "move",
+) {
+  if (!window.desktop?.manageImage || !documentPath)
+    throw new Error("请在桌面版打开并保存文档后管理图片。");
+  const matches: { url: string; start: number; end: number }[] = [];
+  const imageReferences = new Set<string>();
+  const definitions: { raw: string; from: number }[] = [];
+  const parserText = text.replace(/\r(?!\n)/g, "\n");
+  parser.parse(parserText).iterate({
+    enter(node) {
+      const raw = text.slice(node.from, node.to);
+      if (node.name === "Image") {
+        let sourceRaw = raw;
+        let destination = markdownImageDestination(sourceRaw);
+        if (!destination) {
+          const lineEnd = lineBoundsAt(text, node.from).to;
+          const line = text.slice(node.from, lineEnd);
+          const imageLength = markdownImageEnd(line);
+          const candidate = imageLength ? line.slice(0, imageLength) : "";
+          if (/[ \t]+=\d*x\d*\)$/.test(candidate)) {
+            sourceRaw = candidate;
+            destination = markdownImageDestination(sourceRaw);
+          }
+        }
+        if (destination) {
+          const url = sourceRaw
+            .slice(destination.start, destination.end)
+            .replace(/\\([\\()])/g, "$1");
+          if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url) && !url.startsWith("/"))
+            matches.push({
+              url,
+              start: node.from + destination.start,
+              end: node.from + destination.end,
+            });
+          return;
+        }
+        const reference = /^!\[([^\]]*)\](?:\[([^\]]*)\])?$/.exec(raw);
+        if (reference)
+          imageReferences.add(
+            (reference[2] || reference[1])
+              .trim()
+              .replace(/\s+/g, " ")
+              .toLowerCase(),
+          );
+      } else if (node.name === "LinkReference") {
+        definitions.push({ raw, from: node.from });
+      } else if (node.name === "HTMLTag" || node.name === "HTMLBlock") {
+        const trimmed = raw.trim();
+        const image = htmlImage(trimmed);
+        if (
+          !image ||
+          /^[a-z][a-z0-9+.-]*:/i.test(image.src) ||
+          image.src.startsWith("/")
+        )
+          return;
+        const leading = raw.indexOf(trimmed);
+        matches.push({
+          url: image.src,
+          start: node.from + leading + image.start,
+          end: node.from + leading + image.end,
+        });
+      }
+    },
+  });
+  for (const { raw, from } of definitions) {
+    const reference = /^\[([^\]]+)\]:[ \t]*(<[^>]+>|\S+)/.exec(raw);
+    if (!reference) continue;
+    const label = reference[1].trim().replace(/\s+/g, " ").toLowerCase();
+    if (!imageReferences.has(label)) continue;
+    const target = reference[2];
+    const url = target.startsWith("<") ? target.slice(1, -1) : target;
+    if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith("/"))
+      continue;
+    const offset = from + reference.index + reference[0].indexOf(target);
+    matches.push({
+      url,
+      start: offset + (target.startsWith("<") ? 1 : 0),
+      end: offset + target.length - (target.startsWith("<") ? 1 : 0),
+    });
+  }
+  const sources = new Map<string, string>();
+  for (const match of matches) {
+    try {
+      sources.set(match.url, decodeURIComponent(match.url));
+    } catch {
+      // Malformed percent escapes remain visible and are skipped.
+    }
+  }
+  if (sources.size > 100) throw new Error("单次最多管理 100 张本地图片。");
+  const directory = targetDirectory.trim().replace(/[\\/]+$/, "");
+  if (!directory) throw new Error("请输入图片目标文件夹。");
+  const replacements = new Map<string, string>();
+  const operations: { sourcePath: string; targetPath: string }[] = [];
+  let failed = matches.filter((match) => !sources.has(match.url)).length;
+  for (const [encoded, sourcePath] of sources) {
+    const name = sourcePath.split(/[\\/]/).at(-1)!;
+    const targetPath = `${directory}/${name}`;
+    try {
+      const result = await window.desktop.manageImage({
+        documentPath,
+        sourcePath,
+        targetPath,
+        mode,
+      });
+      operations.push({ sourcePath, targetPath: result.relativePath });
+      replacements.set(
+        encoded,
+        result.relativePath.split("/").map(encodeURIComponent).join("/"),
+      );
+    } catch {
+      failed++;
+    }
+  }
+  const updates = matches
+    .filter((match) => replacements.has(match.url))
+    .sort((a, b) => b.start - a.start);
+  for (const match of updates)
+    text =
+      text.slice(0, match.start) +
+      replacements.get(match.url)! +
+      text.slice(match.end);
+  return {
+    text,
+    managed: replacements.size,
+    failed,
+    found: sources.size,
+    operations,
+  };
+}
 export function withImages(document: DocumentFile) {
   const value = parseFrontMatter(document.text)?.metadata[
     "typora-copy-images-to"

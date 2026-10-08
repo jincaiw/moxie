@@ -462,6 +462,8 @@ function createMenu() {
           command("表格", "format-table"),
           command("插入图片…", "image"),
           command("下载文档中的远程图片", "download-remote-images"),
+          command("复制本地图片到文件夹…", "copy-local-images"),
+          command("移动本地图片到文件夹…", "move-local-images"),
         ],
       },
       {

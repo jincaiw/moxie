@@ -26,6 +26,8 @@ import {
   AlertCircle,
   MoreHorizontal,
   Download,
+  Copy,
+  FolderInput,
 } from "lucide-react";
 import { Editor, type EditorHandle, type Format } from "./Editor";
 import { headings, lineBoundsAt, type DocumentFile } from "./data";
@@ -33,7 +35,7 @@ import { download } from "./bridge";
 import { useFolder } from "./useFolder";
 import { FolderBrowser } from "./FolderBrowser";
 import { exportHTML } from "./export";
-import { downloadRemoteImages, withImages } from "./assets";
+import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
 import { usePreferences } from "./preferences";
 import { Settings } from "./Settings";
@@ -201,12 +203,17 @@ export default function App() {
   const downloadDocumentImages = async () => {
     const originalText = current.text;
     const documentId = current.id;
+    const originalPath = current.path;
     try {
-      const result = await downloadRemoteImages(originalText, current.path);
+      const result = await downloadRemoteImages(originalText, originalPath);
       const latest = workspace.docsRef.current.find(
         (document) => document.id === documentId,
       );
-      if (latest?.text !== originalText) {
+      if (
+        !latest ||
+        latest.text !== originalText ||
+        latest.path !== originalPath
+      ) {
         setMessage(
           "下载期间文档内容已变化，未覆盖编辑；请重新下载并更新图片引用。",
         );
@@ -217,6 +224,50 @@ export default function App() {
         result.found === 0
           ? "文档中没有 HTTPS 远程图片。"
           : `远程图片：成功下载 ${result.downloaded} 张，失败 ${result.failed} 张。`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const manageDocumentImages = async (mode: "copy" | "move") => {
+    const targetDirectory = window.prompt(
+      "输入目标相对文件夹（相对于文档所在文件夹）",
+      "_images",
+    );
+    if (!targetDirectory?.trim()) return;
+    const originalText = current.text;
+    const documentId = current.id;
+    const originalPath = current.path;
+    try {
+      const result = await manageLocalImages(
+        originalText,
+        originalPath,
+        targetDirectory,
+        mode,
+      );
+      const latest = workspace.docsRef.current.find(
+        (document) => document.id === documentId,
+      );
+      if (
+        !latest ||
+        latest.text !== originalText ||
+        latest.path !== originalPath
+      ) {
+        if (mode === "move" && window.desktop?.manageImage) {
+          for (const operation of [...result.operations].reverse())
+            await window.desktop.manageImage({
+              documentPath: originalPath!,
+              sourcePath: operation.targetPath,
+              targetPath: operation.sourcePath,
+              mode: "move",
+            });
+        }
+        setMessage("操作期间文档内容已变化，图片移动已撤销；请重试。");
+        return;
+      }
+      if (result.text !== originalText) workspace.edit(documentId, result.text);
+      setMessage(
+        `本地图片：成功${mode === "move" ? "移动" : "复制"} ${result.managed} 张，失败 ${result.failed} 张。`,
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
@@ -639,6 +690,8 @@ export default function App() {
     if (action === "focus") setFocus((value) => !value);
     if (action === "image") imageUpload.current?.click();
     if (action === "download-remote-images") void downloadDocumentImages();
+    if (action === "copy-local-images") void manageDocumentImages("copy");
+    if (action === "move-local-images") void manageDocumentImages("move");
     if (action === "close-document") requestClose();
     if (action === "previous-document" || action === "next-document") {
       if (docs.length > 1) {
@@ -1159,6 +1212,32 @@ export default function App() {
                   <FileText size={17} />
                   Word 文档（DOCX）
                 </button>
+              )}
+              {window.desktop && (
+                <>
+                  <button
+                    role="menuitem"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setMenu(null);
+                      void manageDocumentImages("copy");
+                    }}
+                  >
+                    <Copy size={17} />
+                    复制本地图片到文件夹…
+                  </button>
+                  <button
+                    role="menuitem"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setMenu(null);
+                      void manageDocumentImages("move");
+                    }}
+                  >
+                    <FolderInput size={17} />
+                    移动本地图片到文件夹…
+                  </button>
+                </>
               )}
               <hr />
               <button
