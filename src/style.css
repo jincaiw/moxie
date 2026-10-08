@@ -1657,6 +1657,41 @@ p {
   overflow-wrap: anywhere;
   position: relative;
 }
+.table-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -1px 4px -1px -3px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: grab;
+  opacity: 0.55;
+  vertical-align: baseline;
+  touch-action: none;
+  user-select: none;
+}
+.table-drag-handle::before {
+  content: "⠿";
+}
+.table-drag-handle:hover,
+.table-drag-handle:focus-visible {
+  color: var(--accent);
+  opacity: 1;
+}
+.table-drag-handle:active,
+.table-drag-handle.table-dragging {
+  cursor: grabbing;
+  opacity: 1;
+}
+.table-drop-target {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+  background-color: color-mix(in srgb, var(--focus) 10%, transparent);
+}
 .editable-table td:focus,
 .editable-table th:focus {
   outline: 2px solid var(--focus);

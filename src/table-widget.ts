@@ -101,8 +101,14 @@ export class TableWidget extends WidgetType {
       const input = cell.querySelector("input");
       const value = after.rows[row]?.[col]?.text || "";
       cell.style.textAlign = tableColumnAlignment(after.separator, col) || "";
-      if (!input) renderCellContent(cell, value);
-      else if (input.value !== cellValue(value)) input.value = cellValue(value);
+      if (!input) {
+        const dragHandle =
+          cell.querySelector<HTMLElement>(".table-drag-handle");
+        dragHandle?.remove();
+        renderCellContent(cell, value);
+        if (dragHandle) cell.prepend(dragHandle);
+      } else if (input.value !== cellValue(value))
+        input.value = cellValue(value);
     });
     return true;
   }
@@ -248,6 +254,117 @@ export class TableWidget extends WidgetType {
       moveColumnRight.disabled = context.col >= model.columns - 1;
     };
     updateMoveButtons();
+    const reorderRow = (from: number, to: number) => {
+      if (
+        from < 1 ||
+        from >= parseTable(context.widget.text).rows.length ||
+        from === to
+      )
+        return;
+      changeShape((rows, ctx) => {
+        rows.splice(0, rows.length, ...moveTableRow(rows, from, to));
+        ctx.row = to;
+      });
+    };
+    const reorderColumn = (from: number, to: number) => {
+      if (
+        from < 0 ||
+        from >= parseTable(context.widget.text).columns ||
+        from === to
+      )
+        return;
+      changeShape((rows, ctx, setSeparator) => {
+        const moved = moveTableColumn(
+          rows,
+          parseTable(context.widget.text).separator,
+          from,
+          to,
+        );
+        rows.splice(0, rows.length, ...moved.rows);
+        ctx.col = to;
+        setSeparator(moved.separator);
+      });
+    };
+    let pointerDrag: {
+      kind: "row" | "column";
+      from: number;
+      pointerId: number;
+      startX: number;
+      startY: number;
+      target: number | null;
+      active: boolean;
+    } | null = null;
+    const clearDropTargets = () =>
+      el
+        .querySelectorAll(".table-drop-target")
+        .forEach((target) => target.classList.remove("table-drop-target"));
+    const addDragHandle = (
+      cell: HTMLElement,
+      kind: "row" | "column",
+      index: number,
+    ) => {
+      const handle = document.createElement("span");
+      handle.className = "table-drag-handle";
+      handle.setAttribute("aria-hidden", "true");
+      handle.title = `拖动以重排${kind === "row" ? "行" : "列"}`;
+      handle.dataset[kind === "row" ? "rowDrag" : "columnDrag"] = String(index);
+      handle.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        pointerDrag = {
+          kind,
+          from: index,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          target: null,
+          active: false,
+        };
+        handle.setPointerCapture(event.pointerId);
+      });
+      handle.addEventListener("pointermove", (event) => {
+        const drag = pointerDrag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        if (
+          !drag.active &&
+          Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <
+            5
+        )
+          return;
+        drag.active = true;
+        handle.classList.add("table-dragging");
+        const selector =
+          kind === "row" ? "[data-row-drop]" : "[data-column-drop]";
+        const target = document
+          .elementFromPoint(event.clientX, event.clientY)
+          ?.closest<HTMLElement>(selector);
+        const targetIndex = Number(
+          kind === "row" ? target?.dataset.rowDrop : target?.dataset.columnDrop,
+        );
+        drag.target =
+          target && Number.isInteger(targetIndex) ? targetIndex : null;
+        clearDropTargets();
+        if (drag.target !== null) target?.classList.add("table-drop-target");
+        event.preventDefault();
+      });
+      handle.addEventListener("pointerup", (event) => {
+        const drag = pointerDrag;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        pointerDrag = null;
+        handle.classList.remove("table-dragging");
+        clearDropTargets();
+        if (!drag.active || drag.target === null) return;
+        if (kind === "row") reorderRow(drag.from, drag.target);
+        else reorderColumn(drag.from, drag.target);
+      });
+      handle.addEventListener("pointercancel", () => {
+        pointerDrag = null;
+        handle.classList.remove("table-dragging");
+        clearDropTargets();
+      });
+      cell.prepend(handle);
+      return handle;
+    };
     const alignColumn = (alignment: TableAlignment) => {
       (el.querySelector("input") as HTMLInputElement | null)?.blur();
       const ctx = contexts.get(el)!;
@@ -295,15 +412,24 @@ export class TableWidget extends WidgetType {
     const model = parseTable(this.text);
     model.rows.forEach((row, r) => {
       const tr = document.createElement("tr");
+      if (r > 0) tr.dataset.rowDrop = String(r);
       Array.from({ length: model.columns }, (_, c) => {
         const cell = document.createElement(r === 0 ? "th" : "td");
         cell.dataset.cell = `${r}:${c}`;
+        if (r === 0) cell.dataset.columnDrop = String(c);
         cell.style.textAlign = tableColumnAlignment(model.separator, c) || "";
         renderCellContent(cell, row[c]?.text || "");
+        if (r === 0) {
+          addDragHandle(cell, "column", c);
+        } else if (c === 0) {
+          addDragHandle(cell, "row", r);
+        }
         cell.tabIndex = 0;
         cell.setAttribute("aria-label", `表格第 ${r + 1} 行第 ${c + 1} 列`);
         const startEditing = () => {
           if (cell.querySelector("input")) return;
+          const dragHandle =
+            cell.querySelector<HTMLElement>(".table-drag-handle");
           context.row = r;
           context.col = c;
           selected!.set(context.widget.from, { row: r, col: c });
@@ -392,6 +518,7 @@ export class TableWidget extends WidgetType {
               cell,
               parseTable(context.widget.text).rows[r]?.[c]?.text || "",
             );
+            if (dragHandle) cell.prepend(dragHandle);
           });
           input.addEventListener("keydown", (e) => {
             if (e.key === "Enter" || e.key === "Escape") {

@@ -2214,10 +2214,20 @@ test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) 
   await page.goto("/");
   const table = page.locator(".editable-table").first();
   await expect(table).toContainText("Cmd + S");
-  const secondColumn = table.locator('[data-cell="1:1"]');
-  await secondColumn.click();
+  await table
+    .locator('[data-row-drag="1"]')
+    .dragTo(table.locator("tbody tr").nth(2));
+  await expect(table.locator("tbody tr").first()).toContainText("查找内容");
+  await table
+    .locator('[data-column-drag="0"]')
+    .dragTo(table.locator("thead th").nth(1));
+  await expect(table.locator("thead th").nth(0)).toContainText("快捷键");
+  await expect(table.locator("thead th").nth(1)).toContainText("操作");
+
+  const firstColumn = table.locator('[data-cell="1:0"]');
+  await firstColumn.click();
   await table.getByRole("button", { name: "居中对齐列" }).click();
-  await expect(table.locator('[data-cell="0:1"]')).toHaveCSS(
+  await expect(table.locator('[data-cell="0:0"]')).toHaveCSS(
     "text-align",
     "center",
   );
@@ -2225,7 +2235,7 @@ test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) 
   await table.getByRole("button", { name: "添加列" }).click();
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText(
-    "| --- | :---: | --- |",
+    "| :---: | --- | --- |",
   );
 });
 
