@@ -1955,7 +1955,10 @@ export default function App() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              if (!groupDialog.value.trim()) return;
+              if (!groupDialog.value.trim()) {
+                setMessage("分组名称不能只包含空格。");
+                return;
+              }
               saveGroupDialog();
             }}
           >
@@ -1965,8 +1968,6 @@ export default function App() {
                 autoFocus
                 required
                 maxLength={32}
-                pattern=".*\\S.*"
-                title="请输入至少一个非空格字符。"
                 value={groupDialog.value}
                 onChange={(event) =>
                   setGroupDialog((dialog) =>
