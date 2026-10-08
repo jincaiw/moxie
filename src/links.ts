@@ -215,14 +215,49 @@ export function htmlImages(raw: string) {
       else if (character === ">") break;
     }
     if (end >= raw.length) break;
+    const tag = raw.slice(tagStart, end + 1);
     if (tagName === "img") {
-      const image = htmlImage(raw.slice(tagStart, end + 1));
+      const image = htmlImage(tag);
       if (image)
         images.push({
           ...image,
           start: tagStart + image.start,
           end: tagStart + image.end,
         });
+    }
+    if (tagName === "img" || tagName === "source") {
+      const sourceSet =
+        /\bsrcset\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+      if (sourceSet) {
+        const rawValue = sourceSet[1] ?? sourceSet[2] ?? sourceSet[3];
+        const valueStart = sourceSet.index + sourceSet[0].lastIndexOf(rawValue);
+        const decoded = document.createElement("textarea");
+        let position = 0;
+        while (position < rawValue.length) {
+          while (position < rawValue.length && /[\s,]/.test(rawValue[position]))
+            position++;
+          const start = position;
+          const isData = /^data:/i.test(rawValue.slice(start));
+          while (position < rawValue.length) {
+            const character = rawValue[position];
+            if (/\s/.test(character) || (character === "," && !isData)) break;
+            position++;
+          }
+          const rawURL = rawValue.slice(start, position);
+          if (rawURL) {
+            decoded.innerHTML = rawURL;
+            images.push({
+              src: decoded.value,
+              alt: "",
+              start: tagStart + valueStart + start,
+              end: tagStart + valueStart + position,
+            });
+          }
+          while (position < rawValue.length && rawValue[position] !== ",")
+            position++;
+          if (rawValue[position] === ",") position++;
+        }
+      }
     }
     cursor = end + 1;
     if (rawTextElements.has(tagName)) {
