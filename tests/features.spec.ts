@@ -3125,6 +3125,17 @@ test("字数统计保留普通标识符中的下划线并忽略强调标记", as
   expect(stats.characters).toBe("file_name hello".length);
 });
 
+test("字数统计保留行内代码中的标点与尖括号", async ({ page }) => {
+  await page.goto("/");
+  const stats = await page.evaluate(async () => {
+    const module = (await new Function("return import('/src/stats.ts')")()) as {
+      documentStats: (markdown: string) => { characters: number };
+    };
+    return module.documentStats("`a*b` `x<y>`");
+  });
+  expect(stats.characters).toBe("a*b x<y>".length);
+});
+
 test("字数统计分批处理时仍以换行隔开词语", async ({ page }) => {
   await page.goto("/");
   const text = Array.from({ length: 257 }, () => "hello").join("\n");

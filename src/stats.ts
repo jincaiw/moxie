@@ -39,7 +39,15 @@ export function documentStats(markdown: string): DocumentStats {
     }
 
     // Remove Markdown presentation syntax while preserving the text readers see.
+    const codeSpans: string[] = [];
     const readable = trimmed
+      .replace(
+        /(`+)(.*?)\1/g,
+        (_match, _delimiter: string, content: string) => {
+          const index = codeSpans.push(content) - 1;
+          return `\uE000${index}\uE001`;
+        },
+      )
       .replace(/^ {0,3}(?:#{1,6}\s+|>\s?|[-+*]\s+|\d+[.)]\s+)/, "")
       .replace(/^\[([^\]]+)\]:\s*\S+.*$/, "$1")
       .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -50,7 +58,11 @@ export function documentStats(markdown: string): DocumentStats {
       .replace(/(?<![\p{L}\p{N}])_+|_+(?![\p{L}\p{N}])/gu, "")
       .replace(/[*~^=]+/g, "")
       .replace(/<[^>]*>/g, "")
-      .replace(/\\([\\`*{}\[\]()#+.!_>~-])/g, "$1");
+      .replace(/\\([\\`*{}\[\]()#+.!_>~-])/g, "$1")
+      .replace(
+        /\uE000(\d+)\uE001/g,
+        (_match, index: string) => codeSpans[Number(index)],
+      );
 
     readableLines.push(readable);
     if (readableLines.length >= 256) flushWords();
