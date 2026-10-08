@@ -21,6 +21,23 @@ function normalizeFootnote(label: string) {
   return label.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+function escapeHTMLText(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
   const protectedLines = new Set<number>();
   let fence: { character: string; length: number } | undefined;
@@ -501,7 +518,7 @@ export async function exportHTML(
   customThemeCSS = "",
   theme: ThemePreset = "light",
 ) {
-  const title = name.replace(/[&<>"']/g, "");
+  const title = escapeHTMLText(name);
   const palettes: Record<
     ThemePreset,
     {

@@ -1138,6 +1138,29 @@ test("HTML 导出的标题锚点和目录排除 Markdown/HTML 隐藏文字", asy
   expect(exported.target).toBe("#可见标题");
 });
 
+test("HTML 导出完整保留文档名并安全转义标题字符", async ({ page }) => {
+  await page.goto("/");
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML("正文", `Research & <Design> "稿件".md`);
+  });
+  const title = await page.evaluate((source) => {
+    const document = new DOMParser().parseFromString(source, "text/html");
+    return {
+      text: document.title,
+      childElements: document.head.querySelector("title")?.childElementCount,
+      raw: document.head.querySelector("title")?.innerHTML,
+    };
+  }, html);
+  expect(title).toEqual({
+    text: `Research & <Design> "稿件".md`,
+    childElements: 0,
+    raw: `Research &amp; &lt;Design&gt; "稿件".md`,
+  });
+});
+
 test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部加载", async ({
   page,
 }) => {
