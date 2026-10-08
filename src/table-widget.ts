@@ -12,6 +12,7 @@ import {
   parseClipboardTable,
   setTableColumnAlignment,
   tableColumnAlignment,
+  tableLineEnding,
   type TableAlignment,
 } from "./table";
 
@@ -146,7 +147,11 @@ export class TableWidget extends WidgetType {
         changes: {
           from: ctx.widget.from,
           to: ctx.widget.to,
-          insert: serializeTable(rows, model.separator),
+          insert: serializeTable(
+            rows,
+            model.separator,
+            tableLineEnding(ctx.widget.text),
+          ),
         },
         annotations: Transaction.userEvent.of("input.table"),
       });
@@ -208,6 +213,7 @@ export class TableWidget extends WidgetType {
               ),
             ),
             separator,
+            tableLineEnding(ctx.widget.text),
           ),
         },
         annotations: Transaction.userEvent.of("input.table"),
@@ -277,7 +283,11 @@ export class TableWidget extends WidgetType {
                 changes: {
                   from: widget.from,
                   to: widget.to,
-                  insert: serializeTable(rows, current.separator),
+                  insert: serializeTable(
+                    rows,
+                    current.separator,
+                    tableLineEnding(widget.text),
+                  ),
                 },
                 annotations: Transaction.userEvent.of("input.table"),
               });

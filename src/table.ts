@@ -1,6 +1,10 @@
 export type Cell = { text: string; from: number; to: number };
 export type TableModel = { rows: Cell[][]; separator: string; columns: number };
 
+export function tableLineEnding(text: string) {
+  return /\r\n|\r|\n/.exec(text)?.[0] || "\n";
+}
+
 function splitRow(line: string, offset: number): Cell[] {
   const cuts: number[] = [];
   for (let i = 0; i < line.length; i++) {
@@ -30,11 +34,12 @@ function splitRow(line: string, offset: number): Cell[] {
 }
 
 export function parseTable(text: string): TableModel {
-  const lines = text.split("\n");
+  const lineBreaks = [...text.matchAll(/\r\n|\r|\n/g)];
+  const lines = text.split(/\r\n|\r|\n/);
   let offset = 0;
-  const parsed = lines.map((line) => {
+  const parsed = lines.map((line, index) => {
     const cells = splitRow(line, offset);
-    offset += line.length + 1;
+    offset += line.length + (lineBreaks[index]?.[0].length || 0);
     return cells;
   });
   return {
@@ -81,7 +86,11 @@ export function parseClipboardTable(value: string): string[][] {
     rows.pop();
   return rows;
 }
-export function serializeTable(rows: string[][], separator?: string): string {
+export function serializeTable(
+  rows: string[][],
+  separator?: string,
+  lineEnding = "\n",
+): string {
   const columns = rows[0].length;
   const separatorLine = separator
     ? resizeSeparator(separator, columns)
@@ -94,7 +103,7 @@ export function serializeTable(rows: string[][], separator?: string): string {
     line(rows[0]),
     separatorLine || line(Array(columns).fill("---")),
     ...rows.slice(1).map(line),
-  ].join("\n");
+  ].join(lineEnding);
 }
 
 function resizeSeparator(separator: string, columns: number) {

@@ -13,7 +13,9 @@ import { validateThemeCatalog } from "../src/theme-gallery";
 import {
   parseClipboardTable,
   parseTable,
+  serializeTable,
   setTableColumnAlignment,
+  tableLineEnding,
   tableColumnAlignment,
 } from "../src/table";
 import { inlineMathMatches } from "../src/math";
@@ -2160,6 +2162,22 @@ test("表格解析保留转义和单元格原始位置", () => {
   expect(setTableColumnAlignment("| --- | ---: |", 2, 0, "center")).toBe(
     "| :---: | ---: |",
   );
+});
+
+test("表格解析与结构重写保留 LF、CR 和 CRLF 换行", () => {
+  for (const lineEnding of ["\n", "\r", "\r\n"] as const) {
+    const source = ["| A | B |", "| --- | --- |", "| x | y |"].join(lineEnding);
+    const model = parseTable(source);
+    expect(source.slice(model.rows[1][0].from, model.rows[1][0].to)).toBe("x");
+    expect(tableLineEnding(source)).toBe(lineEnding);
+    expect(
+      serializeTable(
+        model.rows.map((row) => row.map((cell) => cell.text)),
+        model.separator,
+        tableLineEnding(source),
+      ),
+    ).toBe(source);
+  }
 });
 
 test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) => {
