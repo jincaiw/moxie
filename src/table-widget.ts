@@ -13,6 +13,8 @@ import {
   setTableColumnAlignment,
   tableColumnAlignment,
   tableLineEnding,
+  moveTableColumn,
+  moveTableRow,
   type TableAlignment,
 } from "./table";
 
@@ -130,9 +132,14 @@ export class TableWidget extends WidgetType {
       btn.addEventListener("mousedown", (e) => e.preventDefault());
       btn.addEventListener("click", operation);
       tools.append(btn);
+      return btn;
     };
     const changeShape = (
-      operation: (rows: string[][], ctx: Context) => void,
+      operation: (
+        rows: string[][],
+        ctx: Context,
+        setSeparator: (separator: string) => void,
+      ) => void,
     ) => {
       (el.querySelector("input") as HTMLInputElement | null)?.blur();
       const ctx = contexts.get(el)!;
@@ -140,7 +147,8 @@ export class TableWidget extends WidgetType {
       const rows = model.rows.map((row) =>
         Array.from({ length: model.columns }, (_, c) => row[c]?.text || ""),
       );
-      operation(rows, ctx);
+      let separator = model.separator;
+      operation(rows, ctx, (value) => (separator = value));
       selected!.set(ctx.widget.from, { row: ctx.row, col: ctx.col });
       const from = ctx.widget.from;
       view.dispatch({
@@ -149,12 +157,13 @@ export class TableWidget extends WidgetType {
           to: ctx.widget.to,
           insert: serializeTable(
             rows,
-            model.separator,
+            separator,
             tableLineEnding(ctx.widget.text),
           ),
         },
         annotations: Transaction.userEvent.of("input.table"),
       });
+      updateMoveButtons();
       requestAnimationFrame(() => {
         const cell = view.dom.querySelector<HTMLElement>(
           `[data-table-start="${from}"] [data-cell="${ctx.row}:${ctx.col}"]`,
@@ -190,6 +199,55 @@ export class TableWidget extends WidgetType {
         }
       }),
     );
+    const moveRowUp = button("上移行", () =>
+      changeShape((rows, ctx) => {
+        if (ctx.row <= 1) return;
+        rows.splice(
+          0,
+          rows.length,
+          ...moveTableRow(rows, ctx.row, ctx.row - 1),
+        );
+        ctx.row--;
+      }),
+    );
+    const moveRowDown = button("下移行", () =>
+      changeShape((rows, ctx) => {
+        if (ctx.row >= rows.length - 1) return;
+        rows.splice(
+          0,
+          rows.length,
+          ...moveTableRow(rows, ctx.row, ctx.row + 1),
+        );
+        ctx.row++;
+      }),
+    );
+    const moveColumnLeft = button("左移列", () =>
+      changeShape((rows, ctx, setSeparator) => {
+        const separator = parseTable(contexts.get(el)!.widget.text).separator;
+        const moved = moveTableColumn(rows, separator, ctx.col, ctx.col - 1);
+        rows.splice(0, rows.length, ...moved.rows);
+        ctx.col--;
+        setSeparator(moved.separator);
+      }),
+    );
+    const moveColumnRight = button("右移列", () =>
+      changeShape((rows, ctx, setSeparator) => {
+        const separator = parseTable(contexts.get(el)!.widget.text).separator;
+        const moved = moveTableColumn(rows, separator, ctx.col, ctx.col + 1);
+        rows.splice(0, rows.length, ...moved.rows);
+        ctx.col++;
+        setSeparator(moved.separator);
+      }),
+    );
+    const updateMoveButtons = () => {
+      const model = parseTable(contexts.get(el)!.widget.text);
+      moveRowUp.disabled = context.row <= 1;
+      moveRowDown.disabled =
+        context.row <= 0 || context.row >= model.rows.length - 1;
+      moveColumnLeft.disabled = context.col <= 0;
+      moveColumnRight.disabled = context.col >= model.columns - 1;
+    };
+    updateMoveButtons();
     const alignColumn = (alignment: TableAlignment) => {
       (el.querySelector("input") as HTMLInputElement | null)?.blur();
       const ctx = contexts.get(el)!;
@@ -249,6 +307,7 @@ export class TableWidget extends WidgetType {
           context.row = r;
           context.col = c;
           selected!.set(context.widget.from, { row: r, col: c });
+          updateMoveButtons();
           const input = document.createElement("input");
           input.type = "text";
           input.className = "table-cell-input";

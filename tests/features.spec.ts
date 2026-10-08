@@ -14,6 +14,8 @@ import {
   parseClipboardTable,
   parseTable,
   serializeTable,
+  moveTableColumn,
+  moveTableRow,
   setTableColumnAlignment,
   tableLineEnding,
   tableColumnAlignment,
@@ -2178,6 +2180,34 @@ test("表格解析与结构重写保留 LF、CR 和 CRLF 换行", () => {
       ),
     ).toBe(source);
   }
+});
+
+test("表格移动行列时保留表头与列对齐", () => {
+  const rows = [
+    ["名称", "分数", "备注"],
+    ["Alice", "1", "a"],
+    ["Bob", "2", "b"],
+  ];
+  const movedRow = moveTableRow(rows, 2, 1);
+  expect(movedRow).toEqual([
+    ["名称", "分数", "备注"],
+    ["Bob", "2", "b"],
+    ["Alice", "1", "a"],
+  ]);
+  expect(moveTableRow(rows, 0, 1)[0]).toEqual(rows[0]);
+
+  const movedColumn = moveTableColumn(
+    movedRow,
+    "| :--- | ---: | :---: |",
+    0,
+    1,
+  );
+  expect(movedColumn.rows).toEqual([
+    ["分数", "名称", "备注"],
+    ["2", "Bob", "b"],
+    ["1", "Alice", "a"],
+  ]);
+  expect(movedColumn.separator).toBe("| ---: | :--- | :---: |");
 });
 
 test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) => {

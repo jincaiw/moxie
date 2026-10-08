@@ -159,3 +159,51 @@ export function setTableColumnAlignment(
         : `${"-".repeat(dashes)}:`;
   return `| ${cells.slice(0, columns).join(" | ")} |`;
 }
+
+export function moveTableRow(
+  rows: string[][],
+  from: number,
+  to: number,
+): string[][] {
+  const moved = rows.map((row) => [...row]);
+  if (
+    from < 1 ||
+    from >= moved.length ||
+    to < 1 ||
+    to >= moved.length ||
+    from === to
+  )
+    return moved;
+  const [row] = moved.splice(from, 1);
+  moved.splice(to, 0, row);
+  return moved;
+}
+
+export function moveTableColumn(
+  rows: string[][],
+  separator: string,
+  from: number,
+  to: number,
+): { rows: string[][]; separator: string } {
+  const columns = rows[0]?.length || 0;
+  const movedRows = rows.map((row) => [...row]);
+  if (from < 0 || from >= columns || to < 0 || to >= columns || from === to)
+    return { rows: movedRows, separator };
+  for (const row of movedRows) {
+    const [cell] = row.splice(from, 1);
+    row.splice(to, 0, cell);
+  }
+  const cells = separator
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  while (cells.length < columns) cells.push("---");
+  const [alignment] = cells.splice(from, 1);
+  cells.splice(to, 0, alignment);
+  return {
+    rows: movedRows,
+    separator: `| ${cells.slice(0, columns).join(" | ")} |`,
+  };
+}

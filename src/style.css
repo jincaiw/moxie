@@ -1644,6 +1644,10 @@ p {
 .table-tools button:last-child {
   margin-left: auto;
 }
+.table-tools button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .editable-table table {
   table-layout: fixed;
 }
