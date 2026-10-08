@@ -1117,3 +1117,10 @@
 - [x] 浏览器回归验证错误文案、`alert` 角色、assertive 优先级和完整播报属性。
 - [x] Playwright 121 项通过、3 项性能基准按配置跳过；桌面逻辑 22 项、生产构建和精选主题目录校验通过。
 - [x] GitHub Actions 主分支验证、源码校验和四平台打包成功；v0.16.134 正式发布并核验 20 项资产。
+
+## v0.16.135 macOS DMG 完整性
+
+- [ ] 移除 macOS target 中覆盖命令行架构的双架构配置，让 arm64/x64 矩阵任务各自只产出一个架构，避免同名文件在合并时互相覆盖。
+- [ ] 修复 arm64 DMG 末尾混入额外字节导致 macOS 报“磁盘映像已损坏”；按 `latest-mac.yml` 的长度和 SHA-512 校正产物，确认 UDIF `koly` 尾标记。
+- [ ] 发布前在 macOS runner 对每个 DMG 执行 `hdiutil verify`，无效镜像阻断上传。
+- [ ] 发布新的 arm64/x64 DMG，并核对 Release 文件大小、摘要与安装结果。

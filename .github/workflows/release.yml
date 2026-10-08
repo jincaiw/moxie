@@ -81,6 +81,11 @@ jobs:
       - name: Build macOS packages
         if: matrix.platform == 'macOS'
         run: npm run package:mac -- --${{ matrix.arch }}
+      - name: Normalize and verify macOS disk images
+        if: matrix.platform == 'macOS'
+        run: |
+          node scripts/normalize-mac-dmg.cjs release
+          for dmg in release/*.dmg; do hdiutil verify "$dmg"; done
       - name: Build Windows installer
         if: matrix.platform == 'Windows'
         run: npm run package:win
