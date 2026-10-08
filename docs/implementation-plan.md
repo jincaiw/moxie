@@ -1138,4 +1138,4 @@
 - [x] 解析大纲前将纯 CR 换行按等长方式映射到 LF，保持原文字符偏移不变；行首定位统一识别 LF、CR 和 CRLF。
 - [x] 回归覆盖三种换行形式下的 ATX 标题、多行 HTML 标题及原文锚点位置。
 - [x] 大纲/HTML 定向回归 21 项、完整 Playwright 122 项、桌面逻辑 22 项、长文性能基准 3 项和生产构建通过。
-- [ ] 待 GitHub Actions 完成四平台验证、打包与正式 Release 资产核验。
+- [x] GitHub Actions 源码校验、macOS arm64/x64、Windows x64、Linux x64 构建和正式 Release 全部成功；20 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
