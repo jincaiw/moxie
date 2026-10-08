@@ -1391,7 +1391,10 @@ class ImageWidget extends WidgetType {
       "image-preview " + (this.block ? "image-block" : "image-inline");
     el.tabIndex = 0;
     el.setAttribute("role", "button");
-    el.setAttribute("aria-label", `编辑图片：${this.alt || this.src}`);
+    el.setAttribute(
+      "aria-label",
+      `图片预览：${this.alt || this.src}；Enter 编辑路径，Shift+F10 打开图片操作菜单`,
+    );
     const status = document.createElement("span");
     status.className = "image-status";
     status.setAttribute("role", "status");
@@ -1430,6 +1433,16 @@ class ImageWidget extends WidgetType {
     });
     el.addEventListener("keydown", (rawEvent) => {
       const event = rawEvent as KeyboardEvent;
+      if (
+        event.key === "ContextMenu" ||
+        (event.key === "F10" && event.shiftKey)
+      ) {
+        event.preventDefault();
+        el.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
+        return;
+      }
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       focusSource();

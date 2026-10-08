@@ -155,10 +155,11 @@ export function markdownReferenceImageDestination(
   raw: string,
   document: string,
 ) {
-  const image = /^!\[(?:\\.|[^\]])*\](?:\[([^\]]*)\])?$/.exec(raw);
+  const image = /^!\[((?:\\.|[^\]])*)\](?:\[((?:\\.|[^\]])*)\])?$/.exec(
+    raw,
+  );
   if (!image) return null;
-  const alt = raw.slice(2, raw.indexOf("]")).replace(/\\(.)/g, "$1");
-  const label = unescapeMarkdownPunctuation(image[1] || alt)
+  const label = unescapeMarkdownPunctuation(image[2] || image[1])
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase();
