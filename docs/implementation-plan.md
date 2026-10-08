@@ -1319,4 +1319,4 @@
 ## v0.16.166 修复分组表单中文提交
 
 - [x] 移除错误转义的 HTML pattern 限制，保留必填与 32 字限制；纯空格名称显示可访问的动态提示。
-- [x] TypeScript/Vite 生产构建、完整回归、四平台打包与正式 Release 待验证。
+- [x] TypeScript/Vite 生产构建、完整 CI 回归、macOS arm64/x64、Windows x64、Linux x64 打包成功；v0.16.166 正式 Release 已核验 20 项资产。
