@@ -87,6 +87,12 @@ declare global {
         documentPath: string;
         relativePath: string;
       }) => Promise<string>;
+      manageImage: (input: {
+        documentPath: string;
+        sourcePath: string;
+        targetPath: string;
+        mode: "copy" | "move";
+      }) => Promise<{ relativePath: string }>;
       previewPDF: (input: {
         html: string;
         pdf: {

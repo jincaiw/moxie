@@ -18,6 +18,7 @@ import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
+import { markdownImageDestination } from "./links";
 import {
   headingLabel,
   htmlImage,
@@ -1305,6 +1306,92 @@ class ImageWidget extends WidgetType {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       focusSource();
+    });
+    el.addEventListener("contextmenu", async (event) => {
+      event.preventDefault();
+      if (!window.desktop?.manageImage || !this.path) {
+        window.alert("图片管理仅在桌面版中可用。");
+        return;
+      }
+      const line = view.state.doc.lineAt(this.from);
+      const raw = line.text.slice(this.from - line.from);
+      const end = markdownImageEnd(raw);
+      const destination = end
+        ? markdownImageDestination(raw.slice(0, end))
+        : null;
+      if (!destination) {
+        window.alert("暂不支持管理引用式或 HTML 图片，请先编辑图片路径。");
+        return;
+      }
+      const rawPath = raw
+        .slice(destination.start, destination.end)
+        .replace(/\\([\\()])/g, "$1");
+      let sourcePath: string;
+      try {
+        sourcePath = decodeURIComponent(rawPath);
+      } catch {
+        window.alert("图片路径编码无效。");
+        return;
+      }
+      if (/^[a-z][a-z0-9+.-]*:/i.test(sourcePath)) {
+        window.alert("只能管理文档文件夹中的本地图片。");
+        return;
+      }
+      const choice = window.prompt(
+        "输入操作：copy（复制）或 move（移动/重命名）",
+        "copy",
+      );
+      if (!choice) return;
+      const mode = choice.trim().toLowerCase();
+      if (mode !== "copy" && mode !== "move") {
+        window.alert("请输入 copy 或 move。");
+        return;
+      }
+      const targetPath = window.prompt(
+        "输入目标相对路径（相对于文档所在文件夹）",
+        sourcePath,
+      );
+      if (!targetPath?.trim()) return;
+      const documentSnapshot = view.state.doc.toString();
+      try {
+        const result = await window.desktop.manageImage({
+          documentPath: this.path,
+          sourcePath,
+          targetPath: targetPath.trim(),
+          mode,
+        });
+        if (view.state.doc.toString() !== documentSnapshot) {
+          if (mode === "move") {
+            await window.desktop.manageImage({
+              documentPath: this.path,
+              sourcePath: result.relativePath,
+              targetPath: sourcePath,
+              mode: "move",
+            });
+          }
+          window.alert(
+            mode === "move"
+              ? "操作期间文档内容发生变化，图片移动已撤销。请重试。"
+              : "操作期间文档内容发生变化，图片已复制但未更新文档路径。请检查新副本。",
+          );
+          return;
+        }
+        const encoded = result.relativePath
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/");
+        const start = line.from + this.from - line.from + destination.start;
+        view.dispatch({
+          changes: {
+            from: start,
+            to: start + (destination.end - destination.start),
+            insert: encoded,
+          },
+        });
+        view.focus();
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : String(error));
+      }
     });
     return el;
   }

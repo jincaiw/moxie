@@ -487,5 +487,58 @@ class FileStore {
     const type = imageType(bytes);
     return `data:${type.mime};base64,${bytes.toString("base64")}`;
   }
+  async manageImage({ documentPath, sourcePath, targetPath, mode }) {
+    if (!["copy", "move"].includes(mode)) throw Error("图片操作无效");
+    for (const value of [sourcePath, targetPath])
+      if (
+        typeof value !== "string" ||
+        !value ||
+        value.includes("\0") ||
+        path.isAbsolute(value)
+      )
+        throw Error("图片路径无效");
+    const { directory, root } = await this.resourceRoot(documentPath);
+    const rootPath = await fs.realpath(root);
+    const source = path.resolve(directory, sourcePath);
+    const target = path.resolve(directory, targetPath);
+    if (
+      !inside(rootPath, source) ||
+      !inside(rootPath, target) ||
+      source === target
+    )
+      throw Error("图片必须位于已打开的文件夹内，且目标路径不能与原图相同");
+    const sourceStat = await fs.lstat(source);
+    if (!sourceStat.isFile() || sourceStat.isSymbolicLink())
+      throw Error("只能操作普通图片文件");
+    const resolved = await fs.realpath(source);
+    if (!inside(rootPath, resolved))
+      throw Error("图片不能指向已打开文件夹之外");
+    imageType(await fs.readFile(resolved));
+    const targetDirectory = await createAuthorizedDirectory(
+      rootPath,
+      path.dirname(target),
+    );
+    const finalTarget = path.join(targetDirectory, path.basename(target));
+    const targetExists = await fs.lstat(finalTarget).then(
+      () => true,
+      (error) => {
+        if (error.code === "ENOENT") return false;
+        throw error;
+      },
+    );
+    if (targetExists) throw Error("目标位置已存在同名文件");
+    await fs.copyFile(
+      resolved,
+      finalTarget,
+      require("node:fs").constants.COPYFILE_EXCL,
+    );
+    if (mode === "move") await fs.rm(resolved);
+    return {
+      relativePath: path
+        .relative(directory, finalTarget)
+        .split(path.sep)
+        .join("/"),
+    };
+  }
 }
 module.exports = { FileStore, atomicWrite, validateText, imageType };

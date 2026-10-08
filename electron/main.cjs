@@ -196,6 +196,7 @@ function setupIPC() {
   );
   handle("image:store", (input) => store.storeImage(input));
   handle("image:read", (input) => store.readImage(input));
+  handle("image:manage", (input) => store.manageImage(input));
   handle("pdf:preview", async (input) => {
     validateText(input.html);
     const html = input.html.replace(
