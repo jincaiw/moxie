@@ -1186,4 +1186,4 @@
 - [x] HTML/PDF/DOCX 导出读取有效 YAML Front Matter，将标题及作者、描述、关键词、主题、创建者写入 HTML 元数据，并从导出正文移除元数据块。
 - [x] 解析失败时保留原始文档内容；限制元数据块大小并对输出值进行 HTML 转义。
 - [x] 定向 Playwright 3 项、完整 Playwright 130 项（127 通过、3 项性能基准跳过）、桌面逻辑 24 项和生产构建通过。
-- [ ] GitHub Actions 源码验证、四平台打包及正式 Release 待完成。
+- [x] GitHub Actions 源码验证、主分支 CI、四平台打包和正式 Release 成功；20 项资产已核验，macOS 两架构 DMG 均通过校验。
