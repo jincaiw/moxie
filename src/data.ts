@@ -488,6 +488,16 @@ export function headings(text: string) {
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
   let plaintextStart = Number.POSITIVE_INFINITY;
   const hasCarriageReturns = text.includes("\r");
+  // Lezer's Markdown parser splits on LF. Convert lone CRs one-for-one so
+  // parser offsets still refer to the original document.
+  const parserSource = hasCarriageReturns
+    ? text.replace(/\r(?!\n)/g, "\n")
+    : text;
+  const sourceLineStart = (from: number) =>
+    Math.max(
+      text.lastIndexOf("\n", from - 1),
+      hasCarriageReturns ? text.lastIndexOf("\r", from - 1) : -1,
+    ) + 1;
   const templateRanges: { from: number; to: number }[] = [];
   const hiddenRanges: { from: number; to: number }[] = [];
   const inTemplate = (from: number) =>
@@ -496,7 +506,7 @@ export function headings(text: string) {
     hiddenRanges.some((range) => from >= range.from && from < range.to);
   markdownParser
     .configure(GFM)
-    .parse(text)
+    .parse(parserSource)
     .iterate({
       enter(node) {
         if (node.name === "HTMLBlock") {
@@ -517,11 +527,15 @@ export function headings(text: string) {
         const atx = /^ATXHeading([1-6])$/.exec(node.name);
         const setext = /^SetextHeading([12])$/.exec(node.name);
         if (!atx && !setext) return;
-        const lineStart = text.lastIndexOf("\n", node.from - 1) + 1;
+        const lineStart = parserSource.lastIndexOf("\n", node.from - 1) + 1;
         if (lineStart >= plaintextStart) return;
-        if (markdownHeadingUsesListCodeTab(text.slice(lineStart, node.from)))
+        if (
+          markdownHeadingUsesListCodeTab(
+            parserSource.slice(lineStart, node.from),
+          )
+        )
           return;
-        const raw = text.slice(node.from, node.to);
+        const raw = parserSource.slice(node.from, node.to);
         const firstLine = raw.split(/\r?\n/, 1)[0];
         const title = atx
           ? firstLine
@@ -577,7 +591,7 @@ export function headings(text: string) {
       text.charCodeAt(line.from - 2) === 13
         ? line.from - 2
         : Math.max(0, line.from - 1);
-    const previousLineStart = text.lastIndexOf("\n", previousLineEnd - 1) + 1;
+    const previousLineStart = sourceLineStart(previousLineEnd);
     const blankBefore =
       line.from === 0 ||
       !markdownContainerContent(
@@ -667,7 +681,7 @@ export function headings(text: string) {
       JSON.stringify([
         heading.level,
         heading.title,
-        text.lastIndexOf("\n", heading.from - 1) + 1,
+        sourceLineStart(heading.from),
       ]),
     ),
   );

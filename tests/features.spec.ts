@@ -1892,15 +1892,27 @@ test("CommonMark 大纲识别引用块和列表中的 ATX/Setext 标题并跳过
   ).toEqual([[2, "段落标题第一行 段落标题第二行"]]);
 });
 
-test("大纲扫描在 LF 与 CRLF 文档中保持标题定位一致", () => {
-  for (const newline of ["\n", "\r\n"]) {
-    const source = [`# 第一章`, ``, `## 第二章`, ``, `<h3>HTML 标题</h3>`].join(
-      newline,
-    );
-    expect(headings(source).map(({ level, title }) => [level, title])).toEqual([
+test("大纲扫描在 LF、CR 和 CRLF 文档中保持标题定位一致", () => {
+  for (const newline of ["\n", "\r", "\r\n"]) {
+    const source = [
+      `# 第一章`,
+      ``,
+      `## 第二章`,
+      ``,
+      `<h3>`,
+      `HTML 标题`,
+      `</h3>`,
+    ].join(newline);
+    const result = headings(source);
+    expect(result.map(({ level, title }) => [level, title])).toEqual([
       [1, "第一章"],
       [2, "第二章"],
       [3, "HTML 标题"],
+    ]);
+    expect(result.map(({ from }) => from)).toEqual([
+      0,
+      source.indexOf("## 第二章"),
+      source.indexOf("<h3>"),
     ]);
   }
 });
