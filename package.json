@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.166",
+  "version": "0.16.167",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -41,7 +41,8 @@
     "marked": "^15.0.12",
     "mermaid": "^11.17.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",

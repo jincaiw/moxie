@@ -43,6 +43,18 @@ import { Dialog } from "./Dialog";
 import { headingLabel, headingTarget, usableLink } from "./links";
 import { documentStats } from "./stats";
 import type { UpdateStatus } from "./bridge";
+import {
+  parseFrontMatter,
+  updateDocumentMetadata,
+  type EditableDocumentMetadata,
+} from "./front-matter";
+
+function metadataField(value: unknown) {
+  if (Array.isArray(value)) return value.map(String).join(", ");
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
+}
 
 function Tool({
   label,
@@ -148,6 +160,13 @@ export default function App() {
     value: string;
     originalGroup?: string;
   } | null>(null);
+  const [metadataDialog, setMetadataDialog] = useState<
+    | ({
+        documentId: string;
+        originalText: string;
+      } & EditableDocumentMetadata)
+    | null
+  >(null);
   const folderWorkspace = useFolder();
   const [tabGroup, setTabGroup] = useState("全部");
   const tabGroups = useMemo(
@@ -301,6 +320,38 @@ export default function App() {
       if (tabGroup === groupDialog.originalGroup) setTabGroup(normalized);
     }
     setGroupDialog(null);
+  };
+  const openMetadataDialog = () => {
+    const metadata = parseFrontMatter(current.text)?.metadata;
+    setMetadataDialog({
+      documentId: current.id,
+      originalText: current.text,
+      title: metadataField(metadata?.title),
+      author: metadataField(metadata?.author),
+      description: metadataField(metadata?.description),
+      keywords: metadataField(metadata?.keywords ?? metadata?.tags),
+      subject: metadataField(metadata?.subject),
+      creator: metadataField(metadata?.creator),
+    });
+  };
+  const saveMetadataDialog = () => {
+    if (!metadataDialog) return;
+    const latest = workspace.docsRef.current.find(
+      (document) => document.id === metadataDialog.documentId,
+    );
+    if (!latest || latest.text !== metadataDialog.originalText) {
+      setMessage("文档在编辑属性期间已变化；请重新打开文档属性后重试。");
+      setMetadataDialog(null);
+      return;
+    }
+    try {
+      const { documentId, originalText, ...metadata } = metadataDialog;
+      const updated = updateDocumentMetadata(originalText, metadata);
+      if (updated !== originalText) workspace.edit(documentId, updated);
+      setMetadataDialog(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
   };
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
@@ -1212,6 +1263,17 @@ export default function App() {
           </div>
           {menu === "export" && (
             <div className="export-menu" role="menu" ref={menuElement}>
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null);
+                  openMetadataDialog();
+                }}
+              >
+                <FileText size={17} />
+                文档属性…
+              </button>
+              <hr />
               <button role="menuitem" onClick={() => void performExport("md")}>
                 <FileText size={17} />
                 Markdown 文件
@@ -1888,6 +1950,110 @@ export default function App() {
               </button>
               <button className="primary-button" type="submit">
                 应用
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+      {metadataDialog && (
+        <Dialog title="文档属性" onClose={() => setMetadataDialog(null)}>
+          <header>
+            <h2>文档属性</h2>
+            <Tool label="关闭文档属性" onClick={() => setMetadataDialog(null)}>
+              <X size={18} />
+            </Tool>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveMetadataDialog();
+            }}
+          >
+            <label>
+              标题
+              <input
+                autoFocus
+                value={metadataDialog.title}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value ? { ...value, title: event.target.value } : value,
+                  )
+                }
+                aria-label="文档标题"
+                placeholder={current.name}
+              />
+            </label>
+            <label>
+              作者
+              <input
+                value={metadataDialog.author}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value ? { ...value, author: event.target.value } : value,
+                  )
+                }
+                aria-label="文档作者"
+              />
+            </label>
+            <label>
+              描述
+              <textarea
+                value={metadataDialog.description}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value
+                      ? { ...value, description: event.target.value }
+                      : value,
+                  )
+                }
+                aria-label="文档描述"
+                rows={3}
+              />
+            </label>
+            <label>
+              关键词
+              <input
+                value={metadataDialog.keywords}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value ? { ...value, keywords: event.target.value } : value,
+                  )
+                }
+                aria-label="文档关键词"
+                placeholder="多个关键词用逗号分隔"
+              />
+            </label>
+            <label>
+              主题
+              <input
+                value={metadataDialog.subject}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value ? { ...value, subject: event.target.value } : value,
+                  )
+                }
+                aria-label="文档主题"
+              />
+            </label>
+            <label>
+              创建者
+              <input
+                value={metadataDialog.creator}
+                onChange={(event) =>
+                  setMetadataDialog((value) =>
+                    value ? { ...value, creator: event.target.value } : value,
+                  )
+                }
+                aria-label="文档创建者"
+              />
+            </label>
+            <p>属性会写入文档顶部的 YAML；其他字段、注释和正文会保留。</p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setMetadataDialog(null)}>
+                取消
+              </button>
+              <button className="primary-button" type="submit">
+                保存属性
               </button>
             </div>
           </form>

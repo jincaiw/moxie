@@ -1320,3 +1320,9 @@
 
 - [x] 移除错误转义的 HTML pattern 限制，保留必填与 32 字限制；纯空格名称显示可访问的动态提示。
 - [x] TypeScript/Vite 生产构建、完整 CI 回归、macOS arm64/x64、Windows x64、Linux x64 打包成功；v0.16.166 正式 Release 已核验 20 项资产。
+
+## v0.16.167 文档属性编辑器
+
+- [x] 导出菜单增加“文档属性”表单，编辑标题、作者、描述、关键词、主题和创建者并写回 YAML Front Matter。
+- [x] 使用保留注释的 YAML 文档更新器，仅更新对应字段；保留其他键、BOM、原有换行格式和正文内容，拒绝覆盖格式错误的 Front Matter。
+- [x] TypeScript/Vite 生产构建通过；完整回归、四平台打包与正式 Release 待验证。

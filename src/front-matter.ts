@@ -1,4 +1,5 @@
 import { JSON_SCHEMA, load as loadYAML } from "js-yaml";
+import { parseDocument, YAMLMap } from "yaml";
 
 export type FrontMatter = {
   body: string;
@@ -31,4 +32,71 @@ export function parseFrontMatter(source: string): FrontMatter | null {
   } catch {
     return null;
   }
+}
+
+export type EditableDocumentMetadata = {
+  title: string;
+  author: string;
+  description: string;
+  keywords: string;
+  subject: string;
+  creator: string;
+};
+
+export function updateDocumentMetadata(
+  source: string,
+  metadata: EditableDocumentMetadata,
+) {
+  const hasBOM = source.startsWith("\uFEFF");
+  const content = hasBOM ? source.slice(1) : source;
+  const existing = content.match(
+    /^---(\r\n|\n|\r)([\s\S]*?)(\r\n|\n|\r)(---|\.\.\.)(?:(\r\n|\n|\r)|$)/,
+  );
+  if (
+    !existing &&
+    Object.values(metadata).every((value) => value.trim().length === 0)
+  )
+    return source;
+  const lineEnding = existing?.[1] || content.match(/\r\n|\r|\n/)?.[0] || "\n";
+  const document = parseDocument(existing?.[2] || "", {
+    schema: "json",
+    uniqueKeys: true,
+  });
+  if (document.errors.length)
+    throw new Error("YAML 文档属性格式无效，请先修复顶部 Front Matter。");
+  if (document.contents && !(document.contents instanceof YAMLMap))
+    throw new Error("文档属性必须使用 YAML 键值对象格式。");
+
+  for (const key of [
+    "title",
+    "author",
+    "description",
+    "subject",
+    "creator",
+  ] as const) {
+    const value = metadata[key].trim();
+    if (value) document.set(key, value);
+    else document.delete(key);
+  }
+  const keywords = metadata.keywords
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+  if (keywords.length) {
+    document.set("keywords", keywords);
+    document.delete("tags");
+  } else {
+    document.delete("keywords");
+    document.delete("tags");
+  }
+
+  const yaml = document
+    .toString()
+    .replace(/\n/g, lineEnding)
+    .replace(/(?:\r\n|\r|\n)+$/, "");
+  const body = existing ? content.slice(existing[0].length) : content;
+  const prefix = existing
+    ? `---${lineEnding}${yaml}${lineEnding}---${existing[5] || ""}`
+    : `---${lineEnding}${yaml}${lineEnding}---${lineEnding}`;
+  return `${hasBOM ? "\uFEFF" : ""}${prefix}${body}`;
 }

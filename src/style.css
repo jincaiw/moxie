@@ -1049,6 +1049,17 @@ p {
 .settings input {
   width: 100%;
 }
+.settings textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--code);
+  font: inherit;
+  resize: vertical;
+}
 .settings select {
   padding: 7px 12px;
   background: var(--code);
