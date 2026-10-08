@@ -11,6 +11,7 @@ import { renderMermaid } from "./mermaid";
 import { inlineMathMatches, renderMath } from "./math";
 import { themeCSSError } from "./theme-css";
 import type { ThemePreset } from "./preferences";
+import { JSON_SCHEMA, load as loadYAML } from "js-yaml";
 type FootnoteState = {
   definitions: Map<string, string>;
   numbers: Map<string, number>;
@@ -36,6 +37,45 @@ function escapeHTMLText(value: string) {
         return "&#39;";
     }
   });
+}
+
+function extractFrontMatter(source: string) {
+  const normalized = source.replace(/\r\n?/g, "\n").replace(/^\uFEFF/, "");
+  const lines = normalized.split("\n");
+  if (lines[0] !== "---") return null;
+  const closing = lines.findIndex(
+    (line, index) => index > 0 && (line === "---" || line === "..."),
+  );
+  if (closing < 0) return null;
+  const rawMetadata = lines.slice(1, closing).join("\n");
+  if (new TextEncoder().encode(rawMetadata).byteLength > 64 * 1024) return null;
+  try {
+    const value = loadYAML(rawMetadata, { schema: JSON_SCHEMA });
+    if (
+      !value ||
+      typeof value !== "object" ||
+      Array.isArray(value) ||
+      Object.getPrototypeOf(value) !== Object.prototype
+    )
+      return null;
+    return {
+      body: lines.slice(closing + 1).join("\n"),
+      metadata: value as Record<string, unknown>,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function metadataText(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number")
+    return String(value).trim() || undefined;
+  if (Array.isArray(value)) {
+    const values = value
+      .filter((entry) => typeof entry === "string" || typeof entry === "number")
+      .map(String);
+    return values.length ? values.join(", ") : undefined;
+  }
 }
 
 function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
@@ -518,7 +558,22 @@ export async function exportHTML(
   customThemeCSS = "",
   theme: ThemePreset = "light",
 ) {
-  const title = escapeHTMLText(name);
+  const frontMatter = extractFrontMatter(text);
+  const metadata = frontMatter?.metadata;
+  const title = escapeHTMLText(metadataText(metadata?.title) || name);
+  const exportMetadata = [
+    ["author", metadataText(metadata?.author)],
+    ["description", metadataText(metadata?.description)],
+    ["keywords", metadataText(metadata?.keywords ?? metadata?.tags)],
+    ["subject", metadataText(metadata?.subject)],
+    ["creator", metadataText(metadata?.creator)],
+  ]
+    .filter((entry): entry is [string, string] => Boolean(entry[1]))
+    .map(
+      ([key, value]) =>
+        `<meta name="${escapeHTMLText(key)}" content="${escapeHTMLText(value)}">`,
+    )
+    .join("");
   const palettes: Record<
     ThemePreset,
     {
@@ -575,7 +630,7 @@ export async function exportHTML(
   const safeThemeCSS = themeCSSError(customThemeCSS)
     ? ""
     : customThemeCSS.replace(/</g, "\\3C ");
-  const extracted = extractFootnotes(text);
+  const extracted = extractFootnotes(frontMatter?.body ?? text);
   const footnotes: FootnoteState = {
     definitions: extracted.definitions,
     numbers: new Map(),
@@ -663,5 +718,5 @@ math[display=block]{margin:24px 0}a{color:var(--accent)}
   const customStyle = safeThemeCSS
     ? `<style id="moxie-export-theme">${safeThemeCSS}</style>`
     : "";
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${title}</title><style>${styles}</style>${customStyle}</head><body>${content.innerHTML}</body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${title}</title>${exportMetadata}<style>${styles}</style>${customStyle}</head><body>${content.innerHTML}</body></html>`;
 }

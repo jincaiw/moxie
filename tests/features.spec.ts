@@ -1166,6 +1166,61 @@ test("HTML 导出完整保留文档名并安全转义标题字符", async ({ pag
   });
 });
 
+test("HTML/PDF 导出读取 YAML Front Matter 元数据并从正文移除", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const html = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(
+      '\uFEFF---\r\ntitle: "研究 & <设计>"\r\nauthor: 李 <作者>\r\ndescription: 导出描述\r\nkeywords: [Markdown, Typora]\r\nsubject: 文档主题\r\n---\r\n\r\n# 正文标题\r\n\r\n正文内容',
+      "文件名.md",
+    );
+  });
+  const result = await page.evaluate((source) => {
+    const document = new DOMParser().parseFromString(source, "text/html");
+    return {
+      title: document.title,
+      metadata: Object.fromEntries(
+        Array.from(document.head.querySelectorAll("meta[name]"), (meta) => [
+          meta.getAttribute("name"),
+          meta.getAttribute("content"),
+        ]),
+      ),
+      body: document.body.textContent,
+      heading: document.querySelector("h1")?.textContent,
+    };
+  }, html);
+  expect(result.title).toBe("研究 & <设计>");
+  expect(result.metadata).toMatchObject({
+    author: "李 <作者>",
+    description: "导出描述",
+    keywords: "Markdown, Typora",
+    subject: "文档主题",
+  });
+  expect(result.body).toContain("正文内容");
+  expect(result.body).not.toContain("导出描述");
+  expect(result.heading).toBe("正文标题");
+});
+
+test("无效 YAML Front Matter 不会导致导出丢弃原始内容", async ({ page }) => {
+  await page.goto("/");
+  const body = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    const html = await module.exportHTML(
+      "---\ntitle: [未闭合\n---\n\n正文仍需导出",
+      "无效元数据.md",
+    );
+    return new DOMParser().parseFromString(html, "text/html").body.textContent;
+  });
+  expect(body).toContain("title: [未闭合");
+  expect(body).toContain("正文仍需导出");
+});
+
 test("自定义主题 CSS 可导入、即时预览、持久保存并拒绝外部加载", async ({
   page,
 }) => {
