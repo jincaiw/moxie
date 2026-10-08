@@ -1929,6 +1929,37 @@ test("GFM 引用内嵌套任务和 CommonMark 硬换行在预览与导出中一�
   await expect(content).toContainText("- [x] 待办");
 });
 
+test("GFM 大写 X 任务标记按已完成状态预览、导出并可编辑", async ({ page }) => {
+  const source = "- [X] 已完成\n- [ ] 待办\n\n任务列表之后的正文。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "uppercase-task-marker.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  const content = page.locator(".cm-content");
+  await content.press(documentStart);
+
+  const tasks = content.locator(".task-checkbox");
+  await expect(tasks).toHaveCount(2);
+  await expect(tasks.nth(0)).toBeChecked();
+  await expect(tasks.nth(1)).not.toBeChecked();
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "uppercase-task-marker.md");
+  }, source);
+  expect(html).toContain('<input checked="" disabled="" type="checkbox">');
+  expect(html).toContain('<input disabled="" type="checkbox">');
+
+  await tasks.nth(1).check();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(content).toContainText("- [x] 待办");
+});
+
 test("HTML 注释在即时预览中隐藏并可切回源码编辑", async ({ page }) => {
   const source =
     "段前 <!-- inline private note --> 段后。\n\n<!-- block private note\nsecond line -->\n\n> 引用前 <!-- quote private note --> 引用后\n\n- 列表前 <!-- list private note --> 列表后\n\n行内代码 `<!-- code example -->`。\n\n```html\n<!-- fenced code example -->\n```\n\n跨行行内注释 <!-- 注释开始\n[^hidden]: 注释中的脚注机密\n注释结束 --> 之后的正文引用[^hidden]。\n\n- 列表注释 <!-- 列表注释开始\n  [^list-hidden]: 列表伪脚注机密\n  --> 列表注释之后的引用[^list-hidden]。\n[^real]: 真实脚注内容\n\n真实脚注引用[^real]。\n\n> 引用注释 <!-- 引用注释开始\n> [^quote-hidden]: 引用伪脚注机密\n> --> 引用注释之后的引用[^quote-hidden]。\n\n文档结尾。";
