@@ -146,6 +146,40 @@ export function markdownImageDestination(raw: string) {
   }
   return null;
 }
+
+export function unescapeMarkdownPunctuation(value: string) {
+  return value.replace(/\\([!"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])/g, "$1");
+}
+
+export function markdownReferenceImageDestination(
+  raw: string,
+  document: string,
+) {
+  const image = /^!\[(?:\\.|[^\]])*\](?:\[([^\]]*)\])?$/.exec(raw);
+  if (!image) return null;
+  const alt = raw.slice(2, raw.indexOf("]")).replace(/\\(.)/g, "$1");
+  const label = unescapeMarkdownPunctuation(image[1] || alt)
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  const definition =
+    /^[ \t]{0,3}\[((?:\\.|[^\]])+)\]:[ \t]*(<[^>\r\n]+>|(?:\\.|[^\s])+)/gm;
+  for (const match of document.matchAll(definition)) {
+    const definitionLabel = unescapeMarkdownPunctuation(match[1])
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    if (definitionLabel !== label) continue;
+    const target = match[2];
+    const offset = match.index! + match[0].indexOf(target);
+    const angle = target.startsWith("<");
+    return {
+      start: offset + (angle ? 1 : 0),
+      end: offset + target.length - (angle ? 1 : 0),
+    };
+  }
+  return null;
+}
 export function htmlImage(raw: string) {
   if (!/^<img\b[^>]*>$/i.test(raw)) return null;
   const sourceAttribute = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(

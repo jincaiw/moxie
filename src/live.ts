@@ -18,7 +18,12 @@ import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
 import { TableWidget } from "./table-widget";
 import { resolveImage } from "./assets";
-import { htmlImageCandidates, markdownImageDestination } from "./links";
+import {
+  htmlImageCandidates,
+  markdownImageDestination,
+  markdownReferenceImageDestination,
+  unescapeMarkdownPunctuation,
+} from "./links";
 import {
   headingLabel,
   htmlImage,
@@ -698,6 +703,7 @@ function build(
                     image.src,
                     image.alt,
                     node.from,
+                    raw,
                     state.facet(documentPath),
                     wholeLine,
                     image.width,
@@ -775,6 +781,7 @@ function build(
                   image.src,
                   image.alt,
                   from,
+                  raw,
                   state.facet(documentPath),
                   from === line.from && to === line.to,
                 ),
@@ -1359,6 +1366,7 @@ class ImageWidget extends WidgetType {
     readonly src: string,
     readonly alt: string,
     readonly from: number,
+    readonly source: string,
     readonly path: string | undefined,
     readonly block: boolean,
     readonly width?: number,
@@ -1371,6 +1379,7 @@ class ImageWidget extends WidgetType {
       this.src === other.src &&
       this.alt === other.alt &&
       this.from === other.from &&
+      this.source === other.source &&
       this.path === other.path &&
       this.width === other.width &&
       this.height === other.height
@@ -1432,18 +1441,29 @@ class ImageWidget extends WidgetType {
         return;
       }
       const line = view.state.doc.lineAt(this.from);
-      const raw = line.text.slice(this.from - line.from);
-      const end = markdownImageEnd(raw);
-      const destination = end
-        ? markdownImageDestination(raw.slice(0, end))
+      const rawLine = line.text.slice(this.from - line.from);
+      const end = markdownImageEnd(rawLine);
+      const inlineDestination = end
+        ? markdownImageDestination(rawLine.slice(0, end))
         : null;
+      const referenceDestination = inlineDestination
+        ? null
+        : markdownReferenceImageDestination(
+            this.source,
+            view.state.doc.toString(),
+          );
+      const destination = inlineDestination || referenceDestination;
       if (!destination) {
-        window.alert("暂不支持管理引用式或 HTML 图片，请先编辑图片路径。");
+        window.alert("无法定位图片路径，请先检查图片语法和引用定义。");
         return;
       }
-      const rawPath = raw
-        .slice(destination.start, destination.end)
-        .replace(/\\([\\()])/g, "$1");
+      const rawPath = inlineDestination
+        ? rawLine
+            .slice(inlineDestination.start, inlineDestination.end)
+            .replace(/\\([\\()])/g, "$1")
+        : unescapeMarkdownPunctuation(
+            view.state.doc.sliceString(destination.start, destination.end),
+          );
       let sourcePath: string;
       try {
         sourcePath = decodeURIComponent(rawPath);
@@ -1498,7 +1518,9 @@ class ImageWidget extends WidgetType {
           .split("/")
           .map(encodeURIComponent)
           .join("/");
-        const start = line.from + this.from - line.from + destination.start;
+        const start = inlineDestination
+          ? this.from + destination.start
+          : destination.start;
         view.dispatch({
           changes: {
             from: start,
