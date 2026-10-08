@@ -1459,12 +1459,20 @@ class ImageWidget extends WidgetType {
       const inlineDestination = end
         ? markdownImageDestination(rawLine.slice(0, end))
         : null;
+      const referenceDefinitions: { raw: string; from: number }[] = [];
+      if (!inlineDestination)
+        syntaxTree(view.state).iterate({
+          enter(node) {
+            if (node.name === "LinkReference")
+              referenceDefinitions.push({
+                raw: view.state.doc.sliceString(node.from, node.to),
+                from: node.from,
+              });
+          },
+        });
       const referenceDestination = inlineDestination
         ? null
-        : markdownReferenceImageDestination(
-            this.source,
-            view.state.doc.toString(),
-          );
+        : markdownReferenceImageDestination(this.source, referenceDefinitions);
       const destination = inlineDestination || referenceDestination;
       if (!destination) {
         window.alert("无法定位图片路径，请先检查图片语法和引用定义。");

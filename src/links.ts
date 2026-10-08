@@ -153,26 +153,25 @@ export function unescapeMarkdownPunctuation(value: string) {
 
 export function markdownReferenceImageDestination(
   raw: string,
-  document: string,
+  definitions: readonly { raw: string; from: number }[],
 ) {
-  const image = /^!\[((?:\\.|[^\]])*)\](?:\[((?:\\.|[^\]])*)\])?$/.exec(
-    raw,
-  );
+  const image = /^!\[((?:\\.|[^\]])*)\](?:\[((?:\\.|[^\]])*)\])?$/.exec(raw);
   if (!image) return null;
   const label = unescapeMarkdownPunctuation(image[2] || image[1])
     .trim()
     .replace(/\s+/g, " ")
     .toLowerCase();
-  const definition =
-    /^[ \t]{0,3}\[((?:\\.|[^\]])+)\]:[ \t]*(<[^>\r\n]+>|(?:\\.|[^\s])+)/gm;
-  for (const match of document.matchAll(definition)) {
+  const definition = /^\[((?:\\.|[^\]])+)\]:[ \t]*(<[^>\r\n]*>|(?:\\.|[^\s])+)/;
+  for (const item of definitions) {
+    const match = definition.exec(item.raw);
+    if (!match) continue;
     const definitionLabel = unescapeMarkdownPunctuation(match[1])
       .trim()
       .replace(/\s+/g, " ")
       .toLowerCase();
     if (definitionLabel !== label) continue;
     const target = match[2];
-    const offset = match.index! + match[0].indexOf(target);
+    const offset = item.from + match[0].indexOf(target);
     const angle = target.startsWith("<");
     return {
       start: offset + (angle ? 1 : 0),
