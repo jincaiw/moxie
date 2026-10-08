@@ -2239,6 +2239,48 @@ test("表格列可对齐，增删结构时保留对齐标记", async ({ page }) 
   );
 });
 
+test("表格行列重排按钮可用键盘操作并在边界禁用", async ({ page }) => {
+  await page.goto("/");
+  const table = page.locator(".editable-table").first();
+  const rowLabels = () =>
+    table
+      .locator("tbody tr")
+      .evaluateAll((rows) =>
+        rows.map((row) => row.querySelector("td")?.textContent?.trim() || ""),
+      );
+
+  await table.locator('[data-cell="1:0"]').click();
+  await page.keyboard.press("Enter");
+  const beforeRows = await rowLabels();
+  const moveDown = table.getByRole("button", { name: "下移行", exact: true });
+  await expect(moveDown).toBeEnabled();
+  await moveDown.focus();
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(rowLabels)
+    .toEqual([beforeRows[1], beforeRows[0], ...beforeRows.slice(2)]);
+
+  await table.locator('[data-cell="1:0"]').click();
+  await page.keyboard.press("Enter");
+  const beforeColumns = await table
+    .locator("tbody tr")
+    .first()
+    .locator("td")
+    .allTextContents();
+  const moveLeft = table.getByRole("button", { name: "左移列", exact: true });
+  await expect(moveLeft).toBeDisabled();
+  const moveRight = table.getByRole("button", { name: "右移列", exact: true });
+  await expect(moveRight).toBeEnabled();
+  await moveRight.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    table.locator("tbody tr").first().locator("td").nth(0),
+  ).toHaveText(beforeColumns[1]);
+  await expect(
+    table.locator("tbody tr").first().locator("td").nth(1),
+  ).toHaveText(beforeColumns[0]);
+});
+
 test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
