@@ -63,6 +63,7 @@ function Tool({
   active = false,
   disabled = false,
   menuButton = false,
+  expanded,
 }: {
   label: string;
   children: React.ReactNode;
@@ -70,6 +71,7 @@ function Tool({
   active?: boolean;
   disabled?: boolean;
   menuButton?: boolean;
+  expanded?: boolean;
 }) {
   return (
     <button
@@ -77,7 +79,7 @@ function Tool({
       title={label}
       aria-label={label}
       aria-haspopup={menuButton ? "menu" : undefined}
-      aria-expanded={menuButton ? active : undefined}
+      aria-expanded={menuButton ? active : expanded}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       disabled={disabled}
@@ -1172,6 +1174,7 @@ export default function App() {
           <div className="document-title">
             <Tool
               label="切换侧栏"
+              expanded={visibleSidebar}
               onClick={() => {
                 if (focus) setFocus(false);
                 setSidebar((value) => !value);

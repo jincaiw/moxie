@@ -99,7 +99,13 @@ test("查找替换、公式、设置和窄屏布局", async ({ page }) => {
     ),
   ).toBe("20px");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("button", { name: "切换侧栏" }).click();
+  const sidebarToggle = page.getByRole("button", { name: "切换侧栏" });
+  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
+  await sidebarToggle.click();
+  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
+  await sidebarToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     390,
   );
