@@ -77,6 +77,8 @@ type Props = {
   path?: string;
   source: boolean;
   typewriter?: boolean;
+  smartQuotes?: boolean;
+  smartDashes?: boolean;
   spellCheck?: boolean;
   theme?: "light" | "dark";
   onChange: (text: string) => void;
@@ -315,6 +317,129 @@ function formatSelection(view: EditorView, kind: Format) {
   view.focus();
 }
 
+function inYAMLFrontMatter(view: EditorView, position: number) {
+  if (view.state.doc.lines < 2) return false;
+  const first = view.state.doc.line(1).text.replace(/^\uFEFF/, "");
+  if (first !== "---") return false;
+  const scanEnd = Math.min(position, 64 * 1024);
+  for (let number = 2; number <= view.state.doc.lines; number++) {
+    const line = view.state.doc.line(number);
+    if (line.from > scanEnd) break;
+    if (line.text === "---" || line.text === "...") return position <= line.to;
+  }
+  return position <= 64 * 1024;
+}
+
+function inMath(view: EditorView, position: number) {
+  const line = view.state.doc.lineAt(position);
+  const scanStart = Math.max(0, position - 64 * 1024);
+  const firstLine = view.state.doc.lineAt(scanStart).number;
+  let displayOpen = false;
+  let fence: { character: string; length: number } | undefined;
+  for (let number = firstLine; number <= line.number; number++) {
+    const current = view.state.doc.line(number);
+    const content =
+      position < current.to
+        ? current.text.slice(0, position - current.from)
+        : current.text;
+    const trimmed = content.trim();
+    const fenceMatch = trimmed.match(/^(`{3,}|~{3,})/);
+    if (fence) {
+      const close = trimmed.match(/^(`+|~+)/);
+      if (
+        close &&
+        close[0][0] === fence.character &&
+        close[0].length >= fence.length &&
+        trimmed.slice(close[0].length).trim() === ""
+      )
+        fence = undefined;
+      continue;
+    }
+    if (fenceMatch) {
+      fence = { character: fenceMatch[0][0], length: fenceMatch[0].length };
+      continue;
+    }
+    if (trimmed.startsWith("$$")) {
+      const markers = trimmed.match(/\$\$/g)?.length || 0;
+      if (markers % 2 === 1) displayOpen = !displayOpen;
+    }
+  }
+  if (displayOpen) return true;
+  let escaped = false;
+  let inlineOpen = false;
+  for (const char of view.state.sliceDoc(line.from, position)) {
+    if (char === "\\" && !escaped) {
+      escaped = true;
+      continue;
+    }
+    if (char === "$" && !escaped) inlineOpen = !inlineOpen;
+    escaped = false;
+  }
+  return inlineOpen;
+}
+
+function inProtectedPunctuationContext(view: EditorView, position: number) {
+  if (inYAMLFrontMatter(view, position) || inMath(view, position)) return true;
+  let node = syntaxTree(view.state).resolveInner(position, -1);
+  while (node) {
+    if (/Code/.test(node.name)) return true;
+    node = node.parent!;
+  }
+  return false;
+}
+
+function smartQuote(view: EditorView, from: number, quote: string) {
+  const before = from > 0 ? view.state.sliceDoc(from - 1, from) : "";
+  const after = view.state.sliceDoc(from, from + 1);
+  const opens =
+    !before || /\s|[([{—–]/u.test(before) || (before === "-" && !after);
+  return quote === "'" ? (opens ? "‘" : "’") : opens ? "“" : "”";
+}
+
+function applySmartPunctuation(
+  view: EditorView,
+  from: number,
+  to: number,
+  inserted: string,
+  props: Props,
+) {
+  if (!props.smartQuotes && !props.smartDashes) return false;
+  if (inserted.length !== 1 || inProtectedPunctuationContext(view, from))
+    return false;
+
+  let changeFrom = from;
+  let changeTo = to;
+  let replacement = inserted;
+  if (props.smartQuotes && (inserted === "'" || inserted === '"')) {
+    replacement = smartQuote(view, from, inserted);
+  } else if (props.smartDashes && inserted === "-") {
+    if (from >= 2 && view.state.sliceDoc(from - 2, from) === "--") {
+      const line = view.state.doc.lineAt(from);
+      const beforeDashes = view.state.sliceDoc(line.from, from - 2);
+      if (beforeDashes.trim()) {
+        changeFrom = from - 2;
+        replacement = "—";
+      }
+    }
+  } else if (props.smartDashes && inserted === " ") {
+    const line = view.state.doc.lineAt(from);
+    const linePrefix = view.state.sliceDoc(line.from, from);
+    if (linePrefix.endsWith("--") && linePrefix.slice(0, -2).trim()) {
+      changeFrom = from - 2;
+      replacement = "– ";
+    }
+  }
+
+  if (replacement === inserted && changeFrom === from) return false;
+  changeTo = to;
+  view.dispatch({
+    changes: { from: changeFrom, to: changeTo, insert: replacement },
+    selection: { anchor: changeFrom + replacement.length },
+    annotations: Transaction.userEvent.of("input.type"),
+  });
+  return true;
+}
+
 function indentList(view: EditorView, direction: 1 | -1) {
   const selection = view.state.selection.main;
   const first = view.state.doc.lineAt(selection.from).number;
@@ -398,7 +523,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
       view: EditorView;
       id: string;
       onChange: Props["onChange"];
-    lineEnding: ReturnType<typeof detectLineEnding>;
+      lineEnding: ReturnType<typeof detectLineEnding>;
     } | null>(null);
     const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latest = useRef(props);
@@ -687,6 +812,15 @@ export const Editor = forwardRef<EditorHandle, Props>(
                 drawSelection(),
                 highlightActiveLine(),
                 markdown({ codeLanguages: languages, extensions: [GFM] }),
+                EditorView.inputHandler.of((instance, from, to, inserted) =>
+                  applySmartPunctuation(
+                    instance,
+                    from,
+                    to,
+                    inserted,
+                    latest.current,
+                  ),
+                ),
                 EditorState.languageData.of(() => [
                   {
                     closeBrackets: { brackets: ["(", "[", "{", "'", '"', "`"] },

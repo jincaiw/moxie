@@ -1556,6 +1556,8 @@ export default function App() {
             path={current.path}
             source={source}
             typewriter={preferences.typewriter}
+            smartQuotes={preferences.smartQuotes}
+            smartDashes={preferences.smartDashes}
             spellCheck={preferences.spellCheck}
             theme={darkTheme ? "dark" : "light"}
             onChange={(text) => workspace.edit(current.id, text)}

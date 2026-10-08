@@ -1187,3 +1187,11 @@
 - [x] 解析失败时保留原始文档内容；限制元数据块大小并对输出值进行 HTML 转义。
 - [x] 定向 Playwright 3 项、完整 Playwright 130 项（127 通过、3 项性能基准跳过）、桌面逻辑 24 项和生产构建通过。
 - [x] GitHub Actions 源码验证、主分支 CI、四平台打包和正式 Release 成功；20 项资产已核验，macOS 两架构 DMG 均通过校验。
+
+
+## v0.16.144 Typora 智能标点
+
+- [x] 偏好设置增加可独立开关、持久化的智能引号和智能破折号。
+- [x] 转换仅作用于逐字输入；尊重 Markdown 围栏代码、行内/块级数学和 YAML Front Matter，不改写这些语境中的文字符号。
+- [x] 设置持久化和智能标点上下文 Playwright 定向回归通过；完整 Playwright 131 项（128 通过、3 项性能基准跳过）、桌面逻辑 24 项与生产构建通过。
+- [ ] 完整 Playwright 回归、GitHub Actions、四平台安装包和正式 Release 待完成。

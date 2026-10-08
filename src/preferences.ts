@@ -20,6 +20,8 @@ export type Preferences = {
   autoSave: boolean;
   autoCheckUpdates: boolean;
   typewriter: boolean;
+  smartQuotes: boolean;
+  smartDashes: boolean;
   spellCheck: boolean;
   customCSS: string;
   savedThemes: SavedTheme[];
@@ -37,6 +39,8 @@ const defaults: Preferences = {
   autoSave: false,
   autoCheckUpdates: true,
   typewriter: false,
+  smartQuotes: false,
+  smartDashes: false,
   spellCheck: false,
   customCSS: "",
   savedThemes: [],
@@ -103,6 +107,8 @@ function initial(): Preferences {
       autoSave: value.autoSave === true,
       autoCheckUpdates: value.autoCheckUpdates !== false,
       typewriter: value.typewriter === true,
+      smartQuotes: value.smartQuotes === true,
+      smartDashes: value.smartDashes === true,
       spellCheck: value.spellCheck === true,
       customCSS:
         typeof value.customCSS === "string" &&

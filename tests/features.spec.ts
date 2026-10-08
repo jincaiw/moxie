@@ -684,6 +684,8 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByLabel("PDF 页边距").fill("24");
   await page.getByLabel("PDF 页眉与页码").check();
   await page.getByLabel("系统拼写检查").check();
+  await page.getByLabel("智能引号").check();
+  await page.getByLabel("智能破折号").check();
   await expect(page.locator(".cm-content")).toHaveAttribute(
     "spellcheck",
     "true",
@@ -703,6 +705,8 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.getByLabel("PDF 页边距")).toHaveValue("24");
   await expect(page.getByLabel("PDF 页眉与页码")).toBeChecked();
   await expect(page.getByLabel("系统拼写检查")).toBeChecked();
+  await expect(page.getByLabel("智能引号")).toBeChecked();
+  await expect(page.getByLabel("智能破折号")).toBeChecked();
   await expect(page.locator(".cm-content")).toHaveAttribute(
     "spellcheck",
     "true",
@@ -745,6 +749,54 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await page.getByRole("button", { name: "退出专注模式", exact: true }).click();
   await expect(page.locator(".sidebar")).toBeVisible();
+});
+
+test("智能标点按上下文转换并保留 YAML、代码与数学原文", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("智能引号").check();
+  await page.getByLabel("智能破折号").check();
+  await page.keyboard.press("Escape");
+  await page.locator("input.md-input").setInputFiles({
+    name: "智能标点.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(""),
+  });
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.click();
+  await page.keyboard.type("---");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type('title: "yaml"');
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("---");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("\"Hello\" -- 'world'");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("```text");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type('"code" -- ');
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("```");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("$");
+  await page.keyboard.type('"math"');
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("$$");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type('"display math"');
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("$$");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type('"after math"');
+  await expect(editor).toContainText('title: "yaml"');
+  await expect(editor).toContainText("“Hello” – ‘world’");
+  await expect(editor).toContainText('"code" --');
+  await expect(editor).toContainText('$"math"');
+  await expect(editor).toContainText('"display math"');
+  await expect(editor).toContainText("“after math”");
 });
 
 test("自动更新下载进度提供屏幕阅读器名称和百分比", async ({ page }) => {

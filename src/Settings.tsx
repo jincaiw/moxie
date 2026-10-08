@@ -748,6 +748,30 @@ export function Settings({
       </label>
       <label className="toggle-setting">
         <span>
+          智能引号
+          <small>将直引号转换为弯引号；代码、数学和 YAML 中保持原样。</small>
+        </span>
+        <input
+          aria-label="智能引号"
+          type="checkbox"
+          checked={preferences.smartQuotes}
+          onChange={(e) => update("smartQuotes", e.target.checked)}
+        />
+      </label>
+      <label className="toggle-setting">
+        <span>
+          智能破折号
+          <small>将连续两个或三个连字符转换为短破折号或长破折号。</small>
+        </span>
+        <input
+          aria-label="智能破折号"
+          type="checkbox"
+          checked={preferences.smartDashes}
+          onChange={(e) => update("smartDashes", e.target.checked)}
+        />
+      </label>
+      <label className="toggle-setting">
+        <span>
           系统拼写检查<small>使用 macOS 当前启用的拼写词典。</small>
         </span>
         <input
