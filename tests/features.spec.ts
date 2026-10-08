@@ -1780,6 +1780,11 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
     ].map((raw) => markdownImage(raw, { toString: () => text } as any));
     return {
       text: await rehomeImages(text, "/old/a.md", "/new/b.md"),
+      crText: await rehomeImages(
+        "前文\r![纯 CR 图片](old.assets/cr.png)\r后文",
+        "/old/a.md",
+        "/new/b.md",
+      ),
       calls,
       parsed,
     };
@@ -1792,6 +1797,7 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
     "old.assets/image_(1).png",
     "old.assets/a.png",
     "old.assets/reference.png",
+    "old.assets/cr.png",
   ]);
   expect(
     result.text.match(/%E6%96%B0%E6%96%87%E6%A1%A3.assets\/copied.png/g),
@@ -1809,6 +1815,9 @@ test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
   ]);
   expect(result.text).toContain("`![例子](example.png)`");
   expect(result.text).toContain("![例子](code.png)");
+  expect(result.crText).toBe(
+    "前文\r![纯 CR 图片](%E6%96%B0%E6%96%87%E6%A1%A3.assets/copied.png)\r后文",
+  );
 });
 
 test("多行引用与任务格式应用到整个选区并可切换取消", async ({ page }) => {

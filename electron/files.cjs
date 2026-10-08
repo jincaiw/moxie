@@ -9,6 +9,16 @@ function validateText(text) {
   )
     throw Error("文档超出 30 MB 限制");
 }
+function lineBoundsAt(text, position) {
+  const before = Math.max(
+    text.lastIndexOf("\n", position - 1),
+    text.lastIndexOf("\r", position - 1),
+  );
+  const after = [text.indexOf("\n", position), text.indexOf("\r", position)]
+    .filter((offset) => offset >= 0)
+    .reduce((nearest, offset) => Math.min(nearest, offset), text.length);
+  return { from: before + 1, to: after };
+}
 async function atomicWrite(file, text) {
   const temp = path.join(
     path.dirname(file),
@@ -235,9 +245,7 @@ class FileStore {
         while (results.length < 200) {
           const index = lower.indexOf(normalized, from);
           if (index < 0) break;
-          const start = Math.max(0, text.lastIndexOf("\n", index - 1) + 1);
-          const newline = text.indexOf("\n", index);
-          const end = newline < 0 ? text.length : newline;
+          const { from: start, to: end } = lineBoundsAt(text, index);
           const line = text.slice(start, end).trim();
           const excerpt =
             line.length > 180

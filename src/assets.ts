@@ -1,4 +1,5 @@
 import type { DocumentFile } from "./data";
+import { lineBoundsAt } from "./data";
 import { parser } from "@lezer/markdown";
 import { htmlImage, markdownImageDestination, markdownImageEnd } from "./links";
 
@@ -51,17 +52,19 @@ export async function rehomeImages(
   const matches: { src: string; start: number; end: number }[] = [];
   const imageReferences = new Set<string>();
   const linkReferenceDefinitions: { raw: string; from: number }[] = [];
-  parser.parse(text).iterate({
+  // Keep parser offsets stable while letting Lezer split classic Mac lines.
+  const parserText = text.replace(/\r(?!\n)/g, "\n");
+  parser.parse(parserText).iterate({
     enter(node) {
       const raw = text.slice(node.from, node.to);
       if (node.name === "Image") {
         let imageRaw = raw;
         let inline = markdownImageDestination(imageRaw);
         if (!inline) {
-          const lineEnd = text.indexOf("\n", node.from);
+          const lineEnd = lineBoundsAt(text, node.from).to;
           const rawLine = text.slice(
             node.from,
-            lineEnd < 0 ? text.length : lineEnd,
+            lineEnd,
           );
           const imageLength = markdownImageEnd(rawLine);
           const candidate = imageLength ? rawLine.slice(0, imageLength) : "";

@@ -638,6 +638,30 @@ test("递归目录按需授权、刷新和符号链接隔离", async () => {
   }
 });
 
+test("文件夹搜索为 LF、CR 和 CRLF 文档生成单行摘录", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-search-eol-"));
+  try {
+    const store = new FileStore();
+    await store.init();
+    for (const [index, newline] of ["\n", "\r", "\r\n"].entries())
+      await fs.writeFile(
+        path.join(root, `note-${index}.md`),
+        `前一行${newline}命中关键词的独立行${newline}后一行`,
+      );
+    const tree = await store.folder(root);
+    const result = await store.searchFolder({
+      root: tree.path,
+      query: "关键词",
+    });
+    assert.equal(result.results.length, 3);
+    assert.ok(
+      result.results.every((item) => item.excerpt === "命中关键词的独立行"),
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("版本检查识别修改、删除、重建且不会消费未处理事件", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-inspect-"));
   try {
