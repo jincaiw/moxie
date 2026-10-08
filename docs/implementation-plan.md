@@ -1146,4 +1146,4 @@
 - [x] 主进程对并发更新检查和下载请求进行合并；多个窗口启动时共用同一进行中操作及最终状态。
 - [x] 桌面逻辑回归验证并发调用只触发一次检查和一次下载。
 - [x] 桌面逻辑 23 项和生产构建通过。
-- [ ] 待 GitHub Actions 完成源码验证、四平台打包与正式 Release 资产核验。
+- [x] GitHub Actions 源码校验、Playwright、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
