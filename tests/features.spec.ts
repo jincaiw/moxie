@@ -502,13 +502,18 @@ test("标签中键关闭会保留未保存修改确认", async ({ page }) => {
 test("标签分组可创建、筛选、移动文档并恢复显示", async ({ page }) => {
   await page.goto("/");
   let groupName = "研究";
-  page.on("dialog", (dialog) => void dialog.accept(groupName));
   await page.getByRole("button", { name: "新建标签分组" }).click();
+  const createDialog = page.getByRole("dialog", { name: "新建分组" });
+  await createDialog.getByRole("textbox", { name: "分组名称" }).fill(groupName);
+  await createDialog.getByRole("button", { name: "创建分组" }).click();
   const tabs = page.getByRole("tablist", { name: "打开的文档" });
   await expect(tabs.getByRole("tab", { name: "欢迎使用.md" })).toHaveCount(1);
   await expect(tabs.getByRole("tab", { name: "写作指南.md" })).toHaveCount(0);
   groupName = "计划";
   await page.getByRole("button", { name: "重命名分组 研究" }).click();
+  const renameDialog = page.getByRole("dialog", { name: "重命名分组" });
+  await renameDialog.getByRole("textbox", { name: "分组名称" }).fill(groupName);
+  await renameDialog.getByRole("button", { name: "保存名称" }).click();
   await page.getByRole("button", { name: /全部 2/ }).click();
   await tabs.getByLabel("写作指南.md所属分组").selectOption("计划");
   await page.getByRole("button", { name: /计划 2/ }).click();
