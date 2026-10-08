@@ -28,7 +28,15 @@ export class LinkWidget extends WidgetType {
   toDOM(view: EditorView) {
     const anchor = document.createElement("a");
     anchor.className = "rendered-link";
-    anchor.href = usableLink(this.href) ? this.href : "#";
+    let displayHref = this.href;
+    try {
+      displayHref = encodeURI(displayHref)
+        .replace(/\|/g, "%7C")
+        .replace(/%25/g, "%");
+    } catch {
+      displayHref = "#";
+    }
+    anchor.href = usableLink(this.href) ? displayHref : "#";
     anchor.dataset.mdLink = this.href;
     anchor.title = [this.linkTitle, this.href, "⌘/Ctrl + 单击打开，单击编辑"]
       .filter(Boolean)

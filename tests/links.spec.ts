@@ -145,7 +145,7 @@ test("转义括号和管道符链接在即时预览与 HTML 导出中保持一�
     "https://example.org/a(b)",
   );
   await expect(parenthesized).toHaveAttribute("title", /^括号标题/);
-  await expect(piped).toHaveAttribute("href", "https://example.org/a|b");
+  await expect(piped).toHaveAttribute("href", "https://example.org/a%7Cb");
 
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
@@ -192,6 +192,35 @@ test("嵌套括号目标与转义引用标签在预览和导出中正确解析",
   );
   expect(html).toContain(
     '<a href="https://example.org/guide" title="引用标题">转义标签</a>',
+  );
+});
+
+test("多行链接目标与标题在即时预览和 HTML 导出中保持一致", async ({
+  page,
+}) => {
+  const source =
+    '[多行链接](<https://example.org/a path>\n  "多行标题")\n\n后续正文。';
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "multiline-link.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-line").last().click();
+
+  const link = page.getByRole("link", { name: "多行链接", exact: true });
+  await expect(link).toHaveAttribute("href", "https://example.org/a%20path");
+  await expect(link).toHaveAttribute("title", /^多行标题/);
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "multiline-link.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.org/a%20path" title="多行标题">多行链接</a>',
   );
 });
 
