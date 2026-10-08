@@ -55,18 +55,19 @@ function hydrateHTMLImages(
       image.alt ||= "图片不可用";
       view.requestMeasure();
     });
-    void resolveImage(source, documentPath).then(
-      (resolved) => {
-        if (!root.isConnected) return;
-        image.src = resolved;
-        view.requestMeasure();
-      },
-      () => {
-        image.removeAttribute("src");
-        image.alt ||= "图片不可用";
-        view.requestMeasure();
-      },
-    );
+    if (source)
+      void resolveImage(source, documentPath).then(
+        (resolved) => {
+          if (!root.isConnected) return;
+          image.src = resolved;
+          view.requestMeasure();
+        },
+        () => {
+          image.removeAttribute("src");
+          image.alt ||= "图片不可用";
+          view.requestMeasure();
+        },
+      );
     image.addEventListener("contextmenu", async (event) => {
       event.preventDefault();
       event.stopPropagation();

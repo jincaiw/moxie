@@ -1,6 +1,6 @@
 {
   "name": "moxie-editor",
-  "version": "0.16.151",
+  "version": "0.16.152",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",

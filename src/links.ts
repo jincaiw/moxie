@@ -237,22 +237,21 @@ export function htmlImages(raw: string) {
           while (position < rawValue.length && /[\s,]/.test(rawValue[position]))
             position++;
           const start = position;
-          const isData = /^data:/i.test(rawValue.slice(start));
-          while (position < rawValue.length) {
-            const character = rawValue[position];
-            if (/\s/.test(character) || (character === "," && !isData)) break;
+          while (position < rawValue.length && !/\s/.test(rawValue[position]))
             position++;
-          }
-          const rawURL = rawValue.slice(start, position);
+          let urlEnd = position;
+          while (urlEnd > start && rawValue[urlEnd - 1] === ",") urlEnd--;
+          const rawURL = rawValue.slice(start, urlEnd);
           if (rawURL) {
             decoded.innerHTML = rawURL;
             images.push({
               src: decoded.value,
               alt: "",
               start: tagStart + valueStart + start,
-              end: tagStart + valueStart + position,
+              end: tagStart + valueStart + urlEnd,
             });
           }
+          if (urlEnd < position) continue;
           while (position < rawValue.length && rawValue[position] !== ",")
             position++;
           if (rawValue[position] === ",") position++;
