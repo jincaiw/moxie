@@ -139,6 +139,10 @@ export default function App() {
     width: string;
     height: string;
   } | null>(null);
+  const [bulkImageDialog, setBulkImageDialog] = useState<
+    "copy" | "move" | null
+  >(null);
+  const [bulkImageDirectory, setBulkImageDirectory] = useState("_images");
   const folderWorkspace = useFolder();
   const [tabGroup, setTabGroup] = useState("全部");
   const tabGroups = useMemo(
@@ -229,12 +233,10 @@ export default function App() {
       setMessage(error instanceof Error ? error.message : String(error));
     }
   };
-  const manageDocumentImages = async (mode: "copy" | "move") => {
-    const targetDirectory = window.prompt(
-      "输入目标相对文件夹（相对于文档所在文件夹）",
-      "_images",
-    );
-    if (!targetDirectory?.trim()) return;
+  const manageDocumentImages = async (
+    mode: "copy" | "move",
+    targetDirectory: string,
+  ) => {
     const originalText = current.text;
     const documentId = current.id;
     const originalPath = current.path;
@@ -242,7 +244,7 @@ export default function App() {
       const result = await manageLocalImages(
         originalText,
         originalPath,
-        targetDirectory,
+        targetDirectory.trim(),
         mode,
       );
       const latest = workspace.docsRef.current.find(
@@ -272,6 +274,11 @@ export default function App() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     }
+  };
+  const openBulkImageManager = (mode: "copy" | "move") => {
+    setMenu(null);
+    setBulkImageDirectory("_images");
+    setBulkImageDialog(mode);
   };
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
@@ -690,8 +697,8 @@ export default function App() {
     if (action === "focus") setFocus((value) => !value);
     if (action === "image") imageUpload.current?.click();
     if (action === "download-remote-images") void downloadDocumentImages();
-    if (action === "copy-local-images") void manageDocumentImages("copy");
-    if (action === "move-local-images") void manageDocumentImages("move");
+    if (action === "copy-local-images") openBulkImageManager("copy");
+    if (action === "move-local-images") openBulkImageManager("move");
     if (action === "close-document") requestClose();
     if (action === "previous-document" || action === "next-document") {
       if (docs.length > 1) {
@@ -1219,8 +1226,7 @@ export default function App() {
                     role="menuitem"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
-                      setMenu(null);
-                      void manageDocumentImages("copy");
+                      openBulkImageManager("copy");
                     }}
                   >
                     <Copy size={17} />
@@ -1230,8 +1236,7 @@ export default function App() {
                     role="menuitem"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => {
-                      setMenu(null);
-                      void manageDocumentImages("move");
+                      openBulkImageManager("move");
                     }}
                   >
                     <FolderInput size={17} />
@@ -1870,6 +1875,54 @@ export default function App() {
               </button>
               <button className="primary-button" type="submit">
                 应用
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+      {bulkImageDialog && (
+        <Dialog
+          title={bulkImageDialog === "copy" ? "复制本地图片" : "移动本地图片"}
+          onClose={() => setBulkImageDialog(null)}
+        >
+          <header>
+            <h2>
+              {bulkImageDialog === "copy" ? "复制本地图片" : "移动本地图片"}
+            </h2>
+            <Tool label="关闭图片管理" onClick={() => setBulkImageDialog(null)}>
+              <X size={18} />
+            </Tool>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const target = bulkImageDirectory.trim();
+              if (!target) return;
+              const mode = bulkImageDialog;
+              setBulkImageDialog(null);
+              void manageDocumentImages(mode, target);
+            }}
+          >
+            <label>
+              目标相对文件夹
+              <input
+                autoFocus
+                required
+                value={bulkImageDirectory}
+                onChange={(event) => setBulkImageDirectory(event.target.value)}
+                aria-label="图片目标相对文件夹"
+                placeholder="_images"
+              />
+            </label>
+            <p>
+              路径相对于文档所在文件夹；目标中已有同名图片时会自动生成不冲突的文件名。
+            </p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setBulkImageDialog(null)}>
+                取消
+              </button>
+              <button className="primary-button" type="submit">
+                {bulkImageDialog === "copy" ? "复制图片" : "移动图片"}
               </button>
             </div>
           </form>
