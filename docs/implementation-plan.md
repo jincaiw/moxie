@@ -1131,4 +1131,4 @@
 - [x] 大纲扫描预先判断是否含回车，纯 LF 文档逐行扫描时不再每行都搜索到文末找 CR，避免平方级耗时。
 - [x] 修复 1/5/10 MB 性能基准的 `documentEnd` 引用；改为滚动真实容器，并使用单标题加重复正文的长文样本。
 - [x] Linux/Chromium 单次基准打开耗时 1.0/3.5/6.4 秒、文末输入 75/135/157 ms、20 帧滚动 320/760/542 ms；LF/CRLF 与大纲/HTML 定向回归 21 项通过，生产构建成功。
-- [ ] 待 GitHub Actions 完成四平台验证、打包与正式 Release 资产核验。
+- [x] GitHub Actions 源码验证、完整浏览器/桌面逻辑回归、macOS arm64/x64、Windows x64、Linux x64 打包及正式 Release 全部成功；19 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
