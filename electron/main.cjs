@@ -5,6 +5,7 @@ const {
   dialog,
   ipcMain,
   shell,
+  nativeImage,
 } = require("electron");
 const fs = require("node:fs/promises");
 const { URL } = require("node:url");
@@ -20,6 +21,19 @@ let store,
   windowProfileFile,
   windowProfileWrites = Promise.resolve(),
   isQuitting = false;
+
+function docxCompatibleImages(html) {
+  return html.replace(
+    /(\bsrc\s*=\s*)(["'])((?:data:image\/avif;base64,)[A-Za-z\d+/=]+)(\2)/gi,
+    (_match, attribute, quote, source) => {
+      const image = nativeImage.createFromDataURL(source);
+      const { width, height } = image.getSize();
+      if (image.isEmpty() || width <= 0 || height <= 0)
+        throw Error("无法解码 AVIF 图片，DOCX 导出已取消");
+      return `${attribute}${quote}data:image/png;base64,${image.toPNG().toString("base64")}${quote}`;
+    },
+  );
+}
 const windowStates = new Map();
 const windowProfiles = new Set();
 const isDev = process.env.MOXIE_DEV === "1";
@@ -228,7 +242,7 @@ function setupIPC() {
     if (result.canceled) return false;
     if (input.format === "docx") {
       const htmlToDocx = require("html-to-docx");
-      const buffer = await htmlToDocx(input.html, null, {
+      const buffer = await htmlToDocx(docxCompatibleImages(input.html), null, {
         title: path
           .basename(String(input.name))
           .replace(/\.(md|markdown)$/i, ""),

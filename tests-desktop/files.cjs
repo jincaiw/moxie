@@ -203,6 +203,17 @@ async function harness(userData) {
         externalUrls.push(url);
       },
     },
+    nativeImage: {
+      createFromDataURL: (dataURL) => ({
+        isEmpty: () => !dataURL.startsWith("data:image/avif;base64,"),
+        getSize: () => ({ width: 1, height: 1 }),
+        toPNG: () =>
+          Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
+            "base64",
+          ),
+      }),
+    },
   };
   const source = await fs.readFile(
     path.join(__dirname, "../electron/main.cjs"),
@@ -338,6 +349,45 @@ test("PDF 导出等待图片与字体就绪后再生成并原子写入", async (
     assert.match(print.readinessScript, /8000/);
     assert.equal(print.destroyed, true);
     assert.equal(await fs.readFile(target, "utf8"), "%PDF-test");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+test("DOCX 导出将 AVIF 图片转换为 Word 兼容的 PNG", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-docx-test-"));
+  try {
+    const target = path.join(root, "output.docx");
+    const h = await harness();
+    h.save(target);
+    const avif = Buffer.alloc(24);
+    avif.writeUInt32BE(24, 0);
+    avif.write("ftyp", 4);
+    avif.write("avif", 8);
+    avif.write("mif1", 16);
+    avif.write("avif", 20);
+    assert.equal(
+      await h.call("file:export", {
+        html: `<html><body><img alt="AVIF" src="data:image/avif;base64,${avif.toString("base64")}"></body></html>`,
+        name: "report.md",
+        format: "docx",
+      }),
+      true,
+    );
+    const JSZip = require("jszip");
+    const archive = await JSZip.loadAsync(await fs.readFile(target));
+    const imageEntries = Object.keys(archive.files).filter((name) =>
+      /^word\/media\/image-/.test(name),
+    );
+    assert.ok(imageEntries.length > 0);
+    assert.ok(imageEntries.every((name) => name.endsWith(".png")));
+    for (const name of imageEntries)
+      assert.deepEqual(
+        await archive.file(name).async("nodebuffer"),
+        Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
+          "base64",
+        ),
+      );
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
