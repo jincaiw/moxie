@@ -2932,6 +2932,49 @@ test("GFM 删除线可在引用和列表中包含 Moxie 下标与链接", async 
   expect(output).toEqual({ subscript: "2", link: "https://example.com" });
 });
 
+test("CommonMark 引用和有序列表中的 Moxie 行内格式与 HTML 导出一致", async ({
+  page,
+}) => {
+  const source =
+    "> ==引用重点==、^2^ 和 ~2~\n\n1. ==列表重点==、^3^ 和 ~3~\n\n结束。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "container-inline-formats.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.locator(".cm-line").last().click();
+  await expect(page.locator(".md-highlight")).toHaveText([
+    "引用重点",
+    "列表重点",
+  ]);
+  await expect(page.locator(".cm-content sup")).toHaveText(["2", "3"]);
+  await expect(page.locator(".cm-content sub")).toHaveText(["2", "3"]);
+
+  const output = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as {
+      exportHTML: (source: string, name: string) => Promise<string>;
+    };
+    const html = await module.exportHTML(
+      markdown,
+      "container-inline-formats.md",
+    );
+    const document = new DOMParser().parseFromString(html, "text/html");
+    return {
+      quote: document.querySelector("blockquote")?.innerHTML,
+      list: document.querySelector("ol li")?.innerHTML,
+    };
+  }, source);
+  expect(output.quote).toContain("<mark>引用重点</mark>");
+  expect(output.quote).toContain("<sup>2</sup>");
+  expect(output.quote).toContain("<sub>2</sub>");
+  expect(output.list).toContain("<mark>列表重点</mark>");
+  expect(output.list).toContain("<sup>3</sup>");
+  expect(output.list).toContain("<sub>3</sub>");
+});
+
 test("脚注重复引用、大小写标签、多行内容与围栏隔离正确导出", async ({
   page,
 }) => {
