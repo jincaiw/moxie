@@ -143,6 +143,11 @@ export default function App() {
     "copy" | "move" | null
   >(null);
   const [bulkImageDirectory, setBulkImageDirectory] = useState("_images");
+  const [groupDialog, setGroupDialog] = useState<{
+    mode: "new" | "rename";
+    value: string;
+    originalGroup?: string;
+  } | null>(null);
   const folderWorkspace = useFolder();
   const [tabGroup, setTabGroup] = useState("全部");
   const tabGroups = useMemo(
@@ -279,6 +284,23 @@ export default function App() {
     setMenu(null);
     setBulkImageDirectory("_images");
     setBulkImageDialog(mode);
+  };
+  const saveGroupDialog = () => {
+    if (!groupDialog) return;
+    const normalized = groupDialog.value.trim().slice(0, 32);
+    if (!normalized) return;
+    if (groupDialog.mode === "new") {
+      workspace.setDocumentGroup(current.id, normalized);
+      setTabGroup(normalized);
+    } else if (groupDialog.originalGroup) {
+      docs
+        .filter((document) => document.group === groupDialog.originalGroup)
+        .forEach((document) =>
+          workspace.setDocumentGroup(document.id, normalized),
+        );
+      if (tabGroup === groupDialog.originalGroup) setTabGroup(normalized);
+    }
+    setGroupDialog(null);
   };
   const darkTheme =
     preferences.theme === "dark" || preferences.theme === "solarized-dark";
@@ -1478,15 +1500,11 @@ export default function App() {
                     aria-label={`重命名分组 ${group}`}
                     title="重命名分组"
                     onClick={() => {
-                      const name = window.prompt("重命名分组", group);
-                      const normalized = name?.trim().slice(0, 32);
-                      if (!normalized || normalized === group) return;
-                      docs
-                        .filter((document) => document.group === group)
-                        .forEach((document) =>
-                          workspace.setDocumentGroup(document.id, normalized),
-                        );
-                      if (tabGroup === group) setTabGroup(normalized);
+                      setGroupDialog({
+                        mode: "rename",
+                        value: group,
+                        originalGroup: group,
+                      });
                     }}
                   >
                     ✎
@@ -1513,12 +1531,7 @@ export default function App() {
                 aria-label="新建标签分组"
                 title="将当前文档加入新分组"
                 onClick={() => {
-                  const name = window.prompt("分组名称");
-                  const normalized = name?.trim().slice(0, 32);
-                  if (normalized) {
-                    workspace.setDocumentGroup(current.id, normalized);
-                    setTabGroup(normalized);
-                  }
+                  setGroupDialog({ mode: "new", value: "" });
                 }}
               >
                 ＋ 分组
@@ -1923,6 +1936,57 @@ export default function App() {
               </button>
               <button className="primary-button" type="submit">
                 {bulkImageDialog === "copy" ? "复制图片" : "移动图片"}
+              </button>
+            </div>
+          </form>
+        </Dialog>
+      )}
+      {groupDialog && (
+        <Dialog
+          title={groupDialog.mode === "new" ? "新建分组" : "重命名分组"}
+          onClose={() => setGroupDialog(null)}
+        >
+          <header>
+            <h2>{groupDialog.mode === "new" ? "新建分组" : "重命名分组"}</h2>
+            <Tool label="关闭分组设置" onClick={() => setGroupDialog(null)}>
+              <X size={18} />
+            </Tool>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!groupDialog.value.trim()) return;
+              saveGroupDialog();
+            }}
+          >
+            <label>
+              分组名称
+              <input
+                autoFocus
+                required
+                maxLength={32}
+                pattern=".*\\S.*"
+                title="请输入至少一个非空格字符。"
+                value={groupDialog.value}
+                onChange={(event) =>
+                  setGroupDialog((dialog) =>
+                    dialog ? { ...dialog, value: event.target.value } : dialog,
+                  )
+                }
+                aria-label="分组名称"
+              />
+            </label>
+            <p>
+              {groupDialog.mode === "new"
+                ? "新分组会应用于当前文档。"
+                : "重命名会同步更新此分组中的所有文档。"}
+            </p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setGroupDialog(null)}>
+                取消
+              </button>
+              <button className="primary-button" type="submit">
+                {groupDialog.mode === "new" ? "创建分组" : "保存名称"}
               </button>
             </div>
           </form>
