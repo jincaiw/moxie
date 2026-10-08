@@ -1178,4 +1178,4 @@
 - [x] 文件夹搜索结果按 LF、CR、CRLF 提取匹配所在行。
 - [x] 另存为迁移图片前对纯 CR 文档做等长换行映射，并按原文换行定位图片尺寸语法，保证源偏移不变。
 - [x] 桌面文件夹搜索三种换行回归、图片迁移回归、桌面逻辑 24 项及生产构建通过。
-- [ ] 待 GitHub Actions 完成完整验证、四平台打包与正式 Release 资产核验。
+- [x] GitHub Actions 完整 Playwright/源码校验、macOS arm64/x64、Windows x64、Linux x64 构建及正式 Release 全部成功；20 项线上资产已核对，两个 DMG 均通过 `hdiutil verify`。
