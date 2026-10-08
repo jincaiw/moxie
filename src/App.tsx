@@ -1833,7 +1833,7 @@ export default function App() {
         data-kind="image"
         aria-label="插入图片文件"
         type="file"
-        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif,image/svg+xml"
         multiple
         hidden
         onChange={(event) => {

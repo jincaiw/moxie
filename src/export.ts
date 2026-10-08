@@ -629,9 +629,31 @@ export async function exportHTML(
     }
     body += `<section class="footnotes" role="doc-endnotes" aria-label="脚注"><hr><ol>${items.join("")}</ol></section>`;
   }
-  body = DOMPurify.sanitize(body);
+  const svgImages = new Map<string, string>();
+  const svgContainer = document.createElement("div");
+  svgContainer.innerHTML = body;
+  let svgPlaceholder = 0;
+  await Promise.all(
+    Array.from(svgContainer.querySelectorAll("img")).map(async (image) => {
+      const src = image.getAttribute("src") || "";
+      if (!/^data:image\/svg\+xml;base64,/i.test(src)) return;
+      const safeSrc = await resolveImage(src, documentPath);
+      let placeholder: string;
+      do {
+        placeholder = `https://moxie.invalid/sanitized-svg-${svgPlaceholder++}`;
+      } while (body.includes(placeholder));
+      svgImages.set(placeholder, safeSrc);
+      image.setAttribute("src", placeholder);
+    }),
+  );
+  body = DOMPurify.sanitize(svgContainer.innerHTML);
   const content = document.createElement("div");
   content.innerHTML = body;
+  content.querySelectorAll("img").forEach((image) => {
+    const placeholder = image.getAttribute("src") || "";
+    const safeSrc = svgImages.get(placeholder);
+    if (safeSrc) image.setAttribute("src", safeSrc);
+  });
   const headings = Array.from(
     content.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
   ).filter((heading) => !headingElementIsHidden(heading));

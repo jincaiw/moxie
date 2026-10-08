@@ -7,6 +7,7 @@ import {
   markdownImageEnd,
 } from "./links";
 import { parseFrontMatter } from "./front-matter";
+import DOMPurify from "dompurify";
 
 export const imageTypes = new Set([
   "image/png",
@@ -15,19 +16,53 @@ export const imageTypes = new Set([
   "image/webp",
   "image/bmp",
   "image/avif",
+  "image/svg+xml",
 ]);
+
+export function sanitizeSVG(source: string) {
+  return DOMPurify.sanitize(source, {
+    USE_PROFILES: { svg: true },
+    FORBID_TAGS: [
+      "script",
+      "foreignObject",
+      "style",
+      "iframe",
+      "object",
+      "embed",
+      "animate",
+      "animateTransform",
+      "set",
+    ],
+    FORBID_ATTR: ["style", "href", "xlink:href"],
+  });
+}
+
+function svgDataURL(source: string) {
+  const bytes = new TextEncoder().encode(sanitizeSVG(source));
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  return `data:image/svg+xml;base64,${btoa(binary)}`;
+}
+
 export async function imageSource(
   file: File,
   documentPath?: string,
   targetDirectory?: string,
 ): Promise<string> {
   if (!imageTypes.has(file.type))
-    throw new Error("支持 PNG、JPEG、GIF、WebP、BMP 和 AVIF 图片。");
+    throw new Error("支持 PNG、JPEG、GIF、WebP、BMP、AVIF 和 SVG 图片。");
   if (file.size > 10 * 1024 * 1024) throw new Error("单张图片不能超过 10 MB。");
+  const safeFile =
+    file.type === "image/svg+xml"
+      ? new File([sanitizeSVG(await file.text())], file.name, {
+          type: file.type,
+        })
+      : file;
   if (window.desktop && documentPath) {
     const stored = await window.desktop.storeImage({
       documentPath,
-      bytes: new Uint8Array(await file.arrayBuffer()),
+      bytes: new Uint8Array(await safeFile.arrayBuffer()),
       targetDirectory,
     });
     return stored.relativePath.split("/").map(encodeURIComponent).join("/");
@@ -36,13 +71,24 @@ export async function imageSource(
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error("无法读取图片。"));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(safeFile);
   });
 }
 export async function resolveImage(
   src: string,
   documentPath?: string,
 ): Promise<string> {
+  if (/^data:image\/svg\+xml;base64,/i.test(src)) {
+    try {
+      const bytes = Uint8Array.from(
+        atob(src.slice(src.indexOf(",") + 1)),
+        (c) => c.charCodeAt(0),
+      );
+      return svgDataURL(new TextDecoder().decode(bytes));
+    } catch {
+      throw new Error("SVG 图片数据无效。");
+    }
+  }
   if (
     /^(https:\/\/|data:image\/(?:png|jpeg|gif|webp|bmp|avif);base64,)/i.test(
       src,

@@ -51,6 +51,9 @@ const webp = Buffer.from(
   "UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoQABAAAgA0JaACdLoB+AADsAD+8MQL/yC5YXXI1/8gP+QH/ID/+PIAAAA=",
   "base64",
 );
+const svg = Buffer.from(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" onload="alert(1)"><script>alert(1)</script><rect width="16" height="16" fill="#c33"/></svg>',
+);
 
 function themeCatalogFixture(css: string) {
   return {
@@ -615,6 +618,19 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
       )
       .toBe(16);
   }
+  await page.locator("input[data-kind=image]").setInputFiles({
+    name: "pixel.svg",
+    mimeType: "image/svg+xml",
+    buffer: svg,
+  });
+  await expect(page.getByRole("img", { name: "pixel.svg" })).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("img", { name: "pixel.svg" })
+        .evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBe(16);
   await page.evaluate((base64) => {
     const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
     const transfer = new DataTransfer();
@@ -648,6 +664,12 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
   await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
   const html = await fs.readFile((await (await downloading).path())!, "utf8");
   expect(html).toContain("data:image/png;base64,");
+  expect(html).toContain("data:image/svg+xml;base64,");
+  const exportedSVG = /data:image\/svg\+xml;base64,([a-z\d+/=]+)/i.exec(html);
+  expect(exportedSVG).toBeTruthy();
+  const exportedSVGText = Buffer.from(exportedSVG![1], "base64").toString();
+  expect(exportedSVGText).toContain("<rect");
+  expect(exportedSVGText).not.toMatch(/<script|onload|alert\(/i);
   expect(html).toContain("<math");
   expect(html).not.toContain("$$");
   expect(html).not.toContain("<script>");

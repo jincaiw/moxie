@@ -205,7 +205,8 @@ async function harness(userData) {
     },
     nativeImage: {
       createFromDataURL: (dataURL) => ({
-        isEmpty: () => !/^data:image\/(?:avif|bmp);base64,/.test(dataURL),
+        isEmpty: () =>
+          !/^data:image\/(?:avif|bmp|svg\+xml);base64,/.test(dataURL),
         getSize: () => ({ width: 1, height: 1 }),
         toPNG: () =>
           Buffer.from(
@@ -369,9 +370,12 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
       "424d3a000000000000003600000028000000010000000100000001001800000000000400000000000000000000000000000000000000000000ff0000",
       "hex",
     );
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
+    );
     assert.equal(
       await h.call("file:export", {
-        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src=data:image/avif;base64,${avif.toString("base64")}></body></html>`,
+        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src=data:image/avif;base64,${avif.toString("base64")}><img alt="SVG" src="data:image/svg+xml;base64,${svg.toString("base64")}"></body></html>`,
         name: "report.md",
         format: "docx",
       }),
@@ -573,9 +577,13 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
       }),
       "data:image/png;base64," + png.toString("base64"),
     );
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
+    );
     for (const [bytes, extension, mime] of [
       [bmp, "bmp", "image/bmp"],
       [avif, "avif", "image/avif"],
+      [svg, "svg", "image/svg+xml"],
     ]) {
       const storedImage = await store.storeImage({ documentPath, bytes });
       assert.match(

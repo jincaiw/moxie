@@ -68,7 +68,7 @@ async function downloadRemoteImage(urlValue) {
         {
           headers: {
             accept:
-              "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif",
+              "image/png,image/jpeg,image/gif,image/webp,image/bmp,image/avif,image/svg+xml",
           },
           lookup: (_hostname, _options, callback) =>
             callback(null, address.address, address.family),
@@ -169,6 +169,17 @@ function imageType(bytes) {
     return { extension: "webp", mime: "image/webp" };
   if (bytes.length >= 26 && bytes.subarray(0, 2).toString() === "BM")
     return { extension: "bmp", mime: "image/bmp" };
+  const svgHeader = bytes
+    .subarray(0, Math.min(bytes.length, 4096))
+    .toString("utf8")
+    .replace(/^\uFEFF/, "")
+    .trimStart();
+  if (
+    /^(?:<\?xml[\s\S]*?\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg(?:\s|>)/i.test(
+      svgHeader,
+    )
+  )
+    return { extension: "svg", mime: "image/svg+xml" };
   if (bytes.length >= 16 && bytes.subarray(4, 8).toString() === "ftyp") {
     const boxSize = bytes.readUInt32BE(0);
     const majorBrand = bytes.subarray(8, 12).toString();
@@ -186,7 +197,7 @@ function imageType(bytes) {
     )
       return { extension: "avif", mime: "image/avif" };
   }
-  throw Error("图片格式无效，支持 PNG、JPEG、GIF、WebP、BMP 和 AVIF");
+  throw Error("图片格式无效，支持 PNG、JPEG、GIF、WebP、BMP、AVIF 和 SVG");
 }
 function inside(root, target) {
   const relative = path.relative(root, target);
