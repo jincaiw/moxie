@@ -1330,4 +1330,4 @@
 ## v0.16.168 文档属性回归同步
 
 - [x] 更新既有导出菜单键盘回归，按“文档属性”“Markdown”“HTML”名称验证焦点顺序。
-- [x] TypeScript/Vite 生产构建、完整回归、四平台打包与正式 Release 待验证。
+- [x] TypeScript/Vite 生产构建、完整 CI 回归、macOS arm64/x64、Windows x64、Linux x64 打包成功；v0.16.168 正式 Release 已核验 20 项资产。
