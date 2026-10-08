@@ -44,6 +44,85 @@ export const previewTheme = Facet.define<"light" | "dark", "light" | "dark">({
   combine: (values) => values[0] || "light",
 });
 
+function promptImageManagement(sourcePath: string) {
+  return new Promise<{ mode: "copy" | "move"; targetPath: string } | null>(
+    (resolve) => {
+      const dialog = document.createElement("dialog");
+      dialog.className = "image-manage-dialog";
+      dialog.setAttribute("aria-labelledby", "image-manage-title");
+      const form = document.createElement("form");
+      form.method = "dialog";
+      const title = document.createElement("h2");
+      title.id = "image-manage-title";
+      title.textContent = "管理图片";
+      const modeLabel = document.createElement("label");
+      modeLabel.textContent = "操作";
+      const mode = document.createElement("select");
+      mode.name = "mode";
+      mode.setAttribute("aria-label", "图片操作");
+      for (const [value, label] of [
+        ["copy", "复制图片"],
+        ["move", "移动或重命名"],
+      ]) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        mode.append(option);
+      }
+      modeLabel.append(mode);
+      const pathLabel = document.createElement("label");
+      pathLabel.textContent = "目标相对路径（相对于文档所在文件夹）";
+      const path = document.createElement("input");
+      path.type = "text";
+      path.name = "targetPath";
+      path.value = sourcePath;
+      path.required = true;
+      path.autocomplete = "off";
+      pathLabel.append(path);
+      const actions = document.createElement("div");
+      actions.className = "image-manage-actions";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.textContent = "取消";
+      cancel.addEventListener("click", () => dialog.close());
+      const submit = document.createElement("button");
+      submit.type = "submit";
+      submit.className = "primary-button";
+      submit.textContent = "继续";
+      actions.append(cancel, submit);
+      form.append(title, modeLabel, pathLabel, actions);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        if (!path.value.trim()) {
+          path.reportValidity();
+          return;
+        }
+        dialog.close("submit");
+      });
+      dialog.append(form);
+      document.body.append(dialog);
+      dialog.addEventListener(
+        "close",
+        () => {
+          resolve(
+            dialog.returnValue === "submit"
+              ? {
+                  mode: mode.value as "copy" | "move",
+                  targetPath: path.value.trim(),
+                }
+              : null,
+          );
+          dialog.remove();
+        },
+        { once: true },
+      );
+      dialog.showModal();
+      path.focus();
+      path.select();
+    },
+  );
+}
+
 function hydrateHTMLImages(
   root: HTMLElement,
   view: EditorView,
@@ -125,26 +204,14 @@ function hydrateHTMLImages(
         window.alert("只能管理文档文件夹中的本地图片。");
         return;
       }
-      const modeInput = window.prompt(
-        "输入操作：copy（复制）或 move（移动/重命名）",
-        "copy",
-      );
-      if (!modeInput) return;
-      const mode = modeInput.trim().toLowerCase();
-      if (mode !== "copy" && mode !== "move") {
-        window.alert("请输入 copy 或 move。");
-        return;
-      }
-      const targetPath = window.prompt(
-        "输入目标相对路径（相对于文档所在文件夹）",
-        sourcePath,
-      );
-      if (!targetPath?.trim()) return;
+      const request = await promptImageManagement(sourcePath);
+      if (!request) return;
+      const { mode, targetPath } = request;
       try {
         const result = await window.desktop.manageImage({
           documentPath,
           sourcePath,
-          targetPath: targetPath.trim(),
+          targetPath,
           mode,
         });
         if (view.state.doc.toString() !== snapshot) {
@@ -1496,27 +1563,15 @@ class ImageWidget extends WidgetType {
         window.alert("只能管理文档文件夹中的本地图片。");
         return;
       }
-      const choice = window.prompt(
-        "输入操作：copy（复制）或 move（移动/重命名）",
-        "copy",
-      );
-      if (!choice) return;
-      const mode = choice.trim().toLowerCase();
-      if (mode !== "copy" && mode !== "move") {
-        window.alert("请输入 copy 或 move。");
-        return;
-      }
-      const targetPath = window.prompt(
-        "输入目标相对路径（相对于文档所在文件夹）",
-        sourcePath,
-      );
-      if (!targetPath?.trim()) return;
+      const request = await promptImageManagement(sourcePath);
+      if (!request) return;
+      const { mode, targetPath } = request;
       const documentSnapshot = view.state.doc.toString();
       try {
         const result = await window.desktop.manageImage({
           documentPath: this.path,
           sourcePath,
-          targetPath: targetPath.trim(),
+          targetPath,
           mode,
         });
         if (view.state.doc.toString() !== documentSnapshot) {
