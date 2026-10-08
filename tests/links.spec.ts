@@ -121,6 +121,44 @@ test("引用链接标签按 CommonMark 折叠空白并保留标题与嵌套格�
   );
 });
 
+test("转义括号和管道符链接在即时预览与 HTML 导出中保持一致", async ({
+  page,
+}) => {
+  const source =
+    '[括号路径](https://example.org/a\\(b\\) "括号标题") 和 [管道路径](https://example.org/a\\|b)\n\n后续正文。';
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "escaped-link-destinations.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-line").last().click();
+
+  const parenthesized = page.getByRole("link", {
+    name: "括号路径",
+    exact: true,
+  });
+  const piped = page.getByRole("link", { name: "管道路径", exact: true });
+  await expect(parenthesized).toHaveAttribute(
+    "href",
+    "https://example.org/a(b)",
+  );
+  await expect(parenthesized).toHaveAttribute("title", /^括号标题/);
+  await expect(piped).toHaveAttribute("href", "https://example.org/a|b");
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "escaped-link-destinations.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.org/a(b)" title="括号标题">括号路径</a>',
+  );
+  expect(html).toContain('<a href="https://example.org/a%7Cb">管道路径</a>');
+});
+
 test("行内公式不会改写 Markdown 链接目标", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
