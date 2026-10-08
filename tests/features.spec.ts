@@ -35,6 +35,22 @@ const bmp = Buffer.from(
   "424d3a000000000000003600000028000000010000000100000001001800000000000400000000000000000000000000000000000000000000ff0000",
   "hex",
 );
+const avif = Buffer.from(
+  "AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAAD5bWV0YQAAAAAAAAAvaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAFBpY3R1cmVIYW5kbGVyAAAAAA5waXRtAAAAAAABAAAAHmlsb2MAAAAARAAAAQABAAAAAQAAASEAAAAZAAAAKGlpbmYAAAAAAAEAAAAaaW5mZQIAAAAAAQAAYXYwMUNvbG9yAAAAAGppcHJwAAAAS2lwY28AAAAUaXNwZQAAAAAAAAAQAAAAEAAAABBwaXhpAAAAAAMICAgAAAAMYXYxQ4EADAAAAAATY29scm5jbHgAAgACAAIAAAAAF2lwbWEAAAAAAAAAAQABBAECgwQAAAAhbWRhdAoGGAz/2gCAMg8cgAAAWAAAAKmPOHgbFHg=",
+  "base64",
+);
+const jpeg = Buffer.from(
+  "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAAQABADAREAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAcJ/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AnRDGqYAAD//Z",
+  "base64",
+);
+const gif = Buffer.from(
+  "R0lGODlhEAAQAPAAAP8AAAAAACH5BAAAAAAALAAAAAAQABAAAAIOhI+py+0Po5y02ouzPgUAOw==",
+  "base64",
+);
+const webp = Buffer.from(
+  "UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoQABAAAgA0JaACdLoB+AADsAD+8MQL/yC5YXXI1/8gP+QH/ID/+PIAAAA=",
+  "base64",
+);
 
 function themeCatalogFixture(css: string) {
   return {
@@ -568,6 +584,37 @@ test("图片选择、剪贴板粘贴、拖入与公式导出", async ({ page }) 
         .evaluate((img: HTMLImageElement) => img.naturalWidth),
     )
     .toBe(1);
+  await page.locator("input[data-kind=image]").setInputFiles({
+    name: "pixel.avif",
+    mimeType: "image/avif",
+    buffer: avif,
+  });
+  await expect(page.getByRole("img", { name: "pixel.avif" })).toBeVisible();
+  await expect
+    .poll(() =>
+      page
+        .getByRole("img", { name: "pixel.avif" })
+        .evaluate((img: HTMLImageElement) => img.naturalWidth),
+    )
+    .toBe(16);
+  for (const [extension, mimeType, buffer] of [
+    ["jpg", "image/jpeg", jpeg],
+    ["gif", "image/gif", gif],
+    ["webp", "image/webp", webp],
+  ] as const) {
+    const name = `pixel.${extension}`;
+    await page
+      .locator("input[data-kind=image]")
+      .setInputFiles({ name, mimeType, buffer });
+    await expect(page.getByRole("img", { name })).toBeVisible();
+    await expect
+      .poll(() =>
+        page
+          .getByRole("img", { name })
+          .evaluate((img: HTMLImageElement) => img.naturalWidth),
+      )
+      .toBe(16);
+  }
   await page.evaluate((base64) => {
     const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
     const transfer = new DataTransfer();
