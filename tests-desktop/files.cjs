@@ -1752,7 +1752,7 @@ test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文�
       false,
     );
     await assert.rejects(
-      store.authorizedPath(image, true),
+      store.authorizedPath(authorizedImage, true),
       /尚未由文件夹浏览器授权/,
     );
   } finally {
