@@ -13,8 +13,14 @@ const { URL } = require("node:url");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
-const { pandocFormats, findPandoc, exportWithPandoc } = require("./pandoc.cjs");
+const {
+  pandocFormats,
+  findPandoc,
+  exportWithPandoc,
+  importWithPandoc,
+} = require("./pandoc.cjs");
 const { autoUpdater } = require("electron-updater");
+const { exportDocumentAsSVG } = require("./image-export.cjs");
 const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
 let store,
@@ -183,6 +189,29 @@ function setupIPC() {
     });
     return result.canceled ? null : store.read(result.filePaths[0]);
   });
+  handle("file:import", async (_input, { window }) => {
+    const result = await dialog.showOpenDialog(window, {
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "可导入的文档",
+          extensions: [
+            "docx",
+            "html",
+            "htm",
+            "rtf",
+            "epub",
+            "odt",
+            "tex",
+            "latex",
+            "mediawiki",
+          ],
+        },
+      ],
+    });
+    if (result.canceled) return null;
+    return importWithPandoc({ inputPath: result.filePaths[0] });
+  });
   handle("file:folder", async (_input, { window }) => {
     const result = await dialog.showOpenDialog(window, {
       properties: ["openDirectory"],
@@ -199,7 +228,8 @@ function setupIPC() {
   );
   handle("folder:search", (input) => store.searchFolder(input));
   handle("file:operation", async (input, { window }) => {
-    if (input?.action !== "move") return store.fileOperation(input);
+    if (input?.action !== "move" || input.directory)
+      return store.fileOperation(input);
     const result = await dialog.showOpenDialog(window, {
       properties: ["openDirectory"],
       defaultPath: input.root,
@@ -207,6 +237,16 @@ function setupIPC() {
     });
     if (result.canceled) return null;
     return store.fileOperation({ ...input, directory: result.filePaths[0] });
+  });
+  handle("file:copy-path", async (input) => {
+    const authorized = await store.authorizedPath(input);
+    clipboard.writeText(authorized);
+    return true;
+  });
+  handle("file:reveal", async (input) => {
+    const authorized = await store.authorizedPath(input);
+    shell.showItemInFolder(authorized);
+    return true;
   });
   handle("link:open", async (input) => {
     if (typeof input?.href !== "string" || input.href.length > 8192)
@@ -354,6 +394,16 @@ function setupIPC() {
     await atomicWrite(result.filePath, buffer);
     return true;
   });
+  handle("image:export", (input, { window }) =>
+    exportDocumentAsSVG({
+      html: input?.html,
+      name: input?.name,
+      parent: window,
+      BrowserWindow,
+      dialog,
+      atomicWrite,
+    }),
+  );
   ipcMain.on("document:dirty", (event, value) => {
     const state = verify(event);
     state.dirty = Boolean(value);
@@ -526,6 +576,7 @@ function createMenu() {
             click: () => createWindow(),
           },
           command("打开…", "open", "CmdOrCtrl+O"),
+          command("导入文档…", "import"),
           command(
             "快速打开…",
             "quick-open",

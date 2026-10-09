@@ -83,6 +83,8 @@ type Props = {
   smartQuotes?: boolean;
   smartDashes?: boolean;
   spellCheck?: boolean;
+  copyFormat?: "rich-text" | "markdown";
+  onCopyRichText: (selection: string) => Promise<void>;
   theme?: "light" | "dark";
   onChange: (text: string) => void;
   onMapPositions: (mapPosition: (position: number) => number) => void;
@@ -939,6 +941,15 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   },
                 }),
                 EditorView.domEventHandlers({
+                  copy(event, instance) {
+                    if (latest.current.copyFormat !== "rich-text") return false;
+                    const { from, to } = instance.state.selection.main;
+                    if (from === to) return false;
+                    const selected = instance.state.sliceDoc(from, to);
+                    event.preventDefault();
+                    void latest.current.onCopyRichText(selected);
+                    return true;
+                  },
                   paste(event, instance) {
                     const files = Array.from(
                       event.clipboardData?.files || [],

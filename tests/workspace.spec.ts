@@ -106,7 +106,7 @@ test("跨文档搜索可按文档名排序并筛选已打开文档", async ({ pa
   await page.getByLabel("搜索文件夹与已打开文档").fill("needle");
   const resultNames = page.locator(".workspace-search-results button strong");
   await expect(resultNames).toHaveCount(3);
-  await page.getByLabel("排序").selectOption("name");
+  await page.getByLabel("搜索结果排序").selectOption("name");
   await expect(resultNames).toHaveText([
     "alpha-search.md",
     "folder-hit.md",
@@ -226,6 +226,199 @@ test("目录展开、按需打开、刷新和关闭目录", async ({ page }) => 
   await page.getByRole("button", { name: "关闭文件夹" }).click();
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
   await expect(page.locator(".cm-content")).toContainText("原内容");
+});
+
+test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        copyPath: (path: string) => Promise<boolean>;
+        revealPath: (path: string) => Promise<boolean>;
+      };
+      pathActions: [string, string][];
+    };
+    state.pathActions = [];
+    state.desktop.copyPath = async (path) => {
+      state.pathActions.push(["copy", path]);
+      return true;
+    };
+    state.desktop.revealPath = async (path) => {
+      state.pathActions.push(["reveal", path]);
+      return true;
+    };
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "复制文件夹路径" }).click();
+  await expect(page.getByRole("status")).toContainText("已复制路径");
+  await page.getByRole("button", { name: "在文件管理器中显示文件夹" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { pathActions: [string, string][] })
+            .pathActions,
+      ),
+    )
+    .toEqual([
+      ["copy", "/notes"],
+      ["reveal", "/notes"],
+    ]);
+});
+
+test("文件侧栏支持拖放文档到文件夹执行移动", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        fileOperation: (input: {
+          action: string;
+          root: string;
+          target?: string;
+          directory?: string;
+        }) => Promise<{ action: string; path: string; version?: string }>;
+      };
+      operations: { action: string; target?: string; directory?: string }[];
+    };
+    state.operations = [];
+    state.desktop.fileOperation = async (input) => {
+      state.operations.push(input);
+      return {
+        action: "move",
+        path: "/notes/note.md",
+        version: "v2",
+      };
+    };
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page
+    .getByRole("button", { name: "打开 note.md", exact: true })
+    .dragTo(page.locator(".folder-browser > header"));
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { operations: unknown[] }).operations,
+      ),
+    )
+    .toEqual([
+      {
+        action: "move",
+        root: "/notes",
+        target: "/notes/章节/note.md",
+        directory: "/notes",
+      },
+    ]);
+});
+
+test("文档导入以未保存副本打开，不替换原文件", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        importDocument: () => Promise<{ name: string; text: string }>;
+      };
+      imports: number;
+    };
+    state.imports = 0;
+    state.desktop.importDocument = async () => {
+      state.imports++;
+      return { name: "converted.md", text: "# Converted\n\nImported copy\n" };
+    };
+  });
+  await page.getByRole("button", { name: "导入文档…", exact: true }).click();
+  await expect(page.locator(".document-title")).toContainText("converted.md");
+  await expect(page.locator(".cm-content")).toContainText("Imported copy");
+  await expect(page.getByRole("button", { name: /会话副本/ })).toBeVisible();
+  expect(await page.evaluate(() => (window as any).imports)).toBe(1);
+});
+
+test("文件侧栏支持按类型排序并持久保存置顶文档", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.getByRole("button", { name: "文件操作：note.md" }).click();
+  await page.getByRole("button", { name: "置顶", exact: true }).click();
+  await page.getByLabel("文件排序").selectOption("type");
+  const prefs = await page.evaluate(() => ({
+    sort: localStorage.getItem("moxie.folder-sort.v1"),
+    pinned: JSON.parse(localStorage.getItem("moxie.folder-pinned.v1") || "[]"),
+  }));
+  expect(prefs).toEqual({ sort: "type", pinned: ["/notes/章节/note.md"] });
+  await page.reload();
+  await expect(page.getByLabel("文件排序")).toHaveValue("type");
+  const folder = page.getByRole("button", { name: "文件夹 章节" });
+  if ((await folder.getAttribute("aria-expanded")) !== "true")
+    await folder.click();
+  await page.getByRole("button", { name: "文件操作：note.md" }).click();
+  await expect(page.getByRole("button", { name: "取消置顶" })).toBeVisible();
+});
+
+test("目录侧栏提供重命名入口并将其作为目录操作提交", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        fileOperation: (input: Record<string, unknown>) => Promise<unknown>;
+      };
+      operations: Record<string, unknown>[];
+    };
+    state.operations = [];
+    state.desktop.fileOperation = async (input) => {
+      state.operations.push(input);
+      return {
+        action: "rename",
+        path: "/notes/新章节",
+        from: "/notes/章节",
+        kind: "directory",
+        paths: [],
+      };
+    };
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件操作：章节" }).click();
+  await page.getByRole("button", { name: "重命名", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "重命名文件夹" }),
+  ).toBeVisible();
+  await page.getByLabel("名称").fill("新章节");
+  await page.getByRole("button", { name: "确定" }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).operations))
+    .toEqual([
+      {
+        action: "rename",
+        root: "/notes",
+        target: "/notes/章节",
+        name: "新章节",
+        directory: undefined,
+      },
+    ]);
+});
+
+test("长图导出将完整 HTML 和文档名交给桌面分页捕获", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        exportImage: (input: { html: string; name: string }) => Promise<string>;
+      };
+      imageExport: { html: string; name: string } | null;
+    };
+    state.imageExport = null;
+    state.desktop.exportImage = async (input) => {
+      state.imageExport = input;
+      return "/tmp/欢迎使用.svg";
+    };
+  });
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  await page.getByRole("menuitem", { name: "导出整篇长图（SVG）" }).click();
+  await expect(page.getByRole("status")).toContainText("长图已导出");
+  const result = await page.evaluate(
+    () => (window as any).imageExport as { html: string; name: string },
+  );
+  expect(result.name).toBe("欢迎使用.md");
+  expect(result.html).toContain("欢迎使用墨写");
 });
 
 test("未编辑文档自动更新，有本地修改时保留并确认载入", async ({ page }) => {

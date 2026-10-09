@@ -250,6 +250,23 @@ export function Settings({
         </button>
       </header>
       <h3 className="settings-section-title">编辑外观</h3>
+      <h3 className="settings-section-title">复制</h3>
+      <label>
+        默认复制格式
+        <select
+          aria-label="默认复制格式"
+          value={preferences.copyFormat}
+          onChange={(event) =>
+            update(
+              "copyFormat",
+              event.target.value as Preferences["copyFormat"],
+            )
+          }
+        >
+          <option value="rich-text">富文本优先（纯文本仍保留 Markdown）</option>
+          <option value="markdown">仅 Markdown 源码</option>
+        </select>
+      </label>
       <label>
         正文字号 <span>{preferences.fontSize}px</span>
         <input

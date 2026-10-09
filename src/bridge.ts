@@ -49,6 +49,7 @@ declare global {
   interface Window {
     desktop?: {
       open: () => Promise<DiskFile | null>;
+      importDocument: () => Promise<{ name: string; text: string } | null>;
       folder: () => Promise<FolderTree | null>;
       refreshFolder: (
         root: string,
@@ -72,7 +73,16 @@ declare global {
         path: string;
         from?: string;
         version?: string;
+        kind?: "file" | "directory";
+        paths?: {
+          from: string;
+          to?: string;
+          version?: string;
+          remove?: boolean;
+        }[];
       } | null>;
+      copyPath: (path: string) => Promise<boolean>;
+      revealPath: (path: string) => Promise<boolean>;
       searchFolder: (
         root: string,
         query: string,
@@ -146,6 +156,10 @@ declare global {
           headerFooter: boolean;
         };
       }) => Promise<boolean>;
+      exportImage: (input: {
+        html: string;
+        name: string;
+      }) => Promise<string | null>;
       copyRichText: (input: { html: string; text: string }) => Promise<boolean>;
       getUpdateStatus: () => Promise<UpdateStatus>;
       checkForUpdates: () => Promise<UpdateStatus>;

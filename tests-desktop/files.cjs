@@ -23,7 +23,10 @@ const {
   pandocFormats,
   pandocCandidates,
   exportWithPandoc,
+  importReaders,
+  importWithPandoc,
 } = require("../electron/pandoc.cjs");
+const { exportDocumentAsSVG } = require("../electron/image-export.cjs");
 const harnessDirectories = [];
 after(async () => {
   await Promise.all(
@@ -94,6 +97,7 @@ process.stdin.on("end", () => {
   const containsImage = hasImage && html.includes('src="media/image-1.png"') && !html.includes("https://");
   fs.writeFileSync(output, Buffer.from(latex ? (containsImage ? "\\\\includegraphics{media/image-1.png}" : "missing-image") : "{\\\\rtf1\\\\ansi " + (containsImage ? "embedded-image" : "missing-image") + "}"));
 });
+
 `,
       { mode: 0o755 },
     );
@@ -123,6 +127,105 @@ process.stdin.on("end", () => {
     assert.equal(latex.assets.length, 1);
     assert.equal(latex.assets[0].name, "image-1.png");
     assert.deepEqual(latex.assets[0].data, png);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文档", async (t) => {
+  if (process.platform === "win32")
+    return t.skip("测试桩使用 POSIX 可执行脚本");
+  assert.equal(importReaders.docx, "docx");
+  assert.equal(importReaders.html, "html");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-import-test-"));
+  try {
+    const source = path.join(root, "source document.docx");
+    const executable = path.join(root, "fake-pandoc");
+    await fs.writeFile(source, "fake input");
+    await fs.writeFile(path.join(root, "local.png"), "LOCALPNG");
+    await fs.writeFile(
+      executable,
+      "#!/bin/sh\nmkdir -p media\nprintf 'PNGDATA' > media/image-1.png\nprintf '## Imported\\n\\n![image](media/image-1.png)\\n\\n![local](local.png)\\n'\n",
+    );
+    await fs.chmod(executable, 0o755);
+    const imported = await importWithPandoc({ inputPath: source, executable });
+    assert.equal(imported.name, "source document.md");
+    assert.match(imported.text, /^## Imported/);
+    assert.match(imported.text, /data:image\/png;base64,UE5HREFUQQ==/);
+    assert.match(imported.text, /data:image\/png;base64,TE9DQUxQTkc=/);
+    await assert.rejects(
+      importWithPandoc({
+        inputPath: path.join(root, "unsupported.bin"),
+        executable,
+      }),
+      /不支持此导入格式/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-image-export-"));
+  const output = path.join(root, "document.svg");
+  let dimensionsRead = false;
+  let captures = 0;
+  let destroyed = false;
+  class MockWindow {
+    constructor(options) {
+      assert.equal(options.show, false);
+      this.webContents = {
+        setWindowOpenHandler: () => undefined,
+        session: { webRequest: { onBeforeRequest: () => undefined } },
+        executeJavaScript: async () => {
+          if (!dimensionsRead) {
+            dimensionsRead = true;
+            return { width: 2, height: 3000 };
+          }
+        },
+        capturePage: async (_rect) => {
+          captures++;
+          return { toPNG: () => Buffer.from(`PNG${captures}`) };
+        },
+      };
+    }
+    async loadURL(url) {
+      assert.match(url, /^data:text\/html;base64,/);
+    }
+    isDestroyed() {
+      return destroyed;
+    }
+    destroy() {
+      destroyed = true;
+    }
+  }
+  try {
+    const result = await exportDocumentAsSVG({
+      html: "<html><body>document</body></html>",
+      name: "document.md",
+      BrowserWindow: MockWindow,
+      dialog: { showSaveDialog: async () => ({ filePath: output }) },
+      atomicWrite: require("../electron/files.cjs").atomicWrite,
+    });
+    assert.equal(result, output);
+    assert.equal(captures, 2);
+    assert.equal(destroyed, true);
+    const svg = await fs.readFile(output, "utf8");
+    assert.match(svg, /width="2" height="3000"/);
+    assert.equal((svg.match(/<image /g) || []).length, 2);
+    assert.match(svg, /data:image\/png;base64,UE5HMQ==/);
+    const canceled = await exportDocumentAsSVG({
+      html: "<html></html>",
+      name: "cancel.md",
+      BrowserWindow: class {
+        constructor() {
+          throw Error("cancelled export must not create a window");
+        }
+      },
+      dialog: { showSaveDialog: async () => ({ canceled: true }) },
+      atomicWrite: require("../electron/files.cjs").atomicWrite,
+    });
+    assert.equal(canceled, null);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -845,7 +948,7 @@ test("递归目录按需授权、刷新和符号链接隔离", async () => {
     await fs.mkdir(path.join(root, ".git"));
     await fs.writeFile(path.join(root, "章节", "笔记.md"), "# 子目录");
     await fs.writeFile(path.join(root, ".git", "隐藏.md"), "hidden");
-    await fs.writeFile(path.join(root, "ignore.txt"), "ignore");
+    await fs.writeFile(path.join(root, "notes.txt"), "plain text");
     await fs.writeFile(path.join(outside, "private.md"), "private");
     await fs.symlink(outside, path.join(root, "link"));
     const h = await harness();
@@ -853,13 +956,15 @@ test("递归目录按需授权、刷新和符号链接隔离", async () => {
     h.open(root);
     const tree = await h.call("file:folder");
     assert.equal(tree.name, path.basename(root));
-    assert.equal(tree.entries.length, 1);
-    const note = tree.entries[0].children[0];
+    assert.equal(tree.entries.length, 2);
+    const note = tree.entries.find((entry) => entry.kind === "directory")
+      .children[0];
+    assert.ok(tree.entries.some((entry) => entry.name === "notes.txt"));
     assert.equal(note.name, "笔记.md");
     assert.equal((await h.call("file:recent")).length, 0);
     assert.equal((await h.call("file:reopen", note.path)).text, "# 子目录");
     await fs.writeFile(path.join(root, "new.markdown"), "new");
-    assert.equal((await h.call("folder:refresh", tree.path)).entries.length, 2);
+    assert.equal((await h.call("folder:refresh", tree.path)).entries.length, 3);
     await fs.rm(note.path);
     await fs.symlink(path.join(outside, "private.md"), note.path);
     await assert.rejects(h.call("file:reopen", note.path), /文件夹之外/);
@@ -1431,7 +1536,11 @@ test("目录文件操作限制授权范围、拒绝覆盖并安全撤销", async
     );
     await store.fileOperation({ action: "undo", root: authorizedRoot });
     await assert.rejects(fs.access(path.join(authorizedRoot, "copy.md")));
-    await store.fileOperation({ action: "trash", root: authorizedRoot, target: original });
+    await store.fileOperation({
+      action: "trash",
+      root: authorizedRoot,
+      target: original,
+    });
     await assert.deepEqual(trashed, [original]);
     await assert.rejects(store.read(original, true), /授权|打开/);
     await fs.mkdir(path.join(authorizedRoot, "safe-target"));
@@ -1451,7 +1560,11 @@ test("目录文件操作限制授权范围、拒绝覆盖并安全撤销", async
     const link = path.join(authorizedRoot, "escape.md");
     await fs.symlink(path.join(outside, "secret.md"), link);
     await assert.rejects(
-      store.fileOperation({ action: "trash", root: authorizedRoot, target: link }),
+      store.fileOperation({
+        action: "trash",
+        root: authorizedRoot,
+        target: link,
+      }),
       /授权|符号链接|普通文件/,
     );
     await assert.rejects(
@@ -1463,6 +1576,140 @@ test("目录文件操作限制授权范围、拒绝覆盖并安全撤销", async
       }),
       /授权/,
     );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("整目录复制、重命名、移动和撤销会同步文档授权路径", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-directory-ops-"));
+  try {
+    const store = new FileStore();
+    const authorizedRoot = (await store.folder(root)).path;
+    const source = path.join(authorizedRoot, "notes");
+    const note = path.join(source, "nested", "note.md");
+    await fs.mkdir(path.dirname(note), { recursive: true });
+    await fs.writeFile(note, "# note\n");
+    await store.folder(source);
+    const copy = await store.fileOperation({
+      action: "copy",
+      root: authorizedRoot,
+      target: source,
+      name: "notes copy",
+    });
+    const copiedNote = path.join(copy.path, "nested", "note.md");
+    assert.equal(await fs.readFile(copiedNote, "utf8"), "# note\n");
+    assert.equal(
+      await store.read(copiedNote, true).then((item) => item.text),
+      "# note\n",
+    );
+    await store.fileOperation({ action: "undo", root: authorizedRoot });
+    await assert.rejects(fs.access(copy.path));
+    await assert.rejects(store.read(copiedNote, true));
+
+    const renamed = await store.fileOperation({
+      action: "rename",
+      root: authorizedRoot,
+      target: source,
+      name: "renamed",
+    });
+    assert.equal(renamed.paths.length, 1);
+    assert.equal(
+      await fs.readFile(path.join(renamed.path, "nested", "note.md"), "utf8"),
+      "# note\n",
+    );
+    await store.fileOperation({ action: "undo", root: authorizedRoot });
+    assert.equal(await fs.readFile(note, "utf8"), "# note\n");
+
+    const destination = path.join(authorizedRoot, "destination");
+    await fs.mkdir(destination);
+    const moved = await store.fileOperation({
+      action: "move",
+      root: authorizedRoot,
+      target: source,
+      directory: destination,
+      name: "notes",
+    });
+    assert.equal(
+      await fs.readFile(path.join(moved.path, "nested", "note.md"), "utf8"),
+      "# note\n",
+    );
+    await store.fileOperation({ action: "undo", root: authorizedRoot });
+    assert.equal(await fs.readFile(note, "utf8"), "# note\n");
+    await assert.rejects(
+      store.fileOperation({
+        action: "copy",
+        root: authorizedRoot,
+        target: source,
+        name: "destination",
+      }),
+      /同名/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("整目录操作拒绝符号链接且废纸篓撤销授权路径", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-directory-safe-"),
+  );
+  const outside = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-directory-out-"),
+  );
+  const trashed = [];
+  try {
+    const store = new FileStore(undefined, async (file) => trashed.push(file));
+    const authorizedRoot = (await store.folder(root)).path;
+    const source = path.join(authorizedRoot, "notes");
+    await fs.mkdir(source);
+    const note = path.join(source, "note.md");
+    await fs.writeFile(note, "hello");
+    await store.folder(source);
+    await fs.symlink(path.join(outside, "secret"), path.join(source, "escape"));
+    await assert.rejects(
+      store.fileOperation({
+        action: "copy",
+        root: authorizedRoot,
+        target: source,
+        name: "copy",
+      }),
+      /符号链接/,
+    );
+    await fs.rm(path.join(source, "escape"));
+    await store.fileOperation({
+      action: "trash",
+      root: authorizedRoot,
+      target: source,
+    });
+    assert.deepEqual(trashed, [source]);
+    await assert.rejects(store.read(note, true), /授权|打开/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("路径复制与文件管理器显示只允许授权目录中的真实路径", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-"));
+  const outside = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-out-"));
+  try {
+    await fs.writeFile(path.join(root, "notes.txt"), "plain text");
+    await fs.writeFile(path.join(outside, "secret.md"), "secret");
+    const store = new FileStore();
+    const tree = await store.folder(root);
+    const txt = path.join(tree.path, "notes.txt");
+    assert.ok(tree.entries.some((entry) => entry.path === txt));
+    assert.equal(await store.authorizedPath(tree.path), tree.path);
+    assert.equal(await store.authorizedPath(txt), txt);
+    await assert.rejects(
+      store.authorizedPath(path.join(outside, "secret.md")),
+      /已打开的文件夹/,
+    );
+    const link = path.join(tree.path, "external.md");
+    await fs.symlink(path.join(outside, "secret.md"), link);
+    await assert.rejects(store.authorizedPath(link), /授权|符号链接/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
     await fs.rm(outside, { recursive: true, force: true });

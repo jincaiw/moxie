@@ -2066,6 +2066,24 @@ p {
   color: var(--muted);
   font-size: 12px;
 }
+.folder-sort-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 10px 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.folder-sort-control select {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 3px 6px;
+  color: var(--text);
+  background: var(--panel);
+  font: inherit;
+}
 .folder-browser header strong {
   flex: 1;
   overflow: hidden;

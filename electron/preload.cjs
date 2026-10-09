@@ -1,12 +1,15 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
   open: () => ipcRenderer.invoke("file:open"),
+  importDocument: () => ipcRenderer.invoke("file:import"),
   folder: () => ipcRenderer.invoke("file:folder"),
   refreshFolder: (root, version) =>
     ipcRenderer.invoke("folder:refresh", { path: root, version }),
   searchFolder: (root, query) =>
     ipcRenderer.invoke("folder:search", { root, query }),
   fileOperation: (input) => ipcRenderer.invoke("file:operation", input),
+  copyPath: (input) => ipcRenderer.invoke("file:copy-path", input),
+  revealPath: (input) => ipcRenderer.invoke("file:reveal", input),
   openLink: (input) => ipcRenderer.invoke("link:open", input),
   inspect: (files) => ipcRenderer.invoke("file:inspect", files),
   recent: () => ipcRenderer.invoke("file:recent"),
@@ -19,6 +22,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("image:download-remote", input),
   previewPDF: (input) => ipcRenderer.invoke("pdf:preview", input),
   export: (input) => ipcRenderer.invoke("file:export", input),
+  exportImage: (input) => ipcRenderer.invoke("image:export", input),
   copyRichText: (input) =>
     ipcRenderer.invoke("clipboard:write-rich-text", input),
   getUpdateStatus: () => ipcRenderer.invoke("update:status"),

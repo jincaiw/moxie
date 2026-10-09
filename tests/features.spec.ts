@@ -1086,6 +1086,7 @@ test("桌面 HTML picture 会把相对 srcset 路径解析为文档资源", asyn
 test("设置持久化、专注模式和对话框键盘退出", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("默认复制格式").selectOption("markdown");
   await page.getByLabel("正文字体").selectOption("serif");
   await page.getByLabel("正文宽度").fill("960");
   await page.getByLabel("外观").selectOption("sepia");
@@ -1109,6 +1110,7 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.reload();
   await page.getByRole("button", { name: "偏好设置" }).click();
   await expect(page.getByLabel("正文字体")).toHaveValue("serif");
+  await expect(page.getByLabel("默认复制格式")).toHaveValue("markdown");
   await expect(page.getByLabel("正文宽度")).toHaveValue("960");
   await expect(page.getByLabel("外观")).toHaveValue("sepia");
   await expect(page.getByLabel("PDF 纸张")).toHaveValue("Letter");
@@ -1161,6 +1163,72 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toHaveCount(0);
   await page.getByRole("button", { name: "退出专注模式", exact: true }).click();
   await expect(page.locator(".sidebar")).toBeVisible();
+});
+
+test("普通复制按偏好输出富文本并保留 Markdown 纯文本", async ({ page }) => {
+  await page.addInitScript(() => {
+    const writes: { html: string; text: string }[] = [];
+    Object.defineProperty(window, "__clipboardWrites", { value: writes });
+    class ClipboardItemMock {
+      types: string[];
+      constructor(readonly data: Record<string, Blob | Promise<Blob>>) {
+        this.types = Object.keys(data);
+      }
+    }
+    Object.defineProperty(window, "ClipboardItem", {
+      value: ClipboardItemMock,
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        write: async (items: ClipboardItemMock[]) => {
+          for (const item of items) {
+            writes.push({
+              html: await (await item.data["text/html"])?.text(),
+              text: await (await item.data["text/plain"])?.text(),
+            });
+          }
+        },
+        writeText: async () => undefined,
+      },
+    });
+  });
+  await page.goto("/");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("a"));
+  const prevented = await page.locator(".cm-content").evaluate((element) => {
+    const event = new ClipboardEvent("copy", {
+      bubbles: true,
+      cancelable: true,
+    });
+    element.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__clipboardWrites.length))
+    .toBe(1);
+  const rich = await page.evaluate(() => (window as any).__clipboardWrites[0]);
+  expect(rich.html).toContain("<div>");
+  expect(rich.text).toContain("# ");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("默认复制格式").selectOption("markdown");
+  await page.keyboard.press("Escape");
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("a"));
+  const sourceCopyPrevented = await page
+    .locator(".cm-content")
+    .evaluate((element) => {
+      const event = new ClipboardEvent("copy", {
+        bubbles: true,
+        cancelable: true,
+      });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  expect(sourceCopyPrevented).toBe(false);
+  expect(
+    await page.evaluate(() => (window as any).__clipboardWrites.length),
+  ).toBe(1);
 });
 
 test("智能标点按上下文转换并保留 YAML、代码与数学原文", async ({ page }) => {

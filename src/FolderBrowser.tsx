@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   Copy,
+  ExternalLink,
   FilePlus2,
   FileText,
   Folder,
@@ -10,6 +11,7 @@ import {
   MoreVertical,
   RefreshCw,
   RotateCcw,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -17,10 +19,49 @@ import { Dialog } from "./Dialog";
 import type { FolderNode, FolderTree } from "./bridge";
 
 type FileAction =
-  "new-file" | "new-folder" | "copy" | "rename" | "move" | "trash" | "undo";
-type Operation = { action: FileAction; target?: FolderNode };
-type OperationRequest = { action: FileAction; target?: string; name?: string };
+  | "new-file"
+  | "new-folder"
+  | "copy"
+  | "rename"
+  | "move"
+  | "trash"
+  | "undo"
+  | "copy-path"
+  | "reveal";
+type Operation = {
+  action: FileAction;
+  target?: FolderNode;
+  directory?: string;
+};
+type OperationRequest = {
+  action: FileAction;
+  target?: string;
+  directory?: string;
+  name?: string;
+};
 type RunOperation = (request: OperationRequest) => Promise<void>;
+type SortMode = "name" | "type";
+
+function ordered(entries: FolderNode[], pinned: Set<string>, sort: SortMode) {
+  return [...entries].sort((a, b) => {
+    const pinOrder = Number(pinned.has(b.path)) - Number(pinned.has(a.path));
+    if (pinOrder) return pinOrder;
+    if (a.kind !== b.kind) return a.kind === "directory" ? -1 : 1;
+    if (sort === "type" && a.kind === "file" && b.kind === "file") {
+      const typeOrder = a.name
+        .split(".")
+        .pop()!
+        .localeCompare(b.name.split(".").pop()!, "zh-CN", {
+          sensitivity: "base",
+        });
+      if (typeOrder) return typeOrder;
+    }
+    return a.name.localeCompare(b.name, "zh-CN", {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
+}
 
 function Branch({
   node,
@@ -30,6 +71,10 @@ function Branch({
   expandedPaths,
   toggle,
   operate,
+  onDropFile,
+  pinned,
+  sort,
+  togglePin,
 }: {
   node: FolderNode;
   depth: number;
@@ -38,12 +83,28 @@ function Branch({
   expandedPaths: Set<string>;
   toggle: (path: string) => void;
   operate: RunOperation;
+  onDropFile: (target: string, directory: string) => void;
+  pinned: Set<string>;
+  sort: SortMode;
+  togglePin: (path: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const expanded = expandedPaths.has(node.path);
   const directory = node.kind === "directory";
   return (
-    <li>
+    <li
+      onDragOver={(event) => {
+        if (directory && event.dataTransfer.types.includes("text/plain"))
+          event.preventDefault();
+      }}
+      onDrop={(event) => {
+        if (!directory) return;
+        const target = event.dataTransfer.getData("text/plain");
+        if (!target || target === node.path) return;
+        event.preventDefault();
+        onDropFile(target, node.path);
+      }}
+    >
       <div className="tree-entry-line">
         <button
           className={"tree-row " + (active === node.path ? "selected" : "")}
@@ -51,6 +112,11 @@ function Branch({
           style={{ paddingLeft: 10 + depth * 14 }}
           aria-expanded={directory ? expanded : undefined}
           aria-label={directory ? "文件夹 " + node.name : "打开 " + node.name}
+          draggable
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", node.path);
+          }}
           onClick={() => (directory ? toggle(node.path) : open(node.path))}
         >
           {directory ? (
@@ -100,9 +166,6 @@ function Branch({
                 <FolderPlus size={14} />
                 新建文件夹
               </button>
-            </>
-          ) : (
-            <>
               <button
                 onClick={() => {
                   setMenuOpen(false);
@@ -110,7 +173,7 @@ function Branch({
                 }}
               >
                 <Copy size={14} />
-                复制
+                复制文件夹
               </button>
               <button
                 onClick={() => {
@@ -129,6 +192,92 @@ function Branch({
                 移动到…
               </button>
               <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "copy-path", target: node.path });
+                }}
+              >
+                <Copy size={14} />
+                复制路径
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "reveal", target: node.path });
+                }}
+              >
+                <ExternalLink size={14} />
+                在文件管理器中显示
+              </button>
+              <button
+                className="tree-action-danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "trash", target: node.path });
+                }}
+              >
+                <Trash2 size={14} />
+                移入废纸篓
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "copy", target: node.path });
+                }}
+              >
+                <Copy size={14} />
+                复制
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  togglePin(node.path);
+                }}
+              >
+                <Star
+                  size={14}
+                  fill={pinned.has(node.path) ? "currentColor" : "none"}
+                />
+                {pinned.has(node.path) ? "取消置顶" : "置顶"}
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "rename", target: node.path });
+                }}
+              >
+                重命名
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "move", target: node.path });
+                }}
+              >
+                移动到…
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "copy-path", target: node.path });
+                }}
+              >
+                <Copy size={14} />
+                复制路径
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "reveal", target: node.path });
+                }}
+              >
+                <ExternalLink size={14} />
+                在文件管理器中显示
+              </button>
+              <button
                 className="tree-action-danger"
                 onClick={() => {
                   setMenuOpen(false);
@@ -145,7 +294,7 @@ function Branch({
       {directory && expanded && (
         <ul>
           {node.children?.length ? (
-            node.children.map((child) => (
+            ordered(node.children, pinned, sort).map((child) => (
               <Branch
                 key={child.path}
                 node={child}
@@ -155,6 +304,10 @@ function Branch({
                 expandedPaths={expandedPaths}
                 toggle={toggle}
                 operate={operate}
+                onDropFile={onDropFile}
+                pinned={pinned}
+                sort={sort}
+                togglePin={togglePin}
               />
             ))
           ) : (
@@ -193,6 +346,48 @@ export function FolderBrowser({
 }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
+  const [sort, setSort] = useState<SortMode>(() => {
+    try {
+      return localStorage.getItem("moxie.folder-sort.v1") === "type"
+        ? "type"
+        : "name";
+    } catch {
+      return "name";
+    }
+  });
+  const [pinned, setPinned] = useState<Set<string>>(() => {
+    try {
+      const paths = JSON.parse(
+        localStorage.getItem("moxie.folder-pinned.v1") || "[]",
+      );
+      return new Set(
+        Array.isArray(paths)
+          ? paths.filter((item) => typeof item === "string").slice(0, 200)
+          : [],
+      );
+    } catch {
+      return new Set();
+    }
+  });
+  const togglePin = (path: string) =>
+    setPinned((previous) => {
+      const next = new Set(previous);
+      if (next.has(path)) next.delete(path);
+      else if (next.size < 200) next.add(path);
+      try {
+        localStorage.setItem(
+          "moxie.folder-pinned.v1",
+          JSON.stringify([...next]),
+        );
+      } catch {}
+      return next;
+    });
+  const changeSort = (next: SortMode) => {
+    setSort(next);
+    try {
+      localStorage.setItem("moxie.folder-sort.v1", next);
+    } catch {}
+  };
   const nameInput = useRef<HTMLInputElement>(null);
   const openOperation = (action: FileAction, target?: FolderNode) => {
     setName(
@@ -203,7 +398,9 @@ export function FolderBrowser({
           : action === "rename"
             ? target?.name || ""
             : target
-              ? `${target.name.replace(/\.(md|markdown|txt)$/i, "")} 副本${target.name.match(/\.(md|markdown|txt)$/i)?.[0] || ".md"}`
+              ? target.kind === "directory"
+                ? `${target.name} 副本`
+                : `${target.name.replace(/\.(md|markdown|txt)$/i, "")} 副本${target.name.match(/\.(md|markdown|txt)$/i)?.[0] || ".md"}`
               : "",
     );
     setOperation({ action, target });
@@ -214,11 +411,12 @@ export function FolderBrowser({
     void operate({
       action: operation.action,
       target: operation.target?.path || tree.path,
+      directory: operation.directory,
       name,
     });
     setOperation(null);
   };
-  const run: RunOperation = async ({ action, target }) => {
+  const run: RunOperation = async ({ action, target, directory }) => {
     if (["new-file", "new-folder", "copy", "rename"].includes(action)) {
       const node = target ? findNode(tree.entries, target) : undefined;
       openOperation(action, node);
@@ -227,11 +425,26 @@ export function FolderBrowser({
         action,
         target: target ? findNode(tree.entries, target) : undefined,
       });
-    } else await operate({ action, target });
+    } else await operate({ action, target, directory });
+  };
+  const dropFile = (target: string, directory: string) => {
+    void operate({ action: "move", target, directory });
   };
   return (
     <section className="folder-browser" aria-label="文件夹浏览">
-      <header title={tree.path}>
+      <header
+        title={tree.path}
+        onDragOver={(event) => {
+          if (event.dataTransfer.types.includes("text/plain"))
+            event.preventDefault();
+        }}
+        onDrop={(event) => {
+          const target = event.dataTransfer.getData("text/plain");
+          if (!target || target === tree.path) return;
+          event.preventDefault();
+          dropFile(target, tree.path);
+        }}
+      >
         <Folder size={14} />
         <strong>{tree.name}</strong>
         <button
@@ -258,6 +471,24 @@ export function FolderBrowser({
         >
           <RotateCcw size={14} />
         </button>
+        <button
+          aria-label="在文件管理器中显示文件夹"
+          title="在文件管理器中显示文件夹"
+          disabled={busy}
+          onClick={() => void operate({ action: "reveal", target: tree.path })}
+        >
+          <ExternalLink size={14} />
+        </button>
+        <button
+          aria-label="复制文件夹路径"
+          title="复制文件夹路径"
+          disabled={busy}
+          onClick={() =>
+            void operate({ action: "copy-path", target: tree.path })
+          }
+        >
+          <Copy size={14} />
+        </button>
         <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
           <RefreshCw size={13} />
         </button>
@@ -265,13 +496,24 @@ export function FolderBrowser({
           <X size={13} />
         </button>
       </header>
+      <label className="folder-sort-control">
+        文件排序
+        <select
+          aria-label="文件排序"
+          value={sort}
+          onChange={(event) => changeSort(event.target.value as SortMode)}
+        >
+          <option value="name">按名称</option>
+          <option value="type">按类型</option>
+        </select>
+      </label>
       {error && (
         <p className="tree-empty" role="status">
           {error}
         </p>
       )}
       <ul>
-        {tree.entries.map((node) => (
+        {ordered(tree.entries, pinned, sort).map((node) => (
           <Branch
             key={node.path}
             node={node}
@@ -281,6 +523,10 @@ export function FolderBrowser({
             expandedPaths={expandedPaths}
             toggle={toggle}
             operate={run}
+            onDropFile={dropFile}
+            pinned={pinned}
+            sort={sort}
+            togglePin={togglePin}
           />
         ))}
       </ul>
@@ -296,11 +542,17 @@ export function FolderBrowser({
           <header>
             <h2>
               {operation.action === "trash"
-                ? "将文档移入废纸篓？"
+                ? operation.target?.kind === "directory"
+                  ? "将文件夹移入废纸篓？"
+                  : "将文档移入废纸篓？"
                 : operation.action === "rename"
-                  ? "重命名文档"
+                  ? operation.target?.kind === "directory"
+                    ? "重命名文件夹"
+                    : "重命名文档"
                   : operation.action === "copy"
-                    ? "复制文档"
+                    ? operation.target?.kind === "directory"
+                      ? "复制文件夹"
+                      : "复制文档"
                     : operation.action === "new-folder"
                       ? "新建文件夹"
                       : "新建 Markdown 文档"}
@@ -308,7 +560,8 @@ export function FolderBrowser({
           </header>
           {operation.action === "trash" ? (
             <p className="close-description">
-              “{operation.target?.name}”会移入系统废纸篓，可从废纸篓恢复。
+              “{operation.target?.name}
+              ”及其内容会移入系统废纸篓，可从废纸篓恢复。
             </p>
           ) : (
             <form className="file-operation-form" onSubmit={submit}>

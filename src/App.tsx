@@ -259,15 +259,44 @@ export default function App() {
   const folderWorkspace = useFolder();
   const operateOnFolderFile = async (request: {
     action:
-      "new-file" | "new-folder" | "copy" | "rename" | "move" | "trash" | "undo";
+      | "new-file"
+      | "new-folder"
+      | "copy"
+      | "rename"
+      | "move"
+      | "trash"
+      | "undo"
+      | "copy-path"
+      | "reveal";
     target?: string;
+    directory?: string;
     name?: string;
   }) => {
     const root = folderWorkspace.root;
     if (!root || !window.desktop) return;
+    if (request.action === "copy-path" || request.action === "reveal") {
+      if (!request.target) return;
+      try {
+        if (request.action === "copy-path") {
+          await window.desktop.copyPath(request.target);
+          setMessage("已复制路径。");
+        } else await window.desktop.revealPath(request.target);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
+    const isWithinPath = (parent: string, child: string) => {
+      const prefix =
+        parent.endsWith("/") || parent.endsWith("\\")
+          ? parent
+          : parent + (parent.includes("\\") ? "\\" : "/");
+      return child === parent || child.startsWith(prefix);
+    };
     const opened = request.target
       ? workspace.docsRef.current.filter(
-          (document) => document.path === request.target,
+          (document) =>
+            document.path && isWithinPath(request.target!, document.path),
         )
       : [];
     try {
@@ -276,14 +305,41 @@ export default function App() {
           throw Error("文档未能保存，文件操作已取消。");
       }
       const result = await window.desktop.fileOperation({
-        ...request,
+        action: request.action as
+          | "new-file"
+          | "new-folder"
+          | "copy"
+          | "rename"
+          | "move"
+          | "trash"
+          | "undo",
         root,
+        name: request.name,
+        target: request.target,
+        directory: request.directory,
         ...(request.action === "new-file" || request.action === "new-folder"
           ? { target: request.target || root }
           : {}),
       });
       if (!result) return;
-      if (request.action === "rename" || request.action === "move") {
+      if (result.paths) {
+        for (const mapping of result.paths) {
+          const affected = workspace.docsRef.current.filter(
+            (document) => document.path === mapping.from,
+          );
+          if (mapping.remove) {
+            for (const document of affected) workspace.remove(document.id);
+          } else if (mapping.to && mapping.version) {
+            for (const document of affected) {
+              workspace.updateDocumentPath(
+                mapping.from,
+                mapping.to,
+                mapping.version,
+              );
+            }
+          }
+        }
+      } else if (request.action === "rename" || request.action === "move") {
         if (request.target && result.version)
           workspace.updateDocumentPath(
             request.target,
@@ -299,7 +355,10 @@ export default function App() {
           (item) => item.path === result.path,
         ))
           workspace.remove(document.id);
-      } else if (request.action === "copy" || request.action === "new-file") {
+      } else if (
+        (request.action === "copy" && result.kind !== "directory") ||
+        request.action === "new-file"
+      ) {
         const file = await window.desktop.reopen(result.path);
         workspace.importFile(file);
       }
@@ -708,6 +767,23 @@ export default function App() {
       setMessage(String(error));
     }
   };
+  const importDocument = async () => {
+    if (!window.desktop?.importDocument) {
+      setMessage(
+        "文档格式导入需要桌面版和 Pandoc；浏览器版可直接打开 Markdown/TXT。",
+      );
+      return;
+    }
+    try {
+      const file = await window.desktop.importDocument();
+      if (file) {
+        workspace.importFile(file);
+        setMessage("文档已导入为未保存的 Markdown 副本；保存时选择目标文件。");
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
   const folder = async () => {
     try {
       if (!window.desktop) {
@@ -987,6 +1063,35 @@ export default function App() {
       setMessage(`PDF 预览失败：${String(error)}`);
     }
   };
+  const exportLongImage = async () => {
+    setMenu(null);
+    editor.current?.flush();
+    const document =
+      workspace.docsRef.current.find((item) => item.id === current.id) ||
+      current;
+    if (!window.desktop?.exportImage) {
+      setMessage("长图导出目前需要桌面版。");
+      return;
+    }
+    try {
+      const html = await exportHTML(
+        document.text,
+        document.name,
+        document.path,
+        preferences.customCSS,
+        preferences.theme,
+      );
+      const saved = await window.desktop.exportImage({
+        html,
+        name: document.name,
+      });
+      if (saved) setMessage(`长图已导出：${saved}`);
+    } catch (error) {
+      setMessage(
+        `长图导出失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
   const copySelectionAsHTML = async (code = false) => {
     const selected = editor.current?.selection() || "";
     if (!selected) {
@@ -1030,6 +1135,48 @@ export default function App() {
       );
     }
   };
+  const copyMarkdownSelectionAsRichText = async (selected: string) => {
+    const htmlPromise = exportHTML(
+      selected,
+      current.name,
+      current.path,
+      preferences.customCSS,
+      preferences.theme,
+    ).then((document) => {
+      const parsed = new DOMParser().parseFromString(document, "text/html");
+      const styles = Array.from(parsed.head.querySelectorAll("style"))
+        .map((style) => style.outerHTML)
+        .join("");
+      return `${styles}<div>${parsed.body.innerHTML}</div>`;
+    });
+    try {
+      if (window.desktop) {
+        const html = await htmlPromise;
+        await window.desktop.copyRichText({ html, text: selected });
+      } else {
+        const htmlBlob = htmlPromise.then(
+          (html) => new Blob([html], { type: "text/html" }),
+        );
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": htmlBlob,
+            "text/plain": new Blob([selected], { type: "text/plain" }),
+          }),
+        ]);
+      }
+    } catch (error) {
+      try {
+        if (window.desktop)
+          await window.desktop.copyRichText({ html: "", text: selected });
+        else await navigator.clipboard.writeText(selected);
+        setMessage("富文本复制不可用，已复制 Markdown 源码。");
+      } catch {
+        setMessage(
+          `复制失败：${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  };
   const showQuickOpen = () => {
     setMenu(null);
     setQuickOpenQuery("");
@@ -1053,6 +1200,7 @@ export default function App() {
     if (action === "redo") editor.current?.redo();
     if (action === "new") workspace.add();
     if (action === "open") void open();
+    if (action === "import") void importDocument();
     if (action === "folder") void folder();
     if (action === "save") {
       saveCurrent();
@@ -1536,6 +1684,10 @@ export default function App() {
               <FileText size={17} />
               打开文件 <kbd>⌘O</kbd>
             </button>
+            <button onClick={() => void importDocument()}>
+              <FileText size={17} />
+              导入文档…
+            </button>
             <button onClick={() => void folder()}>
               <FolderOpen size={18} />
               打开文件夹
@@ -1688,6 +1840,12 @@ export default function App() {
                 <button role="menuitem" onClick={() => void previewPDF()}>
                   <Eye size={17} />
                   预览 PDF 分页
+                </button>
+              )}
+              {window.desktop && (
+                <button role="menuitem" onClick={() => void exportLongImage()}>
+                  <ImagePlus size={17} />
+                  导出整篇长图（SVG）
                 </button>
               )}
               {window.desktop && (
@@ -1946,6 +2104,7 @@ export default function App() {
                   <label>
                     排序
                     <select
+                      aria-label="搜索结果排序"
                       value={searchSort}
                       onChange={(event) =>
                         setSearchSort(event.target.value as typeof searchSort)
@@ -2218,6 +2377,8 @@ export default function App() {
             smartQuotes={preferences.smartQuotes}
             smartDashes={preferences.smartDashes}
             spellCheck={preferences.spellCheck}
+            copyFormat={preferences.copyFormat}
+            onCopyRichText={copyMarkdownSelectionAsRichText}
             theme={darkTheme ? "dark" : "light"}
             onChange={(text) => workspace.edit(current.id, text)}
             onMapPositions={(mapPosition) =>

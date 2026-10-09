@@ -13,6 +13,7 @@ export type SavedTheme = {
   gallery?: { id: string; version: string };
 };
 export type Preferences = {
+  copyFormat: "rich-text" | "markdown";
   theme: ThemePreset;
   fontSize: number;
   font: "sans" | "serif";
@@ -33,6 +34,7 @@ export type Preferences = {
   htmlOutline: boolean;
 };
 const defaults: Preferences = {
+  copyFormat: "rich-text",
   theme: "light",
   fontSize: 18,
   font: "sans",
@@ -96,6 +98,7 @@ function initial(): Preferences {
       "solarized-dark",
     ];
     return {
+      copyFormat: value.copyFormat === "markdown" ? "markdown" : "rich-text",
       theme: themes.includes(storedTheme) ? storedTheme : "light",
       fontSize: Math.min(
         24,

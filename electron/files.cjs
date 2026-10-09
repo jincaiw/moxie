@@ -239,6 +239,72 @@ async function createAuthorizedDirectory(root, target) {
   return current;
 }
 
+async function inspectDirectory(root) {
+  const entries = [];
+  let totalBytes = 0;
+  const visit = async (current, relative = "") => {
+    const children = await fs.readdir(current, { withFileTypes: true });
+    for (const child of children) {
+      const childPath = path.join(current, child.name);
+      const childRelative = path.join(relative, child.name);
+      const metadata = await fs.lstat(childPath);
+      if (metadata.isSymbolicLink())
+        throw Error("目录包含符号链接，无法安全操作整个目录");
+      if (metadata.isDirectory()) {
+        entries.push({
+          path: childPath,
+          relative: childRelative,
+          kind: "directory",
+        });
+        if (entries.length > 5000) throw Error("目录项目超过 5000 项限制");
+        await visit(childPath, childRelative);
+      } else if (metadata.isFile()) {
+        totalBytes += metadata.size;
+        if (metadata.size > 30 * 1024 * 1024 || totalBytes > 100 * 1024 * 1024)
+          throw Error(
+            "目录文件或总数据超过安全操作限制（单文件 30 MB，总计 100 MB）",
+          );
+        entries.push({
+          path: childPath,
+          relative: childRelative,
+          kind: "file",
+        });
+        if (entries.length > 5000) throw Error("目录项目超过 5000 项限制");
+      } else throw Error("目录包含不支持的特殊文件");
+    }
+  };
+  await visit(root);
+  return entries;
+}
+
+async function directoryFingerprint(root) {
+  const hash = crypto.createHash("sha256");
+  for (const entry of await inspectDirectory(root)) {
+    hash.update(entry.kind).update("\0").update(entry.relative).update("\0");
+    if (entry.kind === "file") hash.update(await fs.readFile(entry.path));
+  }
+  return hash.digest("hex");
+}
+
+async function copyDirectoryContents(source, destination, entries) {
+  await fs.mkdir(destination);
+  try {
+    for (const entry of entries) {
+      const target = path.join(destination, entry.relative);
+      if (entry.kind === "directory") await fs.mkdir(target);
+      else
+        await fs.copyFile(
+          entry.path,
+          target,
+          require("node:fs").constants.COPYFILE_EXCL,
+        );
+    }
+  } catch (error) {
+    await fs.rm(destination, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 class FileStore {
   constructor(stateFile, trashItem) {
     this.stateFile = stateFile;
@@ -249,6 +315,47 @@ class FileStore {
     this.treeRoots = new Map();
     this.trashItem = trashItem;
     this.fileOperationHistory = [];
+  }
+  async remapDirectoryPaths(from, to, root) {
+    const files = [...this.authorized].filter((file) => inside(from, file));
+    for (const folder of [...this.folders])
+      if (inside(from, folder)) {
+        this.folders.delete(folder);
+        this.folders.add(path.join(to, path.relative(from, folder)));
+      }
+    const mappings = files.map((file) => ({
+      from: file,
+      to: path.join(to, path.relative(from, file)),
+    }));
+    for (const { from: oldPath, to: newPath } of mappings) {
+      this.authorized.delete(oldPath);
+      this.authorized.add(newPath);
+      this.treeRoots.delete(oldPath);
+      this.treeRoots.set(newPath, root);
+    }
+    this.recent = this.recent.map((file) =>
+      inside(from, file) ? path.join(to, path.relative(from, file)) : file,
+    );
+    await this.persist();
+    return Promise.all(
+      mappings.map(async (mapping) => ({
+        ...mapping,
+        version: await this.signature(mapping.to).catch(() => undefined),
+      })),
+    );
+  }
+  async removeDirectoryPaths(prefix) {
+    const files = [...this.authorized].filter((file) => inside(prefix, file));
+    for (const folder of [...this.folders])
+      if (inside(prefix, folder)) this.folders.delete(folder);
+    for (const file of [...this.authorized])
+      if (inside(prefix, file)) {
+        this.authorized.delete(file);
+        this.treeRoots.delete(file);
+      }
+    this.recent = this.recent.filter((file) => !inside(prefix, file));
+    await this.persist();
+    return files;
   }
   async fileOperation(input) {
     const {
@@ -337,12 +444,19 @@ class FileStore {
       this.rememberFileOperation({
         action,
         path: target,
+        directory: action === "new-folder",
         fingerprint:
           action === "new-file"
             ? await this.contentFingerprint(target)
-            : undefined,
+            : action === "new-folder"
+              ? await directoryFingerprint(target)
+              : undefined,
       });
-      return { action, path: target };
+      return {
+        action,
+        path: target,
+        kind: action === "new-folder" ? "directory" : "file",
+      };
     }
     if (action === "undo") {
       const previous = this.fileOperationHistory.at(-1);
@@ -350,20 +464,31 @@ class FileStore {
         throw Error("没有可撤销的文件操作");
       if (previous.action === "trash")
         throw Error("此系统的废纸篓操作无法由应用自动撤销");
+      let undoPaths;
       if (["new-file", "new-folder", "copy"].includes(previous.action)) {
         const metadata = await fs.lstat(previous.path);
         if (
           metadata.isSymbolicLink() ||
-          (metadata.isDirectory() && (await fs.readdir(previous.path)).length)
+          (previous.directory &&
+            (await directoryFingerprint(previous.path)) !==
+              previous.fingerprint) ||
+          (!previous.directory &&
+            metadata.isDirectory() &&
+            (await fs.readdir(previous.path)).length)
         )
           throw Error("目标已包含新内容，无法安全撤销");
         if (
+          !previous.directory &&
           metadata.isFile() &&
           (await this.contentFingerprint(previous.path)) !==
             previous.fingerprint
         )
           throw Error("文件内容已更改，无法安全撤销");
-        await fs.rm(previous.path);
+        if (previous.directory)
+          undoPaths = (await this.removeDirectoryPaths(previous.path)).map(
+            (from) => ({ from, remove: true }),
+          );
+        await fs.rm(previous.path, { recursive: Boolean(previous.directory) });
       } else {
         if (
           await fs.lstat(previous.from).then(
@@ -375,12 +500,26 @@ class FileStore {
           throw Error("原位置已被占用，无法撤销");
         if (
           previous.fingerprint &&
-          (await this.contentFingerprint(previous.path)) !==
+          (previous.directory
+            ? await directoryFingerprint(previous.path)
+            : await this.contentFingerprint(previous.path)) !==
             previous.fingerprint
         )
           throw Error("文件内容已更改，无法安全撤销");
-        await moveFileNoReplace(previous.path, previous.from);
-        if (["rename", "move"].includes(previous.action)) {
+        if (previous.directory) {
+          await fs.rename(previous.path, previous.from);
+          undoPaths = await this.remapDirectoryPaths(
+            previous.path,
+            previous.from,
+            root,
+          );
+        } else {
+          await moveFileNoReplace(previous.path, previous.from);
+        }
+        if (
+          !previous.directory &&
+          ["rename", "move"].includes(previous.action)
+        ) {
           this.authorized.delete(previous.path);
           this.authorized.add(previous.from);
           this.treeRoots.delete(previous.path);
@@ -396,9 +535,102 @@ class FileStore {
         action: "undo",
         path: previous.path,
         from: previous.from,
+        paths: undoPaths,
         version:
+          !previous.directory &&
           previous.from &&
           (await this.signature(previous.from).catch(() => undefined)),
+      };
+    }
+    if (
+      typeof suppliedTarget !== "string" ||
+      !path.isAbsolute(suppliedTarget) ||
+      !insideRoot(suppliedTarget)
+    )
+      throw Error("目标必须位于已授权文件夹内");
+    const sourceMetadata = await fs.lstat(suppliedTarget);
+    if (sourceMetadata.isDirectory()) {
+      const source = await directory(suppliedTarget);
+      if (source === root) throw Error("不能对已打开的根文件夹执行此操作");
+      const entries = await inspectDirectory(source);
+      if (action === "trash") {
+        if (!this.trashItem) throw Error("当前平台不支持移入系统废纸篓");
+        const files = [...this.authorized].filter((file) =>
+          inside(source, file),
+        );
+        await this.trashItem(source);
+        await this.removeDirectoryPaths(source);
+        this.rememberFileOperation({ action: "trash", path: source });
+        return {
+          action,
+          path: source,
+          kind: "directory",
+          paths: files.map((from) => ({ from, remove: true })),
+        };
+      }
+      if (!["rename", "copy", "move"].includes(action))
+        throw Error("未知目录操作");
+      const parent =
+        action === "move"
+          ? await directory(suppliedDirectory)
+          : path.dirname(source);
+      const label =
+        action === "copy" && !name
+          ? `${path.basename(source)} 副本`
+          : filename(name || path.basename(source));
+      const destination = path.join(parent, label);
+      if (!insideRoot(destination)) throw Error("目标必须位于已授权文件夹内");
+      if (action === "move" && inside(source, destination))
+        throw Error("不能把文件夹移动到自身或其子文件夹中");
+      if (
+        await fs.lstat(destination).then(
+          () => true,
+          (error) => (error.code === "ENOENT" ? false : Promise.reject(error)),
+        )
+      )
+        throw Error("目标位置已存在同名文件夹");
+      let mappings;
+      if (action === "copy") {
+        const temporary = path.join(
+          parent,
+          `.moxie-copy-${crypto.randomUUID()}`,
+        );
+        try {
+          await copyDirectoryContents(source, temporary, entries);
+          await fs.rename(temporary, destination);
+        } catch (error) {
+          await fs.rm(temporary, { recursive: true, force: true });
+          throw error;
+        }
+        for (const entry of entries) {
+          if (
+            entry.kind === "file" &&
+            /\.(md|markdown|txt)$/i.test(entry.path)
+          ) {
+            const target = path.join(destination, entry.relative);
+            this.authorized.add(target);
+            this.treeRoots.set(target, root);
+          }
+        }
+        await this.persist();
+      } else {
+        await fs.rename(source, destination);
+        mappings = await this.remapDirectoryPaths(source, destination, root);
+      }
+      const fingerprint = await directoryFingerprint(destination);
+      this.rememberFileOperation({
+        action,
+        path: destination,
+        from: source,
+        directory: true,
+        fingerprint,
+      });
+      return {
+        action,
+        path: destination,
+        from: source,
+        kind: "directory",
+        paths: mappings,
       };
     }
     const source = await document(suppliedTarget);
@@ -470,6 +702,20 @@ class FileStore {
       fingerprint: await this.contentFingerprint(destination),
     });
     return { action, path: destination, from: source, version };
+  }
+  async authorizedPath(value) {
+    if (typeof value !== "string" || !path.isAbsolute(value))
+      throw Error("路径无效");
+    const root = [...this.folders].find((folder) => inside(folder, value));
+    if (!root) throw Error("路径不在已打开的文件夹中");
+    const metadata = await fs.lstat(value);
+    if (metadata.isSymbolicLink()) throw Error("不能显示符号链接路径");
+    const real = await fs.realpath(value);
+    if (real !== value || !inside(root, real))
+      throw Error("路径位置已改变，请刷新文件夹");
+    if (!metadata.isDirectory() && !this.authorized.has(real))
+      throw Error("该文件尚未由文件夹浏览器授权");
+    return real;
   }
   async init() {
     if (!this.stateFile) return;
@@ -582,7 +828,7 @@ class FileStore {
             kind: "directory",
             children,
           });
-        } else if (entry.isFile() && /\.(md|markdown)$/i.test(entry.name)) {
+        } else if (entry.isFile() && /\.(md|markdown|txt)$/i.test(entry.name)) {
           count++;
           this.authorized.add(file);
           this.treeRoots.set(file, root);
