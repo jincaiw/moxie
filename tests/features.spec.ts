@@ -2588,6 +2588,44 @@ test("编辑标题前的正文后仍保留对应大纲折叠状态", async ({ pa
   ).toHaveAttribute("aria-expanded", "false");
 });
 
+test("在重复标题前插入同名标题后仍折叠原章节", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "大纲重复标题折叠.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# 根标题\n\n## 相同标题\n\n### 第一章节内容\n\n## 相同标题\n\n### 原折叠章节内容\n",
+    ),
+  });
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  const rows = page.locator(".outline-row");
+  await page.getByRole("button", { name: "折叠 相同标题" }).nth(1).click();
+  await expect(rows).toHaveText([
+    "根标题",
+    "相同标题",
+    "第一章节内容",
+    "相同标题",
+  ]);
+
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  const sourceEditor = page.locator(".cm-content");
+  await sourceEditor.press("Control+Home");
+  for (let line = 0; line < 6; line++) await sourceEditor.press("ArrowDown");
+  await page.keyboard.type("## 相同标题\n");
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+
+  await expect(rows).toHaveText([
+    "根标题",
+    "相同标题",
+    "第一章节内容",
+    "相同标题",
+    "相同标题",
+  ]);
+  await expect(page.getByRole("button", { name: "展开 相同标题" })).toHaveCount(
+    1,
+  );
+});
+
 test("窄屏打开侧栏后可点击遮罩关闭", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

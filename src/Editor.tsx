@@ -82,6 +82,7 @@ type Props = {
   spellCheck?: boolean;
   theme?: "light" | "dark";
   onChange: (text: string) => void;
+  onMapPositions: (mapPosition: (position: number) => number) => void;
   onDirty: () => void;
   onCursorChange: (position: number, line: number, column: number) => void;
   onLink: (href: string) => void;
@@ -910,6 +911,17 @@ export const Editor = forwardRef<EditorHandle, Props>(
                         });
                     });
                   if (!update.docChanged) return;
+                  latest.current.onMapPositions((position) => {
+                    let insertedAtPosition = false;
+                    update.changes.iterChanges((from, to) => {
+                      if (from === position && to === position)
+                        insertedAtPosition = true;
+                    });
+                    return update.changes.mapPos(
+                      position,
+                      insertedAtPosition ? 1 : -1,
+                    );
+                  });
                   latest.current.onDirty();
                   window.desktop?.dirty(true);
                   pending.current.forEach((point) => {

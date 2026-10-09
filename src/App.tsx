@@ -122,7 +122,7 @@ export default function App() {
     [current.text],
   );
   const [outlineQuery, setOutlineQuery] = useState("");
-  const [collapsedOutline, setCollapsedOutline] = useState<Set<string>>(
+  const [collapsedOutline, setCollapsedOutline] = useState<Set<number>>(
     () => new Set(),
   );
   useEffect(() => {
@@ -132,16 +132,8 @@ export default function App() {
   const outlineRows = useMemo(() => {
     const query = outlineQuery.trim().toLocaleLowerCase();
     const collapsedLevels: number[] = [];
-    const occurrences = new Map<string, number>();
     return documentHeadings.flatMap((heading, index) => {
-      const titleIdentity = JSON.stringify([heading.level, heading.title]);
-      const occurrence = occurrences.get(titleIdentity) || 0;
-      occurrences.set(titleIdentity, occurrence + 1);
-      const identity = JSON.stringify([
-        heading.level,
-        heading.title,
-        occurrence,
-      ]);
+      const identity = heading.from;
       while (
         collapsedLevels.length &&
         heading.level <= collapsedLevels[collapsedLevels.length - 1]
@@ -1872,6 +1864,13 @@ export default function App() {
             spellCheck={preferences.spellCheck}
             theme={darkTheme ? "dark" : "light"}
             onChange={(text) => workspace.edit(current.id, text)}
+            onMapPositions={(mapPosition) =>
+              setCollapsedOutline((previous) =>
+                previous.size
+                  ? new Set(Array.from(previous, mapPosition))
+                  : previous,
+              )
+            }
             onDirty={() => workspace.markDirty(current.id)}
             onCursorChange={(position, line, column) =>
               setCursor({ position, line, column })
