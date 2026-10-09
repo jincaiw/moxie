@@ -617,3 +617,55 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
   await expect(preview.locator("code")).toHaveText("https://code.example/path");
   await preview.close();
 });
+
+test("引用内嵌套列表中的链接组合与代码边界在预览和导出中一致", async ({
+  page,
+}) => {
+  const source =
+    "> - 引用列表 [嵌套目标](https://example.org/a_(b_(c)))\n" +
+    ">   - 内层列表 [转义目标](https://example.org/a\\(b\\))\n" +
+    ">     [引用目标][guide]\n" +
+    ">\n" +
+    '>     [Guide]: https://example.org/guide "引用标题"\n' +
+    ">\n" +
+    ">     `[代码链接](https://ignored.example)`";
+
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-container-links.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await page.locator(".cm-line").last().click();
+
+  await expect(
+    page.getByRole("link", { name: "嵌套目标", exact: true }),
+  ).toHaveAttribute("href", "https://example.org/a_(b_(c))");
+  await expect(
+    page.getByRole("link", { name: "转义目标", exact: true }),
+  ).toHaveAttribute("href", "https://example.org/a(b)");
+  const reference = page.getByRole("link", {
+    name: "引用目标",
+    exact: true,
+  });
+  await expect(reference).toHaveAttribute("href", "https://example.org/guide");
+  await expect(reference).toHaveAttribute("title", /^引用标题/);
+  await expect(page.getByRole("link", { name: "代码链接" })).toHaveCount(0);
+
+  const html = await page.evaluate(async (markdown) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(markdown, "nested-container-links.md");
+  }, source);
+  expect(html).toContain(
+    '<a href="https://example.org/a_(b_(c))">嵌套目标</a>',
+  );
+  expect(html).toContain('<a href="https://example.org/a(b)">转义目标</a>');
+  expect(html).toContain(
+    '<a href="https://example.org/guide" title="引用标题">引用目标</a>',
+  );
+  expect(html).toContain("<code>[代码链接](https://ignored.example)</code>");
+  expect(html).not.toContain('<a href="https://ignored.example">');
+});
