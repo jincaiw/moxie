@@ -1715,9 +1715,10 @@ p {
   opacity: 1;
 }
 .table-tools button {
-  font-size: 11px;
+  min-height: 30px;
+  font-size: 12px;
   line-height: 1.5;
-  padding: 4px 7px;
+  padding: 5px 7px;
   border-radius: 4px;
   color: var(--muted);
 }
@@ -1725,7 +1726,7 @@ p {
   margin-left: auto;
 }
 .table-tools button:disabled {
-  opacity: 0.45;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 .editable-table table {
@@ -1958,8 +1959,9 @@ p {
     opacity: 1;
   }
   .table-tools button {
-    padding: 3px 4px;
-    font-size: 10px;
+    min-height: 32px;
+    padding: 5px 6px;
+    font-size: 11px;
   }
   .close-file {
     opacity: 1;

@@ -2463,6 +2463,24 @@ test("表格行列重排按钮可用键盘操作并在边界禁用", async ({ pa
   ).toHaveText(beforeColumns[0]);
 });
 
+test("窄屏表格操作按钮保留可触控尺寸和清晰的禁用态", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const table = page.locator(".editable-table").first();
+  await table.locator('[data-cell="1:0"]').click();
+  const disabledButton = table.getByRole("button", {
+    name: "上移行",
+    exact: true,
+  });
+  await expect(disabledButton).toBeDisabled();
+  const metrics = await disabledButton.evaluate((button) => ({
+    height: button.getBoundingClientRect().height,
+    opacity: Number(getComputedStyle(button).opacity),
+  }));
+  expect(metrics.height).toBeGreaterThanOrEqual(32);
+  expect(metrics.opacity).toBeGreaterThanOrEqual(0.7);
+});
+
 test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
