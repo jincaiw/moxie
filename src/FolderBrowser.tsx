@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type RefObject,
+} from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -75,6 +82,8 @@ function Branch({
   pinned,
   sort,
   togglePin,
+  treeRef,
+  onTreeKeyDown,
 }: {
   node: FolderNode;
   depth: number;
@@ -87,6 +96,11 @@ function Branch({
   pinned: Set<string>;
   sort: SortMode;
   togglePin: (path: string) => void;
+  treeRef: RefObject<HTMLUListElement | null>;
+  onTreeKeyDown: (
+    event: KeyboardEvent<HTMLButtonElement>,
+    node: FolderNode,
+  ) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const expanded = expandedPaths.has(node.path);
@@ -112,6 +126,7 @@ function Branch({
           style={{ paddingLeft: 10 + depth * 14 }}
           aria-expanded={directory ? expanded : undefined}
           aria-label={directory ? "文件夹 " + node.name : "打开 " + node.name}
+          onKeyDown={(event) => onTreeKeyDown(event, node)}
           draggable
           onDragStart={(event) => {
             event.dataTransfer.effectAllowed = "move";
@@ -308,6 +323,8 @@ function Branch({
                 pinned={pinned}
                 sort={sort}
                 togglePin={togglePin}
+                treeRef={treeRef}
+                onTreeKeyDown={onTreeKeyDown}
               />
             ))
           ) : (
@@ -346,6 +363,7 @@ export function FolderBrowser({
 }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
+  const treeRef = useRef<HTMLUListElement>(null);
   const [sort, setSort] = useState<SortMode>(() => {
     try {
       return localStorage.getItem("moxie.folder-sort.v1") === "type"
@@ -472,6 +490,66 @@ export function FolderBrowser({
   const dropFile = (target: string, directory: string) => {
     void operate({ action: "move", target, directory });
   };
+  const onTreeKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    node: FolderNode,
+  ) => {
+    const rows = Array.from(
+      treeRef.current?.querySelectorAll<HTMLButtonElement>(".tree-row") || [],
+    );
+    const index = rows.indexOf(event.currentTarget);
+    const currentItem = event.currentTarget.closest("li");
+    const focusRow = (row?: HTMLButtonElement | null) => {
+      if (row) {
+        event.preventDefault();
+        row.focus();
+      }
+    };
+    if (event.key === "ArrowDown") focusRow(rows[index + 1]);
+    else if (event.key === "ArrowUp") focusRow(rows[index - 1]);
+    else if (event.key === "Home") focusRow(rows[0]);
+    else if (event.key === "End") focusRow(rows[rows.length - 1]);
+    else if (event.key === "ArrowRight" && node.kind === "directory") {
+      event.preventDefault();
+      if (expandedPaths.has(node.path)) {
+        currentItem
+          ?.querySelector<HTMLButtonElement>(
+            ":scope > ul > li > .tree-entry-line > .tree-row",
+          )
+          ?.focus();
+      } else {
+        toggle(node.path);
+        requestAnimationFrame(() =>
+          currentItem
+            ?.querySelector<HTMLButtonElement>(
+              ":scope > ul > li > .tree-entry-line > .tree-row",
+            )
+            ?.focus(),
+        );
+      }
+    } else if (event.key === "ArrowLeft" && node.kind === "directory") {
+      if (expandedPaths.has(node.path)) {
+        event.preventDefault();
+        toggle(node.path);
+      } else {
+        focusRow(
+          currentItem?.parentElement
+            ?.closest("li")
+            ?.querySelector<HTMLButtonElement>(
+              ":scope > .tree-entry-line > .tree-row",
+            ),
+        );
+      }
+    } else if (event.key === "ArrowLeft" && node.kind === "file") {
+      focusRow(
+        currentItem?.parentElement
+          ?.closest("li")
+          ?.querySelector<HTMLButtonElement>(
+            ":scope > .tree-entry-line > .tree-row",
+          ),
+      );
+    }
+  };
   return (
     <section className="folder-browser" aria-label="文件夹浏览">
       <header
@@ -554,7 +632,15 @@ export function FolderBrowser({
           {error}
         </p>
       )}
-      <ul>
+      <p id="folder-tree-keyboard-help" className="sr-only">
+        文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home
+        和 End 跳到列表首尾。
+      </p>
+      <ul
+        ref={treeRef}
+        aria-label="文件列表"
+        aria-describedby="folder-tree-keyboard-help"
+      >
         {ordered(tree.entries, pinned, sort).map((node) => (
           <Branch
             key={node.path}
@@ -569,6 +655,8 @@ export function FolderBrowser({
             pinned={pinned}
             sort={sort}
             togglePin={togglePin}
+            treeRef={treeRef}
+            onTreeKeyDown={onTreeKeyDown}
           />
         ))}
       </ul>

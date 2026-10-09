@@ -2,6 +2,11 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
+## 本轮补齐（v0.16.223）
+
+- 文件侧栏支持方向键上下浏览、Home/End 跳转、左右展开/折叠目录及返回父目录，并提供键盘说明。
+- 新增方向键展开、聚焦首个子项、返回父项和折叠回归；验证与发布状态见 [Typora 差距报告](docs/typora-gap-audit.md) 和 [实施计划](docs/implementation-plan.md)。
+
 ## 本轮补齐（v0.16.222）
 
 - 软件更新设置始终提供官方版本下载页，自动更新不可用或下载失败时可直接转到手动安装入口。

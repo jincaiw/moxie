@@ -228,6 +228,24 @@ test("目录展开、按需打开、刷新和关闭目录", async ({ page }) => 
   await expect(page.locator(".cm-content")).toContainText("原内容");
 });
 
+test("文件侧栏支持方向键浏览与目录展开折叠", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  const folder = page.getByRole("button", { name: "文件夹 章节" });
+  await expect(folder).toBeVisible();
+  await folder.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(folder).toHaveAttribute("aria-expanded", "true");
+
+  const note = page.getByRole("button", { name: "打开 note.md", exact: true });
+  await expect(note).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(folder).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(folder).toHaveAttribute("aria-expanded", "false");
+  await expect(note).toHaveCount(0);
+});
+
 test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {
