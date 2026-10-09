@@ -927,18 +927,18 @@ export const Editor = forwardRef<EditorHandle, Props>(
                 themeMode.current.of(
                   previewTheme.of(latest.current.theme || "light"),
                 ),
-                EditorView.domEventHandlers({
+                EditorView.domEventObservers({
                   keydown(event) {
                     plainPaste.current =
                       event.shiftKey &&
                       (event.metaKey || event.ctrlKey) &&
                       event.key.toLowerCase() === "v";
-                    return false;
                   },
                   keyup() {
                     plainPaste.current = false;
-                    return false;
                   },
+                }),
+                EditorView.domEventHandlers({
                   paste(event, instance) {
                     const files = Array.from(
                       event.clipboardData?.files || [],

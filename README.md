@@ -2,7 +2,7 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
-## 本轮补齐（v0.16.212）
+## 本轮补齐（v0.16.213）
 
 - 网页内容智能粘贴为 Markdown；源码模式及 Shift+⌘/Ctrl+V 使用纯文本。
 - 选区独立字数统计，状态栏和统计窗口区分选区与全文。

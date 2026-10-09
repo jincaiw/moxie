@@ -4271,7 +4271,8 @@ test("智能粘贴支持 GFM 表格，Shift 粘贴绕过转换", async ({ page }
     element.dispatchEvent(
       new KeyboardEvent("keydown", {
         key: "v",
-        ctrlKey: true,
+        metaKey: /Mac/i.test(navigator.platform),
+        ctrlKey: !/Mac/i.test(navigator.platform),
         shiftKey: true,
         bubbles: true,
       }),
