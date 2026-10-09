@@ -66,21 +66,24 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          if [[ -n "$MACOS_CERTIFICATE" ]]; then
-            echo "CSC_LINK=$MACOS_CERTIFICATE" >> "$GITHUB_ENV"
-            if [[ -n "$MACOS_CERTIFICATE_PASSWORD" ]]; then
-              echo "CSC_KEY_PASSWORD=$MACOS_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
-            fi
-          fi
-          if [[ -n "$APPLE_ID" && -n "$APPLE_APP_SPECIFIC_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
-            echo "APPLE_ID=$APPLE_ID" >> "$GITHUB_ENV"
-            echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_SPECIFIC_PASSWORD" >> "$GITHUB_ENV"
-            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
-          fi
+        run: bash scripts/configure-macos-signing.sh
       - name: Build macOS packages
         if: matrix.platform == 'macOS'
         run: npm run package:mac -- --${{ matrix.arch }}
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'macOS'
+        run: |
+          if [[ "${MACOS_SIGNING_ENABLED:-false}" != "true" ]]; then
+            echo "Skipped: this build does not have signing credentials."
+            exit 0
+          fi
+          app="$(find release -type d -name '*.app' -print -quit)"
+          if [[ -z "$app" ]]; then
+            echo "The macOS application bundle was not found in the release output." >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "$app"
+          xcrun stapler validate "$app"
       - name: Normalize and verify macOS disk images
         if: matrix.platform == 'macOS'
         run: |

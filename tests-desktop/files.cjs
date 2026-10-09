@@ -3,9 +3,11 @@ const assert = require("node:assert/strict");
 const vm = require("node:vm");
 const fs = require("node:fs/promises");
 const syncFS = require("node:fs");
+const { spawnSync } = require("node:child_process");
 const os = require("node:os");
 const path = require("node:path");
 const { EventEmitter } = require("node:events");
+const yaml = require("js-yaml");
 const {
   UpdateController,
   describeUpdateError,
@@ -1018,6 +1020,72 @@ test("Windows 与 Linux 发布目标及平台图标已配置", () => {
   assert.equal(build.linux.syncDesktopName, true);
   assert.equal(syncFS.existsSync(build.win.icon), true);
   assert.equal(syncFS.existsSync(build.linux.icon), true);
+});
+
+test("macOS 发布只接受完整签名凭据，并验证签名与公证票据", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-macos-signing-"));
+  harnessDirectories.push(root);
+  const workflow = yaml.load(
+    await fs.readFile(
+      path.join(__dirname, "../.github/workflows/release.yml"),
+      "utf8",
+    ),
+  );
+  const steps = workflow.jobs.build.steps;
+  const configure = steps.find(
+    (step) => step.name === "Configure optional macOS signing credentials",
+  );
+  const verify = steps.find(
+    (step) => step.name === "Verify macOS signature and notarization",
+  );
+  assert.equal(configure.run, "bash scripts/configure-macos-signing.sh");
+  assert.ok(verify.run.includes("codesign --verify --deep --strict"));
+  assert.ok(verify.run.includes("xcrun stapler validate"));
+  assert.equal(spawnSync("bash", ["-n", "-c", verify.run]).status, 0);
+
+  const script = path.join(__dirname, "../scripts/configure-macos-signing.sh");
+  const envFile = path.join(root, "github-env");
+  const run = (credentials) => {
+    syncFS.writeFileSync(envFile, "");
+    return spawnSync("bash", [script], {
+      cwd: path.join(__dirname, ".."),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        GITHUB_ENV: envFile,
+        MACOS_CERTIFICATE: "",
+        MACOS_CERTIFICATE_PASSWORD: "",
+        APPLE_ID: "",
+        APPLE_APP_SPECIFIC_PASSWORD: "",
+        APPLE_TEAM_ID: "",
+        ...credentials,
+      },
+    });
+  };
+
+  const unsigned = run({});
+  assert.equal(unsigned.status, 0, unsigned.stderr);
+  assert.match(
+    syncFS.readFileSync(envFile, "utf8"),
+    /MACOS_SIGNING_ENABLED=false/,
+  );
+
+  const partial = run({ MACOS_CERTIFICATE: "base64-certificate" });
+  assert.notEqual(partial.status, 0);
+  assert.match(partial.stderr, /all five macOS signing secrets/);
+
+  const signed = run({
+    MACOS_CERTIFICATE: "base64-certificate",
+    MACOS_CERTIFICATE_PASSWORD: "certificate-password",
+    APPLE_ID: "developer@example.com",
+    APPLE_APP_SPECIFIC_PASSWORD: "app-password",
+    APPLE_TEAM_ID: "TEAM123456",
+  });
+  assert.equal(signed.status, 0, signed.stderr);
+  assert.match(
+    syncFS.readFileSync(envFile, "utf8"),
+    /MACOS_SIGNING_ENABLED=true/,
+  );
 });
 
 test("arm64 与 x64 更新清单合并并拒绝缺失架构", () => {
