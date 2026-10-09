@@ -212,18 +212,19 @@ function setupIPC() {
     if (result.canceled) return null;
     return importWithPandoc({ inputPath: result.filePaths[0] });
   });
-  handle("file:folder", async (_input, { window }) => {
+  handle("file:folder", async (options, { window }) => {
     const result = await dialog.showOpenDialog(window, {
       properties: ["openDirectory"],
     });
     if (result.canceled) return null;
-    return store.folder(result.filePaths[0]);
+    return store.folder(result.filePaths[0], false, undefined, options);
   });
   handle("folder:refresh", (input) =>
     store.folder(
       typeof input === "string" ? input : input.path,
       true,
       input.version,
+      input.options,
     ),
   );
   handle("folder:search", (input) => store.searchFolder(input));
@@ -239,12 +240,12 @@ function setupIPC() {
     return store.fileOperation({ ...input, directory: result.filePaths[0] });
   });
   handle("file:copy-path", async (input) => {
-    const authorized = await store.authorizedPath(input);
+    const authorized = await store.authorizedPath(input, true);
     clipboard.writeText(authorized);
     return true;
   });
   handle("file:reveal", async (input) => {
-    const authorized = await store.authorizedPath(input);
+    const authorized = await store.authorizedPath(input, true);
     shell.showItemInFolder(authorized);
     return true;
   });

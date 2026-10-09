@@ -2,9 +2,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
   open: () => ipcRenderer.invoke("file:open"),
   importDocument: () => ipcRenderer.invoke("file:import"),
-  folder: () => ipcRenderer.invoke("file:folder"),
-  refreshFolder: (root, version) =>
-    ipcRenderer.invoke("folder:refresh", { path: root, version }),
+  folder: (options) => ipcRenderer.invoke("file:folder", options),
+  refreshFolder: (root, version, options) =>
+    ipcRenderer.invoke("folder:refresh", { path: root, version, options }),
   searchFolder: (root, query) =>
     ipcRenderer.invoke("folder:search", { root, query }),
   fileOperation: (input) => ipcRenderer.invoke("file:operation", input),

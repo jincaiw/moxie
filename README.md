@@ -2,6 +2,11 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
+## 本轮补齐（v0.16.225）
+
+- 文件侧栏偏好可选择显示隐藏文件/文件夹和非 Markdown 文件；其他文件只支持复制路径或在文件管理器中定位，不会按文档打开。
+- 验证目录筛选选项、符号链接与授权边界，结果记录于 [Typora 差距报告](docs/typora-gap-audit.md) 和 [实施计划](docs/implementation-plan.md)。
+
 ## 本轮补齐（v0.16.224）
 
 - 偏好设置可开启选区浮动格式工具栏，提供粗体、斜体、高亮、删除线、行内代码和链接操作，并保留编辑器选区。

@@ -1691,6 +1691,67 @@ test("整目录操作拒绝符号链接且废纸篓撤销授权路径", async ()
   }
 });
 
+test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文档读取权限", async () => {
+  const { FileStore } = require("../electron/files.cjs");
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-folder-filters-"),
+  );
+  try {
+    await fs.mkdir(path.join(root, ".drafts"));
+    await fs.mkdir(path.join(root, "node_modules"));
+    const markdown = path.join(root, "note.md");
+    const hidden = path.join(root, ".drafts", "private.md");
+    const image = path.join(root, "diagram.png");
+    const dependency = path.join(root, "node_modules", "ignored.js");
+    await Promise.all([
+      fs.writeFile(markdown, "note"),
+      fs.writeFile(hidden, "private"),
+      fs.writeFile(image, "image"),
+      fs.writeFile(dependency, "ignored"),
+    ]);
+    const store = new FileStore(path.join(root, ".state", "files.json"));
+    const defaults = await store.folder(root);
+    assert.deepEqual(
+      defaults.entries.map((entry) => entry.name),
+      ["note.md"],
+    );
+
+    const filtered = await store.folder(root, true, undefined, {
+      showHiddenFiles: true,
+      showOtherFiles: true,
+    });
+    assert.equal(
+      filtered.entries.find((entry) => entry.name === ".drafts").kind,
+      "directory",
+    );
+    assert.equal(
+      filtered.entries.find((entry) => entry.name === "diagram.png").kind,
+      "other",
+    );
+    assert.equal(
+      filtered.entries.some((entry) => entry.name === "node_modules"),
+      false,
+    );
+    await assert.rejects(store.authorizedPath(image), /尚未由文件夹浏览器授权/);
+    assert.equal(await store.authorizedPath(image, true), image);
+
+    const hiddenOnly = await store.folder(root, true, undefined, {
+      showHiddenFiles: true,
+      showOtherFiles: false,
+    });
+    assert.equal(
+      hiddenOnly.entries.some((entry) => entry.name === "diagram.png"),
+      false,
+    );
+    await assert.rejects(
+      store.authorizedPath(image, true),
+      /尚未由文件夹浏览器授权/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("路径复制与文件管理器显示只允许授权目录中的真实路径", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-"));
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-out-"));

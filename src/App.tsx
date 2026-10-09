@@ -288,7 +288,10 @@ export default function App() {
       } & EditableDocumentMetadata)
     | null
   >(null);
-  const folderWorkspace = useFolder();
+  const folderWorkspace = useFolder({
+    showHiddenFiles: preferences.showHiddenFiles,
+    showOtherFiles: preferences.showOtherFiles,
+  });
   const operateOnFolderFile = async (request: {
     action:
       | "new-file"
@@ -1685,6 +1688,8 @@ export default function App() {
                 toggle={folderWorkspace.toggle}
                 error={folderWorkspace.error}
                 operate={operateOnFolderFile}
+                showHiddenFiles={preferences.showHiddenFiles}
+                showOtherFiles={preferences.showOtherFiles}
               />
             )}
             {tab === "files" && folderWorkspace.root && !tree && (

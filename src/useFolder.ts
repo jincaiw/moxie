@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FolderTree } from "./bridge";
+import type { FolderDisplayOptions, FolderTree } from "./bridge";
 const key = "moxie.folder.v1";
 function restored() {
   if (!window.desktop)
@@ -20,7 +20,7 @@ function restored() {
   } catch {}
   return { path: null as string | null, expanded: [] as string[] };
 }
-export function useFolder() {
+export function useFolder(options: FolderDisplayOptions) {
   const [session] = useState(restored);
   const [root, setRoot] = useState<string | null>(session.path);
   const [expanded, setExpanded] = useState<Set<string>>(
@@ -33,6 +33,9 @@ export function useFolder() {
   rootRef.current = root;
   const treeRef = useRef(tree);
   treeRef.current = tree;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const refreshQueued = useRef(false);
   const generation = useRef(0),
     inFlight = useRef(false),
     mounted = useRef(true);
@@ -61,7 +64,11 @@ export function useFolder() {
   }, [root, expanded]);
   const refresh = useCallback(async () => {
     const path = rootRef.current;
-    if (!path || !window.desktop?.refreshFolder || inFlight.current) return;
+    if (!path || !window.desktop?.refreshFolder) return;
+    if (inFlight.current) {
+      refreshQueued.current = true;
+      return;
+    }
     const token = generation.current;
     inFlight.current = true;
     setBusy(true);
@@ -69,6 +76,7 @@ export function useFolder() {
       const result = await window.desktop.refreshFolder(
         path,
         treeRef.current?.version,
+        optionsRef.current,
       );
       if (
         !mounted.current ||
@@ -85,8 +93,13 @@ export function useFolder() {
         );
     } finally {
       inFlight.current = false;
-      if (mounted.current && token === generation.current) setBusy(false);
-      else if (mounted.current && rootRef.current)
+      if (mounted.current && token === generation.current) {
+        setBusy(false);
+        if (refreshQueued.current) {
+          refreshQueued.current = false;
+          queueMicrotask(() => void refresh());
+        }
+      } else if (mounted.current && rootRef.current)
         queueMicrotask(() => void refresh());
     }
   }, []);
@@ -102,14 +115,14 @@ export function useFolder() {
       clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, [root, refresh]);
+  }, [root, refresh, options.showHiddenFiles, options.showOtherFiles]);
   const open = useCallback(async () => {
     if (!window.desktop || inFlight.current) return false;
     const token = ++generation.current;
     inFlight.current = true;
     setBusy(true);
     try {
-      const result = await window.desktop.folder();
+      const result = await window.desktop.folder(optionsRef.current);
       if (!mounted.current || token !== generation.current || !result)
         return false;
       rootRef.current = result.path;

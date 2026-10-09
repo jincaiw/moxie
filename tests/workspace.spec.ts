@@ -246,6 +246,93 @@ test("文件侧栏支持方向键浏览与目录展开折叠", async ({ page }) 
   await expect(note).toHaveCount(0);
 });
 
+test("文件侧栏筛选支持显示隐藏文件和非 Markdown 文件", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        folder: (options?: {
+          showHiddenFiles: boolean;
+          showOtherFiles: boolean;
+        }) => Promise<unknown>;
+        refreshFolder: (
+          root: string,
+          version?: string,
+          options?: {
+            showHiddenFiles: boolean;
+            showOtherFiles: boolean;
+          },
+        ) => Promise<unknown>;
+        revealPath: (path: string) => Promise<boolean>;
+      };
+      folderOptions: { showHiddenFiles: boolean; showOtherFiles: boolean }[];
+      revealed: string[];
+    };
+    state.folderOptions = [];
+    state.revealed = [];
+    const makeTree = (
+      options = { showHiddenFiles: false, showOtherFiles: false },
+    ) => {
+      state.folderOptions.push(options);
+      return {
+        path: "/notes",
+        name: "写作项目",
+        truncated: false,
+        version: `${options.showHiddenFiles}-${options.showOtherFiles}`,
+        entries: [
+          { path: "/notes/note.md", name: "note.md", kind: "file" },
+          ...(options.showHiddenFiles
+            ? [{ path: "/notes/.draft.md", name: ".draft.md", kind: "file" }]
+            : []),
+          ...(options.showOtherFiles
+            ? [
+                {
+                  path: "/notes/diagram.png",
+                  name: "diagram.png",
+                  kind: "other",
+                },
+              ]
+            : []),
+        ],
+      };
+    };
+    state.desktop.folder = async (options) => makeTree(options);
+    state.desktop.refreshFolder = async (_root, _version, options) =>
+      makeTree(options);
+    state.desktop.revealPath = async (path) => {
+      state.revealed.push(path);
+      return true;
+    };
+  });
+
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "打开 note.md" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "打开 .draft.md" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("显示隐藏文件").check();
+  await page.getByLabel("显示非 Markdown 文件").check();
+  await page.getByRole("button", { name: "完成" }).click();
+  await expect(
+    page.getByRole("button", { name: "打开 .draft.md" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "显示 diagram.png" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "显示 diagram.png" }).click();
+  expect(await page.evaluate(() => (window as any).revealed)).toEqual([
+    "/notes/diagram.png",
+  ]);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { folderOptions: unknown[] }).folderOptions.at(-1),
+    ),
+  ).toEqual({ showHiddenFiles: true, showOtherFiles: true });
+});
+
 test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {
@@ -676,7 +763,7 @@ test("目录内容自动更新，关闭目录不被延迟刷新重新打开", as
   });
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
-    "没有 Markdown 文档",
+    "没有可显示的文件",
   );
   await page.evaluate(() => {
     (window as unknown as { revision: string }).revision = "v2";

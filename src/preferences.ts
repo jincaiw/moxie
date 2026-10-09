@@ -33,6 +33,8 @@ export type Preferences = {
   pdfHeaderFooter: boolean;
   htmlOutline: boolean;
   floatingToolbar: boolean;
+  showHiddenFiles: boolean;
+  showOtherFiles: boolean;
 };
 const defaults: Preferences = {
   copyFormat: "rich-text",
@@ -55,6 +57,8 @@ const defaults: Preferences = {
   pdfHeaderFooter: false,
   htmlOutline: false,
   floatingToolbar: false,
+  showHiddenFiles: false,
+  showOtherFiles: false,
 };
 
 function initial(): Preferences {
@@ -136,6 +140,8 @@ function initial(): Preferences {
       pdfHeaderFooter: value.pdfHeaderFooter === true,
       htmlOutline: value.htmlOutline === true,
       floatingToolbar: value.floatingToolbar === true,
+      showHiddenFiles: value.showHiddenFiles === true,
+      showOtherFiles: value.showOtherFiles === true,
     };
   } catch {
     return defaults;

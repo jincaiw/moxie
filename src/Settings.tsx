@@ -259,6 +259,25 @@ export function Settings({
         />
         选中文本时显示浮动格式工具栏
       </label>
+      <h3 className="settings-section-title">文件侧栏</h3>
+      <label className="toggle-setting">
+        <input
+          type="checkbox"
+          aria-label="显示隐藏文件"
+          checked={preferences.showHiddenFiles}
+          onChange={(event) => update("showHiddenFiles", event.target.checked)}
+        />
+        显示隐藏文件和文件夹
+      </label>
+      <label className="toggle-setting">
+        <input
+          type="checkbox"
+          aria-label="显示非 Markdown 文件"
+          checked={preferences.showOtherFiles}
+          onChange={(event) => update("showOtherFiles", event.target.checked)}
+        />
+        显示非 Markdown 文件
+      </label>
       <h3 className="settings-section-title">复制</h3>
       <label>
         默认复制格式

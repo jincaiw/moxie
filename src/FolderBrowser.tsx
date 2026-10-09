@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
+  File,
   FilePlus2,
   FileText,
   Folder,
@@ -54,7 +55,7 @@ function ordered(entries: FolderNode[], pinned: Set<string>, sort: SortMode) {
     const pinOrder = Number(pinned.has(b.path)) - Number(pinned.has(a.path));
     if (pinOrder) return pinOrder;
     if (a.kind !== b.kind) return a.kind === "directory" ? -1 : 1;
-    if (sort === "type" && a.kind === "file" && b.kind === "file") {
+    if (sort === "type" && a.kind !== "directory" && b.kind !== "directory") {
       const typeOrder = a.name
         .split(".")
         .pop()!
@@ -125,14 +126,26 @@ function Branch({
           title={node.path}
           style={{ paddingLeft: 10 + depth * 14 }}
           aria-expanded={directory ? expanded : undefined}
-          aria-label={directory ? "文件夹 " + node.name : "打开 " + node.name}
+          aria-label={
+            directory
+              ? "文件夹 " + node.name
+              : node.kind === "file"
+                ? "打开 " + node.name
+                : "显示 " + node.name
+          }
           onKeyDown={(event) => onTreeKeyDown(event, node)}
-          draggable
+          draggable={node.kind !== "other"}
           onDragStart={(event) => {
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/plain", node.path);
           }}
-          onClick={() => (directory ? toggle(node.path) : open(node.path))}
+          onClick={() =>
+            directory
+              ? toggle(node.path)
+              : node.kind === "file"
+                ? open(node.path)
+                : void operate({ action: "reveal", target: node.path })
+          }
         >
           {directory ? (
             expanded ? (
@@ -143,7 +156,13 @@ function Branch({
           ) : (
             <span className="tree-indent" />
           )}
-          {directory ? <Folder size={15} /> : <FileText size={15} />}
+          {directory ? (
+            <Folder size={15} />
+          ) : node.kind === "file" ? (
+            <FileText size={15} />
+          ) : (
+            <File size={15} />
+          )}
           <span>{node.name}</span>
         </button>
         <button
@@ -233,6 +252,27 @@ function Branch({
               >
                 <Trash2 size={14} />
                 移入废纸篓
+              </button>
+            </>
+          ) : node.kind === "other" ? (
+            <>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "copy-path", target: node.path });
+                }}
+              >
+                <Copy size={14} />
+                复制路径
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  void operate({ action: "reveal", target: node.path });
+                }}
+              >
+                <ExternalLink size={14} />
+                在文件管理器中显示
               </button>
             </>
           ) : (
@@ -329,7 +369,7 @@ function Branch({
             ))
           ) : (
             <li className="tree-empty" style={{ paddingLeft: 34 + depth * 14 }}>
-              没有 Markdown 文档
+              没有符合筛选条件的文件
             </li>
           )}
         </ul>
@@ -349,6 +389,8 @@ export function FolderBrowser({
   toggle,
   error,
   operate,
+  showHiddenFiles,
+  showOtherFiles,
 }: {
   tree: FolderTree;
   active?: string;
@@ -360,6 +402,8 @@ export function FolderBrowser({
   toggle: (path: string) => void;
   error: string;
   operate: RunOperation;
+  showHiddenFiles: boolean;
+  showOtherFiles: boolean;
 }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
@@ -627,6 +671,12 @@ export function FolderBrowser({
           <option value="type">按类型</option>
         </select>
       </label>
+      <p className="folder-filter-summary">
+        {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
+        {" · "}
+        {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
+        {" · 可在偏好设置中更改"}
+      </p>
       {error && (
         <p className="tree-empty" role="status">
           {error}
@@ -660,7 +710,7 @@ export function FolderBrowser({
           />
         ))}
       </ul>
-      {!tree.entries.length && <p className="tree-empty">没有 Markdown 文档</p>}
+      {!tree.entries.length && <p className="tree-empty">没有可显示的文件</p>}
       {tree.truncated && (
         <p className="tree-empty">列表已达上限，请打开较小的文件夹。</p>
       )}

@@ -312,6 +312,7 @@ class FileStore {
     this.recent = [];
     this.writing = Promise.resolve();
     this.folders = new Set();
+    this.listedFiles = new Map();
     this.treeRoots = new Map();
     this.trashItem = trashItem;
     this.fileOperationHistory = [];
@@ -705,17 +706,21 @@ class FileStore {
     });
     return { action, path: destination, from: source, kind: "file", version };
   }
-  async authorizedPath(value) {
+  async authorizedPath(value, allowListed = false) {
     if (typeof value !== "string" || !path.isAbsolute(value))
       throw Error("路径无效");
-    const root = [...this.folders].find((folder) => inside(folder, value));
+    const root = [...this.folders]
+      .filter((folder) => inside(folder, value))
+      .sort((a, b) => b.length - a.length)[0];
     if (!root) throw Error("路径不在已打开的文件夹中");
     const metadata = await fs.lstat(value);
     if (metadata.isSymbolicLink()) throw Error("不能显示符号链接路径");
     const real = await fs.realpath(value);
     if (real !== value || !inside(root, real))
       throw Error("路径位置已改变，请刷新文件夹");
-    if (!metadata.isDirectory() && !this.authorized.has(real))
+    const listed =
+      allowListed && (this.listedFiles.get(root)?.has(real) || false);
+    if (!metadata.isDirectory() && !this.authorized.has(real) && !listed)
       throw Error("该文件尚未由文件夹浏览器授权");
     return real;
   }
@@ -786,7 +791,7 @@ class FileStore {
       await this.writing;
     }
   }
-  async folder(root, refresh = false, knownVersion) {
+  async folder(root, refresh = false, knownVersion, displayOptions = {}) {
     if (refresh && !this.folders.has(root)) throw Error("请先选择该文件夹");
     const resolved = await fs.realpath(root);
     if (refresh && resolved !== root)
@@ -797,6 +802,9 @@ class FileStore {
     let count = 0,
       visited = 0,
       truncated = false;
+    const showHiddenFiles = displayOptions?.showHiddenFiles === true;
+    const showOtherFiles = displayOptions?.showOtherFiles === true;
+    const listedFiles = new Set();
     const walk = async (directory, depth) => {
       if (depth > 20) {
         truncated = true;
@@ -816,7 +824,7 @@ class FileStore {
           break;
         }
         if (
-          entry.name.startsWith(".") ||
+          (!showHiddenFiles && entry.name.startsWith(".")) ||
           entry.name === "node_modules" ||
           entry.name.endsWith(".assets")
         )
@@ -830,16 +838,23 @@ class FileStore {
             kind: "directory",
             children,
           });
-        } else if (entry.isFile() && /\.(md|markdown|txt)$/i.test(entry.name)) {
-          count++;
-          this.authorized.add(file);
-          this.treeRoots.set(file, root);
-          nodes.push({ path: file, name: entry.name, kind: "file" });
+        } else if (entry.isFile()) {
+          if (/\.(md|markdown|txt)$/i.test(entry.name)) {
+            count++;
+            this.authorized.add(file);
+            this.treeRoots.set(file, root);
+            nodes.push({ path: file, name: entry.name, kind: "file" });
+          } else if (showOtherFiles) {
+            count++;
+            listedFiles.add(file);
+            nodes.push({ path: file, name: entry.name, kind: "other" });
+          }
         }
       }
       return nodes;
     };
     const entries = await walk(root, 0);
+    this.listedFiles.set(root, listedFiles);
     const version = crypto
       .createHash("sha256")
       .update(JSON.stringify({ entries, truncated }))

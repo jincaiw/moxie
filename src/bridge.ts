@@ -1,7 +1,7 @@
 export type FolderNode = {
   path: string;
   name: string;
-  kind: "directory" | "file";
+  kind: "directory" | "file" | "other";
   children?: FolderNode[];
 };
 export type FolderTree = {
@@ -50,10 +50,11 @@ declare global {
     desktop?: {
       open: () => Promise<DiskFile | null>;
       importDocument: () => Promise<{ name: string; text: string } | null>;
-      folder: () => Promise<FolderTree | null>;
+      folder: (options?: FolderDisplayOptions) => Promise<FolderTree | null>;
       refreshFolder: (
         root: string,
         version?: string,
+        options?: FolderDisplayOptions,
       ) => Promise<FolderTree | null>;
       fileOperation: (input: {
         action:
@@ -174,6 +175,10 @@ declare global {
     };
   }
 }
+export type FolderDisplayOptions = {
+  showHiddenFiles: boolean;
+  showOtherFiles: boolean;
+};
 export function download(text: string, name: string, type = "text/markdown") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement("a");
