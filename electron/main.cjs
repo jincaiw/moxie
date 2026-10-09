@@ -113,6 +113,7 @@ async function renderPDF(html, settings) {
     ])`);
     return await print.webContents.printToPDF({
       printBackground: true,
+      generateDocumentOutline: true,
       pageSize,
       landscape,
       displayHeaderFooter: headerFooter,

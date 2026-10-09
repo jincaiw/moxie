@@ -30,6 +30,7 @@ export type Preferences = {
   pdfLandscape: boolean;
   pdfMargin: number;
   pdfHeaderFooter: boolean;
+  htmlOutline: boolean;
 };
 const defaults: Preferences = {
   theme: "light",
@@ -49,6 +50,7 @@ const defaults: Preferences = {
   pdfLandscape: false,
   pdfMargin: 20,
   pdfHeaderFooter: false,
+  htmlOutline: false,
 };
 
 function initial(): Preferences {
@@ -127,6 +129,7 @@ function initial(): Preferences {
       pdfLandscape: value.pdfLandscape === true,
       pdfMargin: Math.min(40, Math.max(5, Number(value.pdfMargin) || 20)),
       pdfHeaderFooter: value.pdfHeaderFooter === true,
+      htmlOutline: value.htmlOutline === true,
     };
   } catch {
     return defaults;

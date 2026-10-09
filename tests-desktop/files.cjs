@@ -141,8 +141,9 @@ async function harness(userData) {
         this.calls.push("waitForResources");
         this.readinessScript = script;
       };
-      this.webContents.printToPDF = async () => {
+      this.webContents.printToPDF = async (options) => {
         this.calls.push("printToPDF");
+        this.printOptions = options;
         return Buffer.from("%PDF-test");
       };
       windows.push(this);
@@ -423,6 +424,7 @@ test("PDF 分页预览使用最终打印流程且不创建导出文件", async (
     "waitForResources",
     "printToPDF",
   ]);
+  assert.equal(h.windows[1].printOptions.generateDocumentOutline, true);
   assert.equal(h.windows[1].destroyed, true);
 });
 test("未知窗口被拒绝，未授权路径必须通过另存为对话框", async () => {

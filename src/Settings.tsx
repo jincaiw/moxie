@@ -720,6 +720,21 @@ export function Settings({
           />
         </label>
       </section>
+      <section className="pdf-settings" aria-label="HTML 导出设置">
+        <h3>HTML 导出</h3>
+        <label className="toggle-setting">
+          <span>
+            导出时显示文档目录
+            <small>在 HTML 页面中显示可跳转的标题侧栏；打印时自动隐藏。</small>
+          </span>
+          <input
+            aria-label="HTML 导出时显示文档目录"
+            type="checkbox"
+            checked={preferences.htmlOutline}
+            onChange={(e) => update("htmlOutline", e.target.checked)}
+          />
+        </label>
+      </section>
       <h3 className="settings-section-title">写作体验</h3>
       <label className="toggle-setting">
         <span>

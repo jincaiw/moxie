@@ -600,6 +600,7 @@ export async function exportHTML(
   documentPath?: string,
   customThemeCSS = "",
   theme: ThemePreset = "light",
+  includeOutline = false,
 ) {
   const frontMatter = parseFrontMatter(text);
   const metadata = frontMatter?.metadata;
@@ -735,6 +736,26 @@ export async function exportHTML(
     used.set(base, number + 1);
     heading.id = number ? `${base}-${number}` : base;
   });
+  if (includeOutline && headings.length) {
+    const outline = document.createElement("nav");
+    outline.className = "moxie-export-outline";
+    outline.setAttribute("aria-label", "文档目录");
+    const title = document.createElement("h2");
+    title.textContent = "文档目录";
+    outline.append(title);
+    const list = document.createElement("ol");
+    headings.forEach((heading) => {
+      const item = document.createElement("li");
+      item.style.marginInlineStart = `${(Number(heading.tagName.slice(1)) - 1) * 12}px`;
+      const link = document.createElement("a");
+      link.href = `#${heading.id}`;
+      link.textContent = visibleHeadingText(heading) || "（无标题）";
+      item.append(link);
+      list.append(item);
+    });
+    outline.append(list);
+    content.prepend(outline);
+  }
   content.querySelectorAll<HTMLElement>(".moxie-toc").forEach((nav) => {
     const list = document.createElement("ol");
     headings.forEach((heading) => {
@@ -770,11 +791,15 @@ svg{max-width:100%;height:auto}
 .mermaid-diagram{overflow-x:auto;text-align:center;margin:24px 0}
 .moxie-toc{border:1px solid var(--border);padding:14px 20px;margin:24px 0}
 .moxie-toc ol{margin:0;padding-left:24px}.moxie-toc li{margin:4px 0}
+.moxie-export-outline{position:fixed;top:24px;left:max(16px,calc((100vw - 1180px)/2));width:220px;max-height:calc(100vh - 48px);overflow:auto;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-size:13px;line-height:1.6}
+.moxie-export-outline h2{margin:0 0 8px;font-size:15px}.moxie-export-outline ol{margin:0;padding:0;list-style:none}.moxie-export-outline li{margin:3px 0}.moxie-export-outline a{color:var(--muted);text-decoration:none}.moxie-export-outline a:hover{text-decoration:underline;color:var(--accent)}
+@media(max-width:1250px){.moxie-export-outline{position:static;width:auto;max-height:none;max-width:760px;margin:24px auto}}
 math[display=block]{margin:24px 0}a{color:var(--accent)}
 @media print{
   body{margin:0;max-width:none;padding:0}
   h1,h2,h3,h4,h5,h6{break-after:avoid;page-break-after:avoid}
   table,tr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes{break-inside:avoid;page-break-inside:avoid}
+  .moxie-export-outline{display:none!important}
   pre,table{break-inside:auto;page-break-inside:auto}
   pre{white-space:pre-wrap;overflow-wrap:anywhere}
   thead{display:table-header-group}tfoot{display:table-footer-group}

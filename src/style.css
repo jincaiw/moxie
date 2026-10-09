@@ -129,6 +129,9 @@ p {
   flex-direction: column;
   min-height: 0;
 }
+.sidebar-backdrop {
+  display: none;
+}
 .window-space {
   height: 37px;
   -webkit-app-region: drag;
@@ -193,6 +196,64 @@ p {
   overflow: auto;
   padding: 0 8px;
 }
+.outline-search-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.outline-search {
+  min-width: 0;
+  width: 100%;
+  padding: 8px 0;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  font-size: 13px;
+}
+.outline-search:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.outline-search::placeholder {
+  color: var(--muted);
+}
+.outline-empty {
+  padding: 12px 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.outline-entry {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+}
+.outline-toggle,
+.outline-toggle-spacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 20px;
+  width: 20px;
+  height: 32px;
+  color: var(--muted);
+  border-radius: 4px;
+}
+.outline-toggle:hover {
+  color: var(--text);
+  background: var(--selected);
+}
 .file-row {
   display: flex;
   align-items: center;
@@ -223,9 +284,13 @@ p {
 }
 .outline-row {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
-  padding: 10px 14px;
+  padding: 8px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1441,7 +1506,19 @@ p {
 }
 @media (max-width: 650px) {
   .app {
+    position: relative;
     grid-template-columns: 1fr;
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: absolute;
+    inset: 58px 0 32px;
+    z-index: 19;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: rgb(20 24 30 / 18%);
+    cursor: default;
   }
   .sidebar {
     position: absolute;

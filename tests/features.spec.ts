@@ -980,6 +980,7 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByLabel("PDF 页面方向").selectOption("landscape");
   await page.getByLabel("PDF 页边距").fill("24");
   await page.getByLabel("PDF 页眉与页码").check();
+  await page.getByLabel("HTML 导出时显示文档目录").check();
   await page.getByLabel("系统拼写检查").check();
   await page.getByLabel("智能引号").check();
   await page.getByLabel("智能破折号").check();
@@ -1001,6 +1002,7 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.getByLabel("PDF 页面方向")).toHaveValue("landscape");
   await expect(page.getByLabel("PDF 页边距")).toHaveValue("24");
   await expect(page.getByLabel("PDF 页眉与页码")).toBeChecked();
+  await expect(page.getByLabel("HTML 导出时显示文档目录")).toBeChecked();
   await expect(page.getByLabel("系统拼写检查")).toBeChecked();
   await expect(page.getByLabel("智能引号")).toBeChecked();
   await expect(page.getByLabel("智能破折号")).toBeChecked();
@@ -1495,6 +1497,54 @@ test("HTML 导出的标题锚点和目录排除 Markdown/HTML 隐藏文字", asy
     ["HTML 标题", "#html-标题"],
   ]);
   expect(exported.target).toBe("#可见标题");
+});
+
+test("HTML 导出大纲按标题生成可跳转链接，并在打印时隐藏", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as {
+      exportHTML: (
+        source: string,
+        name: string,
+        path?: string,
+        css?: string,
+        theme?: "light",
+        includeOutline?: boolean,
+      ) => Promise<string>;
+    };
+    const markdown = "# 项目总览\n\n## 文档管理\n\n### 文件夹搜索";
+    return {
+      withOutline: await module.exportHTML(
+        markdown,
+        "outline.md",
+        undefined,
+        "",
+        "light",
+        true,
+      ),
+      withoutOutline: await module.exportHTML(markdown, "outline.md"),
+    };
+  });
+  const preview = await page.context().newPage();
+  await preview.setContent(result.withOutline);
+  const outline = preview.getByRole("navigation", { name: "文档目录" });
+  await expect(outline.locator("a")).toHaveText([
+    "项目总览",
+    "文档管理",
+    "文件夹搜索",
+  ]);
+  await expect(outline.locator("a").nth(2)).toHaveAttribute(
+    "href",
+    "#文件夹搜索",
+  );
+  await preview.emulateMedia({ media: "print" });
+  await expect(preview.locator(".moxie-export-outline")).toHaveCSS(
+    "display",
+    "none",
+  );
+  expect(result.withoutOutline).not.toContain('class="moxie-export-outline"');
 });
 
 test("HTML 导出完整保留文档名并安全转义标题字符", async ({ page }) => {
@@ -2479,6 +2529,54 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
     .getByRole("button", { name: "真正的标题 代码", exact: true })
     .click();
   await expect(page.locator(".cm-focused")).toBeVisible();
+});
+
+test("大纲可按标题搜索、清空并跳转匹配结果", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "大纲搜索.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      "# 项目总览\n\n## 写作体验\n\n### 快捷键\n\n## 文档管理\n\n## PDF 导出\n",
+    ),
+  });
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  const rows = page.locator(".outline-row");
+  await expect(rows).toHaveCount(5);
+  const collapse = page.getByRole("button", { name: "折叠 项目总览" });
+  await collapse.focus();
+  await page.keyboard.press("Enter");
+  await expect(rows).toHaveCount(1);
+  const expand = page.getByRole("button", { name: "展开 项目总览" });
+  await expand.focus();
+  await page.keyboard.press("Enter");
+  await expect(rows).toHaveCount(5);
+
+  const search = page.getByRole("searchbox", { name: "搜索大纲标题" });
+  await search.fill("pdf");
+  await expect(rows).toHaveText(["PDF 导出"]);
+  await rows.click();
+  await expect(page.locator(".cm-focused")).toBeVisible();
+
+  await search.fill("不存在的标题");
+  await expect(page.locator(".outline-empty")).toHaveText("没有匹配的标题");
+  await search.press("Escape");
+  await expect(search).toHaveValue("");
+  await expect(rows).toHaveCount(5);
+});
+
+test("窄屏打开侧栏后可点击遮罩关闭", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const toggle = page.getByRole("button", { name: "切换侧栏" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  const dismiss = page.getByRole("button", { name: "关闭侧栏" });
+  await expect(dismiss).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await dismiss.click({ position: { x: 350, y: 400 } });
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
 
 test("Markdown 标题大纲忽略内联 HTML 隐藏文字", async ({ page }) => {

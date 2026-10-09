@@ -12,6 +12,7 @@ import {
   FolderSearch2,
   Check,
   ChevronDown,
+  ChevronRight,
   Settings as SettingsIcon,
   X,
   FileDown,
@@ -120,6 +121,36 @@ export default function App() {
       })),
     [current.text],
   );
+  const [outlineQuery, setOutlineQuery] = useState("");
+  const [collapsedOutline, setCollapsedOutline] = useState<Set<number>>(
+    () => new Set(),
+  );
+  useEffect(() => {
+    setOutlineQuery("");
+    setCollapsedOutline(new Set());
+  }, [current.id]);
+  const outlineRows = useMemo(() => {
+    const query = outlineQuery.trim().toLocaleLowerCase();
+    const collapsedLevels: number[] = [];
+    return documentHeadings.flatMap((heading, index) => {
+      while (
+        collapsedLevels.length &&
+        heading.level <= collapsedLevels[collapsedLevels.length - 1]
+      ) {
+        collapsedLevels.pop();
+      }
+      const hidden = !query && collapsedLevels.length > 0;
+      const matches =
+        !query || heading.title.toLocaleLowerCase().includes(query);
+      const hasChildren =
+        index + 1 < documentHeadings.length &&
+        documentHeadings[index + 1].level > heading.level;
+      const collapsed = collapsedOutline.has(heading.from);
+      if (!query && hasChildren && collapsed)
+        collapsedLevels.push(heading.level);
+      return hidden || !matches ? [] : [{ heading, hasChildren, collapsed }];
+    });
+  }, [collapsedOutline, documentHeadings, outlineQuery]);
   const [cursor, setCursor] = useState({ position: 0, line: 1, column: 1 });
   let headingLow = 0;
   let headingHigh = documentHeadings.length;
@@ -661,6 +692,7 @@ export default function App() {
         document.path,
         preferences.customCSS,
         preferences.theme,
+        format === "html" && preferences.htmlOutline,
       );
       if (window.desktop) {
         if (
@@ -1056,6 +1088,25 @@ export default function App() {
             className="file-list"
             aria-label={tab === "files" ? "文档列表" : "文档大纲"}
           >
+            {tab === "outline" && (
+              <div className="outline-search-wrap">
+                <Search size={15} aria-hidden="true" />
+                <input
+                  aria-label="搜索大纲标题"
+                  className="outline-search"
+                  type="search"
+                  placeholder="搜索标题"
+                  value={outlineQuery}
+                  onChange={(event) => setOutlineQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && outlineQuery) {
+                      event.preventDefault();
+                      setOutlineQuery("");
+                    }
+                  }}
+                />
+              </div>
+            )}
             {tab === "files"
               ? docs.map((document) => (
                   <div
@@ -1087,24 +1138,63 @@ export default function App() {
                     </button>
                   </div>
                 ))
-              : documentHeadings.map((heading) => (
-                  <button
-                    className={
-                      "outline-row " +
-                      (heading.from === activeHeading?.from ? "active" : "")
-                    }
+              : outlineRows.map(({ heading, hasChildren, collapsed }) => (
+                  <div
+                    className="outline-entry"
                     key={heading.from}
-                    aria-current={
-                      heading.from === activeHeading?.from
-                        ? "location"
-                        : undefined
-                    }
-                    style={{ paddingLeft: 18 + (heading.level - 1) * 12 }}
-                    onClick={() => editor.current?.go(heading.from)}
+                    style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
                   >
-                    {heading.title}
-                  </button>
+                    {hasChildren ? (
+                      <button
+                        className="outline-toggle"
+                        aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
+                        aria-expanded={!collapsed}
+                        title={`${collapsed ? "展开" : "折叠"}子标题`}
+                        onClick={() =>
+                          setCollapsedOutline((previous) => {
+                            const next = new Set(previous);
+                            if (next.has(heading.from))
+                              next.delete(heading.from);
+                            else next.add(heading.from);
+                            return next;
+                          })
+                        }
+                      >
+                        {collapsed ? (
+                          <ChevronRight size={14} aria-hidden="true" />
+                        ) : (
+                          <ChevronDown size={14} aria-hidden="true" />
+                        )}
+                      </button>
+                    ) : (
+                      <span
+                        className="outline-toggle-spacer"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <button
+                      className={
+                        "outline-row " +
+                        (heading.from === activeHeading?.from ? "active" : "")
+                      }
+                      aria-current={
+                        heading.from === activeHeading?.from
+                          ? "location"
+                          : undefined
+                      }
+                      onClick={() => editor.current?.go(heading.from)}
+                    >
+                      {heading.title}
+                    </button>
+                  </div>
                 ))}
+            {tab === "outline" && outlineRows.length === 0 && (
+              <p className="outline-empty" role="status">
+                {documentHeadings.length === 0
+                  ? "当前文档没有标题"
+                  : "没有匹配的标题"}
+              </p>
+            )}
             {tab === "files" && tree && (
               <FolderBrowser
                 tree={tree}
@@ -1168,6 +1258,14 @@ export default function App() {
             </button>
           </div>
         </aside>
+      )}
+      {visibleSidebar && (
+        <button
+          className="sidebar-backdrop"
+          aria-label="关闭侧栏"
+          tabIndex={-1}
+          onClick={() => setSidebar(false)}
+        />
       )}
       <main className="workspace">
         <header ref={toolbar} className="toolbar">
