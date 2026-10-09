@@ -126,9 +126,9 @@ function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
 
 function stripMarkdownContainers(line: string, allowDeepIndent = false) {
   let content = line;
-  for (let depth = 0; depth < 12; depth++) {
+  for (let depth = 0; depth <= line.length; depth++) {
     content = content.replace(
-      new RegExp(`^ {0,${allowDeepIndent ? 12 : 3}}`),
+      new RegExp(`^ {0,${allowDeepIndent ? content.length : 3}}`),
       "",
     );
     if (content.startsWith(">")) {

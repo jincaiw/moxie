@@ -12,9 +12,9 @@ export function parseFootnoteDefinitionLine(
 ): FootnoteDefinitionLine | null {
   let remaining = line;
   let quotePrefix = "";
-  for (let depth = 0; depth < 12; depth++) {
+  while (remaining.length) {
     const quote = new RegExp(
-      `^ {0,${allowDeepContainerIndent ? 12 : 3}}>[ \\t]?`,
+      `^ {0,${allowDeepContainerIndent ? remaining.length : 3}}>[ \\t]?`,
     ).exec(remaining);
     if (!quote) break;
     quotePrefix += quote[0];
@@ -22,10 +22,10 @@ export function parseFootnoteDefinitionLine(
   }
 
   const match = new RegExp(
-    `^([ ]{0,${allowDeepContainerIndent ? 12 : 3}})\\[\\^([^\\]]+)\\]:[ \\t]*(.*)$`,
+    `^([ ]{0,${allowDeepContainerIndent ? remaining.length : 3}})\\[\\^([^\\]]+)\\]:[ \\t]*(.*)$`,
   ).exec(remaining);
   const definitionStart = new RegExp(
-    `^ {0,${allowDeepContainerIndent ? 12 : 3}}\\[\\^`,
+    `^ {0,${allowDeepContainerIndent ? line.length : 3}}\\[\\^`,
   );
   if (!match || (!quotePrefix && !definitionStart.test(line))) return null;
   return {

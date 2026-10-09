@@ -3463,6 +3463,61 @@ test("嵌套列表续行中的脚注定义可跳转并正确导出", async ({ pa
   );
 });
 
+test("超过十二格缩进的深层列表脚注可跳转并正确导出", async ({ page }) => {
+  const items = Array.from(
+    { length: 7 },
+    (_, index) => `${"  ".repeat(index)}- 第 ${index + 1} 层`,
+  );
+  items[items.length - 1] += "[^deep]。";
+  const source = `${items.join("\n")}\n\n${" ".repeat(14)}[^deep]: 深层脚注定义`;
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "超深层列表脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const marker = page.getByRole("link", { name: "跳转到脚注 deep" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "深层脚注定义" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("深层脚注定义");
+  expect(html).not.toContain('href="%E7%AC%AC%207%20%E5%B1%82');
+});
+
+test("超过十二层引用块中的脚注可跳转并正确导出", async ({ page }) => {
+  const quote = "> ".repeat(13);
+  const source = `${quote}引用正文[^deep]。\n${quote}\n${quote}[^deep]: 深层引用脚注`;
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "超深层引用脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const marker = page.getByRole("link", { name: "跳转到脚注 deep" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "深层引用脚注" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("深层引用脚注");
+});
+
 test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
   const source =
     "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";
