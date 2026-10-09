@@ -2,7 +2,7 @@
 
 ## v0.16.205 GFM 裸网址保留合法尾随字符
 
-依据 GFM 自动链接扩展语法核对嵌套括号 URL 时发现，自定义词法扩展将分号和引号也当成句末标点剥除，使 `https://example.com/a_(b_(c));` 这类网址的预览/导出目标被截短。GFM 规范规定剥除问号、感叹号、句点、逗号、冒号、星号、下划线和波浪号；分号与撇号应保留。现已收窄尾随标点集合，新增预览/HTML 导出自动链接回归；定向用例修复前失败、修复后通过。全量 Playwright 165 项通过、3 项性能基准按配置跳过，桌面逻辑 26 项、生产构建、3 款精选主题目录及格式检查通过。对照来源：[GFM Autolinks extension](https://github.github.io/gfm/#autolinks-extension)。Release 状态待发布核验。
+依据 GFM 自动链接扩展语法核对嵌套括号 URL 时发现，自定义词法扩展将分号和引号也当成句末标点剥除，使 `https://example.com/a_(b_(c));` 这类网址的预览/导出目标被截短。GFM 规范规定剥除问号、感叹号、句点、逗号、冒号、星号、下划线和波浪号；分号与撇号应保留。现已收窄尾随标点集合，新增预览/HTML 导出自动链接回归；定向用例修复前失败、修复后通过。全量 Playwright 165 项通过、3 项性能基准按配置跳过，桌面逻辑 26 项、生产构建、3 款精选主题目录及格式检查通过。主分支 CI #364、Release 工作流 #173、四个平台构建均成功；正式 Release 含 20 项资产，三个平台更新清单版本均为 0.16.205，六个更新目标大小匹配，SHA256SUMS 有 9 条记录。对照来源：[GFM Autolinks extension](https://github.github.io/gfm/#autolinks-extension)，[GitHub Release](https://github.com/jincaiw/moxie/releases/tag/v0.16.205)。
 
 ## v0.16.204 窄屏表格操作可达性与体验复核
 
