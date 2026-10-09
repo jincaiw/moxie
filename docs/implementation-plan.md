@@ -5,7 +5,7 @@
 - [x] 设置页始终提供项目 GitHub Releases 最新版本页，覆盖当前安装方式不支持自动更新及 macOS 未签名无法自动安装的回退场景。
 - [x] 新窗口外链设置 `noopener noreferrer`，链接有主题焦点样式并可通过键盘到达。
 - [x] Playwright 全量回归 188 项通过、3 项性能基准按配置跳过；桌面逻辑 35 项与生产构建通过。专项回归验证下载目标、安全属性与可访问链接名称。
-- [ ] 发布后确认主分支 CI、自动更新和四平台安装资产工作流。
+- [x] 主分支 CI #399、Release #191 及 macOS arm64/x64、Windows x64、Linux x64 构建成功；正式 Release 含 20 项资产：[v0.16.222](https://github.com/jincaiw/moxie/releases/tag/v0.16.222)。
 
 ## v0.16.221 跨窗口回归改用共享浏览器页面
 
