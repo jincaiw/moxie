@@ -373,6 +373,22 @@ test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) 
   await expect(page.getByRole("button", { name: "取消置顶" })).toBeVisible();
 });
 
+test("文件侧栏同步其他窗口的排序设置", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.evaluate(() => {
+    localStorage.setItem("moxie.folder-sort.v1", "type");
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "moxie.folder-sort.v1",
+        newValue: "type",
+        storageArea: localStorage,
+      }),
+    );
+  });
+  await expect(page.getByLabel("文件排序")).toHaveValue("type");
+});
+
 test("目录侧栏提供重命名入口并将其作为目录操作提交", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {

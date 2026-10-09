@@ -398,11 +398,17 @@ export function FolderBrowser({
         setPinned(new Set());
       }
     };
+    const syncSortAcrossWindows = (event: StorageEvent) => {
+      if (event.key !== "moxie.folder-sort.v1" && event.key !== null) return;
+      setSort(event.newValue === "type" ? "type" : "name");
+    };
     window.addEventListener("moxie:folder-pins-changed", syncPins);
     window.addEventListener("storage", syncPinsAcrossWindows);
+    window.addEventListener("storage", syncSortAcrossWindows);
     return () => {
       window.removeEventListener("moxie:folder-pins-changed", syncPins);
       window.removeEventListener("storage", syncPinsAcrossWindows);
+      window.removeEventListener("storage", syncSortAcrossWindows);
     };
   }, []);
   const togglePin = (path: string) =>
