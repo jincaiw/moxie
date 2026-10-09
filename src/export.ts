@@ -208,6 +208,7 @@ function markRawHTMLElementLines(
 ) {
   const rawTextElements =
     "script|style|pre|textarea|title|xmp|iframe|noembed|noframes|noscript|template|listing|plaintext";
+  const rawTextElementCandidate = new RegExp(`<(${rawTextElements})\\b`, "i");
   let activeElement: string | undefined;
   let fence: { character: string; length: number } | undefined;
 
@@ -241,6 +242,7 @@ function markRawHTMLElementLines(
       continue;
     }
 
+    if (!rawTextElementCandidate.test(content)) continue;
     const tokens = Lexer.lex(content);
     const pending = [...tokens];
     while (pending.length) {
@@ -254,9 +256,7 @@ function markRawHTMLElementLines(
         ...(children.items || []).flatMap((item) => item.tokens || []),
       );
       if (token.type !== "html") continue;
-      const opening = new RegExp(`<(${rawTextElements})\\b`, "i").exec(
-        token.raw,
-      );
+      const opening = rawTextElementCandidate.exec(token.raw);
       if (!opening) continue;
       const element = opening[1].toLowerCase();
       const openingEnd = opening.index + opening[0].length;
