@@ -1325,7 +1325,9 @@ test("导出菜单支持方向键、Home/End 和 Escape 焦点返回", async ({ 
     page.getByRole("menuitem", { name: "Markdown 文件" }),
   ).toBeFocused();
   await page.keyboard.press("ArrowDown");
-  await expect(page.getByRole("menuitem", { name: "HTML 网页" })).toBeFocused();
+  await expect(
+    page.getByRole("menuitem", { name: "HTML 网页", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("End");
   await expect(page.getByRole("menuitem", { name: "另存为…" })).toBeFocused();
   await page.keyboard.press("Home");
@@ -3975,7 +3977,9 @@ test("格式菜单可将选中的 Markdown 复制为带富文本结构的 HTML",
   await page.locator(".cm-content").click();
   await page.keyboard.press(shortcut("A"));
   await page.getByRole("button", { name: "格式", exact: true }).click();
-  await page.getByRole("menuitem", { name: "复制选区为 HTML" }).click();
+  await page
+    .getByRole("menuitem", { name: "复制选区为 HTML", exact: true })
+    .click();
   await expect(page.getByRole("status")).toContainText("已复制为 HTML");
   const html = await page.evaluate(async () => {
     const items = await navigator.clipboard.read();
@@ -4184,4 +4188,187 @@ test("Tab 缩进列表项时同步缩进续行，Shift+Tab 可完整还原", asy
   await expect
     .poll(() => editor.locator(".cm-line").allInnerTexts())
     .toEqual(["- 项目", "  续行", "- 下一项"]);
+});
+
+test("智能粘贴保留网页格式并过滤活动内容，源码模式粘贴纯文本", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "智能粘贴.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("起始"),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("A"));
+  const paste = async () =>
+    page.locator(".cm-content").evaluate((element) => {
+      const data = new DataTransfer();
+      data.setData("text/plain", "纯文本回退");
+      data.setData(
+        "text/html",
+        '<h1>网页标题</h1><p><strong>重点</strong> 与 <em>强调</em> <a href="https://example.com/">链接</a><a href="javascript:alert(1)">安全文字</a></p><ul><li>事项</li></ul><pre><code>const x = 1;</code></pre><script>window.clipboardAttack = true</script><img src="file:///etc/passwd" alt="本地图片">',
+      );
+      element.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        }),
+      );
+    });
+  await paste();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("# 网页标题");
+  await expect(page.locator(".cm-content")).toContainText("**重点**");
+  await expect(page.locator(".cm-content")).toContainText("*强调*");
+  await expect(page.locator(".cm-content")).toContainText(
+    "[链接](https://example.com/)",
+  );
+  await expect(page.locator(".cm-content")).toContainText("-   事项");
+  await expect(page.locator(".cm-content")).toContainText("const x = 1;");
+  await expect(page.locator(".cm-content")).not.toContainText("javascript:");
+  await expect(page.locator(".cm-content")).not.toContainText("file://");
+  await expect(page.locator(".cm-content")).not.toContainText(
+    "clipboardAttack",
+  );
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("A"));
+  await paste();
+  await expect(page.locator(".cm-content")).toHaveText("纯文本回退");
+});
+
+test("智能粘贴支持 GFM 表格，Shift 粘贴绕过转换", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "表格粘贴.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("起始"),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("A"));
+  const paste = async () =>
+    page.locator(".cm-content").evaluate((element) => {
+      const data = new DataTransfer();
+      data.setData("text/plain", "表格纯文本");
+      data.setData(
+        "text/html",
+        "<table><thead><tr><th>姓名</th><th>数量</th></tr></thead><tbody><tr><td>甲</td><td>2</td></tr></tbody></table>",
+      );
+      element.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: data,
+        }),
+      );
+    });
+  await paste();
+  await expect(page.locator(".cm-content")).toContainText("| 姓名 | 数量 |");
+  await expect(page.locator(".cm-content")).toContainText("| 甲 | 2 |");
+  await page.keyboard.press(shortcut("A"));
+  await page.locator(".cm-content").evaluate((element) =>
+    element.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "v",
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+      }),
+    ),
+  );
+  await paste();
+  await expect(page.locator(".cm-content")).toHaveText("表格纯文本");
+});
+
+test("选区统计与全文区分，清空选区和切换文档后恢复全文统计", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "选区统计.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("hello world"),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(documentStart);
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(
+    page.getByRole("button", { name: "字数统计", exact: true }),
+  ).toHaveText("选中 2 字符");
+  await page.getByRole("button", { name: "字数统计", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "字数统计" });
+  await expect(dialog).toContainText("当前选区 · 全文 10 字符");
+  await expect(
+    dialog
+      .locator(".document-stats > div")
+      .filter({ hasText: "字符（不含空格）" }),
+  ).toContainText("2");
+  await dialog.getByRole("button", { name: "完成", exact: true }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("button", { name: "字数统计", exact: true }),
+  ).toHaveText("10 字符");
+  await page.locator(".md-input").setInputFiles({
+    name: "其他统计.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("abc"),
+  });
+  await expect(
+    page.getByRole("button", { name: "字数统计", exact: true }),
+  ).toHaveText("3 字符");
+});
+
+test("复制 HTML 代码输出源码而非富文本，不带样式导出保留语义内容", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "无样式.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      '# 标题\n\n**重点** 与 [链接](https://example.com/)\n\n<span style="color:red">原始内容</span>',
+    ),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("A"));
+  await page.getByRole("button", { name: "格式", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "复制选区为 HTML 代码", exact: true })
+    .click();
+  await expect(page.getByRole("status")).toContainText("已复制 HTML 代码");
+  const code = await page.evaluate(() => navigator.clipboard.readText());
+  expect(code).toContain("<strong>重点</strong>");
+  expect(code).toContain('href="https://example.com/"');
+  expect(code).not.toContain("<!doctype");
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page
+    .getByRole("menuitem", { name: "HTML 网页（不带样式）", exact: true })
+    .click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain("<strong>重点</strong>");
+  expect(html).toContain("原始内容");
+  expect(html).toContain('href="https://example.com/"');
+  expect(html).not.toMatch(/<style\b|\sstyle=/i);
+});
+
+test("网页表格粘贴保留管道字符和换行，空表格及危险链接不污染源码", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const markdown = await page.evaluate(async () => {
+    const module = await import("/src/smart-paste.ts");
+    return module.clipboardMarkdown(
+      '<table>\n<thead><tr>\n<th>名称</th>\n<th>内容</th>\n</tr></thead><tbody><tr><td>A|B</td><td>第一行<br>第二行</td></tr></tbody></table><table></table><table><tr><td><a href="file:///private/data">本地链接</a></td></tr></table>',
+    );
+  });
+  expect(markdown).toContain("A\\|B");
+  expect(markdown).toContain("第一行<br>第二行");
+  expect(markdown).toContain("本地链接");
+  expect(markdown).not.toContain("file:");
 });

@@ -35,7 +35,7 @@ import { headings, lineBoundsAt, type DocumentFile } from "./data";
 import { download } from "./bridge";
 import { useFolder } from "./useFolder";
 import { FolderBrowser } from "./FolderBrowser";
-import { exportHTML } from "./export";
+import { exportHTML, withoutHTMLStyles } from "./export";
 import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
 import { usePreferences } from "./preferences";
@@ -812,6 +812,7 @@ export default function App() {
     format:
       | "md"
       | "html"
+      | "html-plain"
       | "pdf"
       | "docx"
       | "rtf"
@@ -830,20 +831,22 @@ export default function App() {
         download(document.text, document.name);
         return;
       }
-      const html = await exportHTML(
+      let html = await exportHTML(
         document.text,
         document.name,
         document.path,
         preferences.customCSS,
         preferences.theme,
-        format === "html" && preferences.htmlOutline,
+        (format === "html" || format === "html-plain") &&
+          preferences.htmlOutline,
       );
+      if (format === "html-plain") html = withoutHTMLStyles(html);
       if (window.desktop) {
         if (
           await window.desktop.export({
             html,
             name: document.name,
-            format,
+            format: format === "html-plain" ? "html" : format,
             pdf:
               format === "pdf"
                 ? {
@@ -856,7 +859,7 @@ export default function App() {
           })
         )
           setMessage("导出完成");
-      } else if (format === "html")
+      } else if (format === "html" || format === "html-plain")
         download(
           html,
           document.name.replace(/\.(md|markdown)$/i, "") + ".html",
@@ -926,7 +929,7 @@ export default function App() {
       setMessage(`PDF 预览失败：${String(error)}`);
     }
   };
-  const copySelectionAsHTML = async () => {
+  const copySelectionAsHTML = async (code = false) => {
     const selected = editor.current?.selection() || "";
     if (!selected) {
       setMessage("请先选中要复制为 HTML 的内容。");
@@ -945,6 +948,14 @@ export default function App() {
         .map((style) => style.outerHTML)
         .join("");
       const html = `${styles}<div>${parsed.body.innerHTML}</div>`;
+      if (code) {
+        const fragment = parsed.body.innerHTML;
+        if (window.desktop)
+          await window.desktop.copyRichText({ html: "", text: fragment });
+        else await navigator.clipboard.writeText(fragment);
+        setMessage("已复制 HTML 代码。");
+        return;
+      }
       if (window.desktop) {
         await window.desktop.copyRichText({ html, text: selected });
       } else {
@@ -994,6 +1005,7 @@ export default function App() {
     if (action === "source") setSource((value) => !value);
     if (action === "find") editor.current?.find();
     if (action === "copy-as-html") void copySelectionAsHTML();
+    if (action === "copy-as-html-code") void copySelectionAsHTML(true);
     if (action === "quick-open") showQuickOpen();
     if (action === "export")
       setMenu((value) => (value === "export" ? null : "export"));
@@ -1101,6 +1113,12 @@ export default function App() {
       ),
     [countSnapshot, current.id],
   );
+  const [selectionText, setSelectionText] = useState("");
+  const selectionStats = useMemo(
+    () => (selectionText ? documentStats(selectionText) : null),
+    [selectionText],
+  );
+  const displayedStats = selectionStats || stats;
   const cursorLine = cursor.line;
   const cursorColumn = cursor.column;
   const workspaceResults = (() => {
@@ -1596,6 +1614,13 @@ export default function App() {
                 <Code size={17} />
                 HTML 网页
               </button>
+              <button
+                role="menuitem"
+                onClick={() => void performExport("html-plain")}
+              >
+                <Code size={17} />
+                HTML 网页（不带样式）
+              </button>
               <button role="menuitem" onClick={() => void performExport("pdf")}>
                 <FileDown size={17} />
                 PDF 文档
@@ -1726,6 +1751,17 @@ export default function App() {
               >
                 <Copy size={17} />
                 复制选区为 HTML
+              </button>
+              <button
+                role="menuitem"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setMenu(null);
+                  void copySelectionAsHTML(true);
+                }}
+              >
+                <Code size={17} />
+                复制选区为 HTML 代码
               </button>
               {window.desktop && (
                 <button
@@ -2133,9 +2169,10 @@ export default function App() {
               )
             }
             onDirty={() => workspace.markDirty(current.id)}
-            onCursorChange={(position, line, column) =>
-              setCursor({ position, line, column })
-            }
+            onCursorChange={(position, line, column, selection) => {
+              setCursor({ position, line, column });
+              setSelectionText(selection);
+            }}
             onLink={(href) => void openLink(href)}
             onImages={withImages(current)}
             onError={setMessage}
@@ -2172,7 +2209,8 @@ export default function App() {
               aria-label="字数统计"
               onClick={() => setStatsOpen(true)}
             >
-              {stats.charactersWithoutSpaces.toLocaleString()} 字符
+              {selectionStats ? "选中 " : ""}
+              {displayedStats.charactersWithoutSpaces.toLocaleString()} 字符
             </button>
           </div>
         </footer>
@@ -2702,30 +2740,36 @@ export default function App() {
               <X size={18} />
             </Tool>
           </header>
+          <p>
+            {selectionStats ? "当前选区" : "整篇文档"} · 全文{" "}
+            {stats.charactersWithoutSpaces.toLocaleString()} 字符
+          </p>
           <div className="document-stats">
             <div>
               <span>字数</span>
-              <strong>{stats.words.toLocaleString()}</strong>
+              <strong>{displayedStats.words.toLocaleString()}</strong>
             </div>
             <div>
               <span>字符（不含空格）</span>
-              <strong>{stats.charactersWithoutSpaces.toLocaleString()}</strong>
+              <strong>
+                {displayedStats.charactersWithoutSpaces.toLocaleString()}
+              </strong>
             </div>
             <div>
               <span>字符（含空格）</span>
-              <strong>{stats.characters.toLocaleString()}</strong>
+              <strong>{displayedStats.characters.toLocaleString()}</strong>
             </div>
             <div>
               <span>行数</span>
-              <strong>{stats.lines.toLocaleString()}</strong>
+              <strong>{displayedStats.lines.toLocaleString()}</strong>
             </div>
             <div>
               <span>段落</span>
-              <strong>{stats.paragraphs.toLocaleString()}</strong>
+              <strong>{displayedStats.paragraphs.toLocaleString()}</strong>
             </div>
             <div>
               <span>预计阅读</span>
-              <strong>{stats.readingMinutes} 分钟</strong>
+              <strong>{displayedStats.readingMinutes} 分钟</strong>
             </div>
           </div>
           <button

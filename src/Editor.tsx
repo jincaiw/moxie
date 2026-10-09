@@ -30,6 +30,7 @@ import {
 import { searchKeymap, search, openSearchPanel } from "@codemirror/search";
 import { livePreview, documentPath, previewTheme } from "./live";
 import { imageTypes } from "./assets";
+import { clipboardMarkdown } from "./smart-paste";
 import { linkHandler } from "./link-widget";
 import { markdownImageEnd, markdownImageSizing, markdownLink } from "./links";
 import { detectLineEnding, restoreLineEnding } from "./data";
@@ -86,7 +87,12 @@ type Props = {
   onChange: (text: string) => void;
   onMapPositions: (mapPosition: (position: number) => number) => void;
   onDirty: () => void;
-  onCursorChange: (position: number, line: number, column: number) => void;
+  onCursorChange: (
+    position: number,
+    line: number,
+    column: number,
+    selection: string,
+  ) => void;
   onLink: (href: string) => void;
   onImages: (files: File[]) => Promise<string>;
   onError: (message: string) => void;
@@ -591,6 +597,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
     } | null>(null);
     const changeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latest = useRef(props);
+    const plainPaste = useRef(false);
     latest.current = props;
     const mode = useRef(new Compartment());
     const assetMode = useRef(new Compartment());
@@ -921,11 +928,48 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   previewTheme.of(latest.current.theme || "light"),
                 ),
                 EditorView.domEventHandlers({
-                  paste(event) {
+                  keydown(event) {
+                    plainPaste.current =
+                      event.shiftKey &&
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key.toLowerCase() === "v";
+                    return false;
+                  },
+                  keyup() {
+                    plainPaste.current = false;
+                    return false;
+                  },
+                  paste(event, instance) {
                     const files = Array.from(
                       event.clipboardData?.files || [],
                     ).filter((file) => imageTypes.has(file.type));
-                    if (!files.length) return false;
+                    if (!files.length) {
+                      const bypass =
+                        plainPaste.current || latest.current.source;
+                      plainPaste.current = false;
+                      if (bypass) return false;
+                      const html =
+                        event.clipboardData?.getData("text/html") || "";
+                      let markdown: string | null;
+                      try {
+                        markdown = clipboardMarkdown(html);
+                      } catch {
+                        latest.current.onError(
+                          "网页格式无法转换，已改为粘贴纯文本。",
+                        );
+                        return false;
+                      }
+                      if (!markdown) return false;
+                      event.preventDefault();
+                      instance.dispatch(
+                        instance.state.replaceSelection(markdown),
+                        {
+                          userEvent: "input.paste",
+                          scrollIntoView: true,
+                        },
+                      );
+                      return true;
+                    }
                     event.preventDefault();
                     event.stopPropagation();
                     void insertRef.current(files);
@@ -956,7 +1000,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   },
                 }),
                 EditorView.updateListener.of((update) => {
-                  if (update.selectionSet) {
+                  if (update.selectionSet || update.docChanged) {
                     const position = update.state.selection.main.head;
                     const line = update.state.doc.lineAt(position);
                     latest.current.onCursorChange(
@@ -964,6 +1008,10 @@ export const Editor = forwardRef<EditorHandle, Props>(
                       line.number,
                       Array.from(update.state.sliceDoc(line.from, position))
                         .length + 1,
+                      update.state.sliceDoc(
+                        update.state.selection.main.from,
+                        update.state.selection.main.to,
+                      ),
                     );
                   }
                   if (
@@ -1019,6 +1067,10 @@ export const Editor = forwardRef<EditorHandle, Props>(
         cursor,
         line.number,
         Array.from(instance.state.sliceDoc(line.from, cursor)).length + 1,
+        instance.state.sliceDoc(
+          instance.state.selection.main.from,
+          instance.state.selection.main.to,
+        ),
       );
       docSnapshot.current = instance.state.doc
         .toString()

@@ -540,6 +540,7 @@ function createMenu() {
           { role: "cut" },
           { role: "copy" },
           command("复制为 HTML", "copy-as-html"),
+          command("复制 HTML 代码", "copy-as-html-code"),
           { role: "paste" },
           { role: "selectAll" },
           { type: "separator" },

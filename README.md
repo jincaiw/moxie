@@ -2,6 +2,13 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
+## 本轮补齐（v0.16.212）
+
+- 网页内容智能粘贴为 Markdown；源码模式及 Shift+⌘/Ctrl+V 使用纯文本。
+- 选区独立字数统计，状态栏和统计窗口区分选区与全文。
+- 格式菜单支持复制 HTML 代码；导出菜单支持不带样式的 HTML。
+- 实际未完成事项与优先级见 [Typora 差距报告](docs/typora-gap-audit.md) 和 [实施计划](docs/implementation-plan.md)。
+
 ## 启动
 
 需要 Node.js 22 或更新版本。

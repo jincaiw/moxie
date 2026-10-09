@@ -937,3 +937,15 @@ math[display=block]{margin:24px 0}a{color:var(--accent)}
     : "";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>${title}</title>${exportMetadata}<style>${styles}</style>${customStyle}</head><body>${content.innerHTML}</body></html>`;
 }
+
+/** Preserve semantic content and metadata while removing presentation CSS. */
+export function withoutHTMLStyles(html: string): string {
+  const document = new DOMParser().parseFromString(html, "text/html");
+  document
+    .querySelectorAll('style, link[rel="stylesheet"]')
+    .forEach((node) => node.remove());
+  document
+    .querySelectorAll("[style]")
+    .forEach((node) => node.removeAttribute("style"));
+  return "<!doctype html>" + document.documentElement.outerHTML;
+}
