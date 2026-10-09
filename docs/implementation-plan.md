@@ -5,7 +5,7 @@
 - [x] 格式菜单与桌面编辑菜单支持把选中 Markdown 转为富文本 HTML，并同时提供 Markdown 纯文本回退。
 - [x] 复用安全导出渲染与本地图片解析；空选区提示，剪贴板 IPC 限制数据大小。
 - [x] Playwright 170 项通过、3 项性能基准按配置跳过；桌面剪贴板 IPC 29 项、生产构建通过。
-- [ ] v0.16.210 Release CI 与 macOS 双架构、Windows、Linux 安装包待远端验证。
+- [x] v0.16.210 Release CI、Playwright 全量回归和 macOS 双架构、Windows x64、Linux x64 安装包均成功；正式 Release 含 20 项资产：[v0.16.210](https://github.com/jincaiw/moxie/releases/tag/v0.16.210)。
 
 ## v0.16.209 Pandoc 扩展导出格式
 
