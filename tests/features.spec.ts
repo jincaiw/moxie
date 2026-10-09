@@ -1165,6 +1165,32 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await expect(page.locator(".sidebar")).toBeVisible();
 });
 
+test("偏好设置在其他应用窗口变更后同步外观与编辑选项", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.evaluate(() => {
+    const preferences = JSON.parse(
+      localStorage.getItem("moxie.preferences.v2") || "{}",
+    );
+    preferences.theme = "sepia";
+    preferences.fontSize = 22;
+    preferences.autoSave = true;
+    const newValue = JSON.stringify(preferences);
+    localStorage.setItem("moxie.preferences.v2", newValue);
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "moxie.preferences.v2",
+        newValue,
+        storageArea: localStorage,
+      }),
+    );
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "sepia");
+  await expect(page.getByLabel("外观")).toHaveValue("sepia");
+  await expect(page.locator('input[type="range"]').first()).toHaveValue("22");
+  await expect(page.getByLabel("自动保存到原文件")).toBeChecked();
+});
+
 test("普通复制按偏好输出富文本并保留 Markdown 纯文本", async ({ page }) => {
   await page.addInitScript(() => {
     const writes: { html: string; text: string }[] = [];

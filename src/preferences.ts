@@ -141,6 +141,14 @@ function initial(): Preferences {
 export function usePreferences() {
   const [preferences, setPreferences] = useState(initial);
   useEffect(() => {
+    const syncPreferences = (event: StorageEvent) => {
+      if (event.key !== "moxie.preferences.v2" && event.key !== null) return;
+      setPreferences(initial());
+    };
+    window.addEventListener("storage", syncPreferences);
+    return () => window.removeEventListener("storage", syncPreferences);
+  }, []);
+  useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = preferences.theme;
     root.style.setProperty("--editor-font", preferences.fontSize + "px");
@@ -164,9 +172,13 @@ export function usePreferences() {
       ? ""
       : preferences.customCSS;
     try {
-      localStorage.setItem("moxie.preferences.v2", JSON.stringify(preferences));
-      localStorage.setItem("moxie.theme", preferences.theme);
-      localStorage.setItem("moxie.font", String(preferences.fontSize));
+      const serialized = JSON.stringify(preferences);
+      if (localStorage.getItem("moxie.preferences.v2") !== serialized)
+        localStorage.setItem("moxie.preferences.v2", serialized);
+      if (localStorage.getItem("moxie.theme") !== preferences.theme)
+        localStorage.setItem("moxie.theme", preferences.theme);
+      if (localStorage.getItem("moxie.font") !== String(preferences.fontSize))
+        localStorage.setItem("moxie.font", String(preferences.fontSize));
     } catch {}
   }, [preferences]);
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
