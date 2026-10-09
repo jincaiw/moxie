@@ -1684,6 +1684,9 @@ p {
 .format-menu {
   right: 265px;
   min-width: 170px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .format-menu button {
   justify-content: space-between;

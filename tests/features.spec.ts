@@ -506,6 +506,53 @@ test("任务勾选写回 Markdown，格式快捷键与关闭文档提示", async
   ).toHaveCount(0);
 });
 
+test("格式菜单提供全部标题级别、正文和当前平台快捷键", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "标题菜单.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("菜单标题"),
+  });
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+
+  const modifier = await page.evaluate(() =>
+    /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+",
+  );
+  await page.getByRole("button", { name: "格式" }).click();
+  const menu = page.getByRole("menu");
+  const headingLabels = [
+    "一级标题",
+    "二级标题",
+    "三级标题",
+    "四级标题",
+    "五级标题",
+    "六级标题",
+  ];
+  for (const [index, label] of headingLabels.entries()) {
+    const item = menu.getByRole("menuitem", { name: new RegExp(label) });
+    await expect(item.locator("kbd")).toHaveText(`${modifier}${index + 1}`);
+  }
+  await expect(
+    menu.getByRole("menuitem", { name: /正文/ }).locator("kbd"),
+  ).toHaveText(`${modifier}0`);
+  await page.getByRole("button", { name: "格式" }).click();
+
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  for (const [index, label] of headingLabels.entries()) {
+    await page.getByRole("button", { name: "格式" }).click();
+    await page
+      .getByRole("menu")
+      .getByRole("menuitem", { name: new RegExp(label) })
+      .click();
+    await expect(editor.locator(".cm-line")).toHaveText(
+      `${"#".repeat(index + 1)} 菜单标题`,
+    );
+  }
+  await page.getByRole("button", { name: "格式" }).click();
+  await page.getByRole("menu").getByRole("menuitem", { name: /正文/ }).click();
+  await expect(editor.locator(".cm-line")).toHaveText("菜单标题");
+});
+
 test("标签中键关闭会保留未保存修改确认", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "新建文件", exact: true }).click();

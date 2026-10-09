@@ -98,7 +98,13 @@ const formats: { kind: Format; label: string; shortcut?: string }[] = [
   { kind: "strike", label: "删除线", shortcut: "⌘⇧5" },
   { kind: "code", label: "行内代码", shortcut: "⌘⇧`" },
   { kind: "codeblock", label: "代码块", shortcut: "⌘⇧K" },
-  { kind: "heading", label: "二级标题" },
+  { kind: "heading1", label: "一级标题", shortcut: "⌘1" },
+  { kind: "heading2", label: "二级标题", shortcut: "⌘2" },
+  { kind: "heading3", label: "三级标题", shortcut: "⌘3" },
+  { kind: "heading4", label: "四级标题", shortcut: "⌘4" },
+  { kind: "heading5", label: "五级标题", shortcut: "⌘5" },
+  { kind: "heading6", label: "六级标题", shortcut: "⌘6" },
+  { kind: "paragraph", label: "正文", shortcut: "⌘0" },
   { kind: "quote", label: "引用", shortcut: "⌘⇧Q" },
   { kind: "bulletList", label: "无序列表", shortcut: "⌘⇧8" },
   { kind: "orderedList", label: "有序列表", shortcut: "⌘⇧7" },
@@ -107,6 +113,10 @@ const formats: { kind: Format; label: string; shortcut?: string }[] = [
   { kind: "table", label: "插入表格" },
   { kind: "link", label: "插入链接", shortcut: "⌘K" },
 ];
+function shortcutLabel(shortcut: string) {
+  if (/Mac|iPhone|iPad/.test(navigator.platform)) return shortcut;
+  return shortcut.replaceAll("⌘", "Ctrl+").replaceAll("⇧", "Shift+");
+}
 
 export default function App() {
   const [message, setMessage] = useState("");
@@ -1463,7 +1473,9 @@ export default function App() {
                   }}
                 >
                   <span>{format.label}</span>
-                  {format.shortcut && <kbd>{format.shortcut}</kbd>}
+                  {format.shortcut && (
+                    <kbd>{shortcutLabel(format.shortcut)}</kbd>
+                  )}
                 </button>
               ))}
               {window.desktop && (
