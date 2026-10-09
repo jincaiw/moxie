@@ -2,7 +2,7 @@ import type { MarkedExtension, Tokens } from "marked";
 
 const urlStart = /^(?:(?:ftp|https?):\/\/|www\.)/i;
 const urlCandidate = /^(?:(?:ftp|https?):\/\/|www\.)(?:[a-z\d-]+\.?)+[^\s<]*/i;
-const trailingPunctuation = /[?!.,:;*_"'~]$/;
+const trailingPunctuation = /[?!.,:*_~]$/;
 
 function nestedBalancedURL(source: string) {
   const match = urlCandidate.exec(source);

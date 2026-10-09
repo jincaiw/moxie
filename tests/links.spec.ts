@@ -566,7 +566,7 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
     name: "gfm-autolinks.md",
     mimeType: "text/markdown",
     buffer: Buffer.from(
-      "https://bare.example/path\n\nhttps://bare.example/guide_(v1), 后有标点。\n\nhttps://bare.example/guide_(release_(beta))!\n\nhttps://bare.example/guide_(release_(beta)))!\n\nwww.example.net/guide\n\nwriter@example.org\n\n`https://code.example/path`",
+      "https://bare.example/path\n\nhttps://bare.example/guide_(v1), 后有标点。\n\nhttps://bare.example/guide_(release_(beta))!\n\nhttps://bare.example/guide_(release_(beta));\n\nhttps://bare.example/guide_(release_(beta))'\n\nhttps://bare.example/guide_(release_(beta)))!\n\nwww.example.net/guide\n\nwriter@example.org\n\n`https://code.example/path`",
     ),
   });
   await page.evaluate(() => {
@@ -578,7 +578,7 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
   const html = await fs.readFile((await (await downloading).path())!, "utf8");
   const preview = await page.context().newPage();
   await preview.setContent(html);
-  await expect(preview.locator("a")).toHaveCount(6);
+  await expect(preview.locator("a")).toHaveCount(8);
   await expect(
     preview.getByRole("link", { name: "https://bare.example/path" }),
   ).toHaveAttribute("href", "https://bare.example/path");
@@ -599,6 +599,11 @@ test("GFM 裸网址和邮箱在 HTML 导出中保留自动链接", async ({ page
       })
       .first(),
   ).toHaveAttribute("href", "https://bare.example/guide_(release_(beta))");
+  const targets = await preview
+    .locator("a")
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  expect(targets).toContain("https://bare.example/guide_(release_(beta));");
+  expect(targets).toContain("https://bare.example/guide_(release_(beta))'");
   await expect(
     preview.getByRole("link", {
       name: "https://bare.example/guide_(release_(beta)))",
