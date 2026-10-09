@@ -3518,6 +3518,32 @@ test("超过十二层引用块中的脚注可跳转并正确导出", async ({ pa
   expect(html).toContain("深层引用脚注");
 });
 
+test("制表符缩进的列表续行脚注可跳转并正确导出", async ({ page }) => {
+  const source =
+    "\t[^tab]: 缩进代码伪定义\n\n- 列表正文[^tab]\n\t[^tab]: 制表符缩进脚注";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "制表符列表脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const marker = page.getByRole("link", { name: "跳转到脚注 tab" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "制表符缩进脚注" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("制表符缩进脚注");
+  expect(html).toContain("[^tab]: 缩进代码伪定义");
+});
+
 test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
   const source =
     "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";

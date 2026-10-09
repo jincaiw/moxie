@@ -1212,7 +1212,11 @@ class FootnoteWidget extends WidgetType {
         }
         const definition = parseFootnoteDefinitionLine(line.text, true);
         let isIndentedCode = false;
-        if (definition && definition.definitionIndent.length >= 4) {
+        if (
+          definition &&
+          (definition.definitionIndent.length >= 4 ||
+            definition.definitionIndent.includes("\t"))
+        ) {
           syntaxTree(view.state).iterate({
             from: line.from,
             to: line.to,

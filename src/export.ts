@@ -127,10 +127,7 @@ function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
 function stripMarkdownContainers(line: string, allowDeepIndent = false) {
   let content = line;
   for (let depth = 0; depth <= line.length; depth++) {
-    content = content.replace(
-      new RegExp(`^ {0,${allowDeepIndent ? content.length : 3}}`),
-      "",
-    );
+    content = content.replace(allowDeepIndent ? /^[ \t]*/ : /^ {0,3}/, "");
     if (content.startsWith(">")) {
       content = content.slice(1).replace(/^[ \t]?/, "");
       continue;
