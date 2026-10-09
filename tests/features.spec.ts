@@ -3520,7 +3520,7 @@ test("超过十二层引用块中的脚注可跳转并正确导出", async ({ pa
 
 test("制表符缩进的列表续行脚注可跳转并正确导出", async ({ page }) => {
   const source =
-    "\t[^tab]: 缩进代码伪定义\n\n- 列表正文[^tab]\n\t[^tab]: 制表符缩进脚注";
+    "\t[^tab]: 缩进代码伪定义\n\n- 列表正文[^tab]\n\t[^tab]: 制表符缩进脚注\n      混合缩进续文";
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
     name: "制表符列表脚注.md",
@@ -3541,6 +3541,8 @@ test("制表符缩进的列表续行脚注可跳转并正确导出", async ({ pa
   const html = await fs.readFile((await (await downloading).path())!, "utf8");
   expect(html).toContain('id="fn-1"');
   expect(html).toContain("制表符缩进脚注");
+  expect(html).toMatch(/<li id="fn-1"[^>]*>[\s\S]*混合缩进续文[\s\S]*<\/li>/);
+  expect(html).not.toMatch(/<li id="fn-1"[^>]*>[\s\S]*?<pre>/);
   expect(html).toContain("[^tab]: 缩进代码伪定义");
 });
 

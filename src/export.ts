@@ -311,6 +311,27 @@ function markRawHTMLElementLines(
   }
 }
 
+function indentationColumns(indentation: string) {
+  let columns = 0;
+  for (const character of indentation)
+    columns += character === "\t" ? 4 - (columns % 4) : 1;
+  return columns;
+}
+
+function stripIndentColumns(line: string, columns: number) {
+  let current = 0;
+  let offset = 0;
+  while (current < columns && offset < line.length) {
+    const character = line[offset];
+    if (character === " ") current++;
+    else if (character === "\t") current += 4 - (current % 4);
+    else return null;
+    offset++;
+  }
+  if (current < columns) return null;
+  return `${" ".repeat(current - columns)}${line.slice(offset)}`;
+}
+
 function extractFootnotes(source: string) {
   const normalized = source.replace(/\r\n?/g, "\n");
   const lines = normalized.split("\n");
@@ -379,6 +400,9 @@ function extractFootnotes(source: string) {
     const key = normalizeFootnote(definition.label);
     const contents = [definition.content];
     let next = i + 1;
+    const definitionIndentColumns = indentationColumns(
+      definition.definitionIndent,
+    );
     const quoteContent = (line: string) =>
       line.startsWith(definition.quotePrefix)
         ? line.slice(definition.quotePrefix.length)
@@ -388,23 +412,16 @@ function extractFootnotes(source: string) {
     const listContent = (line: string) => {
       if (!definition.definitionIndent) return line;
       if (!line.trim()) return "";
-      return line.startsWith(definition.definitionIndent)
-        ? line.slice(definition.definitionIndent.length)
-        : null;
+      return stripIndentColumns(line, definitionIndentColumns);
     };
     while (next < lines.length) {
       if (definition.quotePrefix) {
         const quotedContinuation = quoteContent(lines[next]);
         if (quotedContinuation === null) break;
-        if (
-          definition.definitionIndent &&
-          quotedContinuation.trim() &&
-          !quotedContinuation.startsWith(definition.definitionIndent)
-        )
-          break;
         const continuation = definition.definitionIndent
-          ? quotedContinuation.slice(definition.definitionIndent.length)
+          ? listContent(quotedContinuation)
           : quotedContinuation;
+        if (continuation === null) break;
         if (/^(?: {2,}|\t)/.test(continuation)) {
           contents.push(continuation.replace(/^(?: {2,}|\t)/, ""));
           next++;
