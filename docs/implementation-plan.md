@@ -6,7 +6,7 @@
 - [x] Pandoc 通过固定格式参数和 stdin 接收已净化 HTML；本地图片按格式嵌入或输出伴随资源，远程图不自动抓取。
 - [x] Pandoc 桌面逻辑 28 项通过；全量浏览器 168 项通过、3 项性能基准跳过；新增导出菜单用例定向通过。
 - [x] 本机 Pandoc 五种格式实际转换成功；`npm run build` 通过。
-- [ ] v0.16.209 Release CI 与四平台安装包待远端验证。
+- [x] v0.16.209 Release CI、Playwright 全量用例与 macOS Apple Silicon/Intel、Windows x64、Linux x64 安装包均已通过并发布。
 
 ## v0.16.208 可配置表格插入
 
