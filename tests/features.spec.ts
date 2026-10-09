@@ -1352,6 +1352,18 @@ test("自动更新错误以 assertive 完整播报", async ({ page }) => {
   await expect(status).toHaveAttribute("aria-atomic", "true");
 });
 
+test("软件更新设置提供可键盘访问的官方版本下载后备入口", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  const releaseLink = page.getByRole("link", { name: "打开官方版本下载页" });
+  await expect(releaseLink).toHaveAttribute(
+    "href",
+    "https://github.com/jincaiw/moxie/releases/latest",
+  );
+  await expect(releaseLink).toHaveAttribute("target", "_blank");
+  await expect(releaseLink).toHaveAttribute("rel", "noopener noreferrer");
+});
+
 test("窄屏工具栏将常用桌面操作收纳到可访问菜单", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

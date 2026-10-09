@@ -1431,6 +1431,16 @@ p {
 .update-settings progress {
   width: 100%;
 }
+.update-settings .update-release-link {
+  width: fit-content;
+  color: var(--accent);
+  font-size: 12px;
+  text-underline-offset: 2px;
+}
+.update-settings .update-release-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 .update-actions {
   display: flex;
   flex-wrap: wrap;

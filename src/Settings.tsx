@@ -885,6 +885,14 @@ export function Settings({
           macOS 自动安装需要 Developer ID 签名；Linux 自动更新仅适用于
           AppImage。
         </small>
+        <a
+          className="update-release-link"
+          href="https://github.com/jincaiw/moxie/releases/latest"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          打开官方版本下载页
+        </a>
       </section>
       <p>
         恢复副本会自动更新。文件被其他程序修改时，自动保存会暂停，请手动保存处理冲突。
