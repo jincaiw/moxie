@@ -32,6 +32,7 @@ export type Preferences = {
   pdfMargin: number;
   pdfHeaderFooter: boolean;
   htmlOutline: boolean;
+  floatingToolbar: boolean;
 };
 const defaults: Preferences = {
   copyFormat: "rich-text",
@@ -53,6 +54,7 @@ const defaults: Preferences = {
   pdfMargin: 20,
   pdfHeaderFooter: false,
   htmlOutline: false,
+  floatingToolbar: false,
 };
 
 function initial(): Preferences {
@@ -133,6 +135,7 @@ function initial(): Preferences {
       pdfMargin: Math.min(40, Math.max(5, Number(value.pdfMargin) || 20)),
       pdfHeaderFooter: value.pdfHeaderFooter === true,
       htmlOutline: value.htmlOutline === true,
+      floatingToolbar: value.floatingToolbar === true,
     };
   } catch {
     return defaults;

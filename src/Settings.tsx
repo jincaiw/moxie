@@ -250,6 +250,15 @@ export function Settings({
         </button>
       </header>
       <h3 className="settings-section-title">编辑外观</h3>
+      <label className="toggle-setting">
+        <input
+          type="checkbox"
+          aria-label="选中文本时显示浮动格式工具栏"
+          checked={preferences.floatingToolbar}
+          onChange={(event) => update("floatingToolbar", event.target.checked)}
+        />
+        选中文本时显示浮动格式工具栏
+      </label>
       <h3 className="settings-section-title">复制</h3>
       <label>
         默认复制格式

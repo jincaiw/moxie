@@ -94,6 +94,7 @@ type Props = {
     line: number,
     column: number,
     selection: string,
+    selectionAnchor?: { top: number; left: number },
   ) => void;
   onLink: (href: string) => void;
   onImages: (files: File[]) => Promise<string>;
@@ -1014,6 +1015,13 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   if (update.selectionSet || update.docChanged) {
                     const position = update.state.selection.main.head;
                     const line = update.state.doc.lineAt(position);
+                    const range = update.state.selection.main;
+                    const start = range.empty
+                      ? null
+                      : update.view.coordsAtPos(range.from);
+                    const end = range.empty
+                      ? null
+                      : update.view.coordsAtPos(range.to);
                     latest.current.onCursorChange(
                       position,
                       line.number,
@@ -1023,6 +1031,12 @@ export const Editor = forwardRef<EditorHandle, Props>(
                         update.state.selection.main.from,
                         update.state.selection.main.to,
                       ),
+                      start && end
+                        ? {
+                            top: Math.min(start.top, end.top),
+                            left: (start.left + end.right) / 2,
+                          }
+                        : undefined,
                     );
                   }
                   if (
@@ -1072,6 +1086,31 @@ export const Editor = forwardRef<EditorHandle, Props>(
             });
       const instance = new EditorView({ parent: host.current, state });
       view.current = instance;
+      const reportSelectionAnchor = () => {
+        const range = instance.state.selection.main;
+        if (range.empty) return;
+        const start = instance.coordsAtPos(range.from);
+        const end = instance.coordsAtPos(range.to);
+        if (!start || !end) return;
+        const position = range.head;
+        const line = instance.state.doc.lineAt(position);
+        latest.current.onCursorChange(
+          position,
+          line.number,
+          Array.from(instance.state.sliceDoc(line.from, position)).length + 1,
+          instance.state.sliceDoc(range.from, range.to),
+          {
+            top: Math.min(start.top, end.top),
+            left: (start.left + end.right) / 2,
+          },
+        );
+      };
+      instance.scrollDOM.addEventListener("scroll", reportSelectionAnchor, {
+        passive: true,
+      });
+      window.addEventListener("resize", reportSelectionAnchor, {
+        passive: true,
+      });
       const cursor = instance.state.selection.main.head;
       const line = instance.state.doc.lineAt(cursor);
       latest.current.onCursorChange(
@@ -1082,12 +1121,15 @@ export const Editor = forwardRef<EditorHandle, Props>(
           instance.state.selection.main.from,
           instance.state.selection.main.to,
         ),
+        undefined,
       );
       docSnapshot.current = instance.state.doc
         .toString()
         .replace(/\r\n?/g, "\n");
       return () => {
         if (pendingChange.current?.id === id) flushChangeRef.current();
+        instance.scrollDOM.removeEventListener("scroll", reportSelectionAnchor);
+        window.removeEventListener("resize", reportSelectionAnchor);
         sessions.set(id, instance.state);
         instance.destroy();
         view.current = null;

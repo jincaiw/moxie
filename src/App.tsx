@@ -29,6 +29,11 @@ import {
   Download,
   Copy,
   FolderInput,
+  Bold,
+  Italic,
+  Highlighter,
+  Strikethrough,
+  Link as LinkIcon,
 } from "lucide-react";
 import { Editor, type EditorHandle, type Format } from "./Editor";
 import { headings, lineBoundsAt, type DocumentFile } from "./data";
@@ -1359,6 +1364,9 @@ export default function App() {
     [countSnapshot, current.id],
   );
   const [selectionText, setSelectionText] = useState("");
+  const [selectionAnchor, setSelectionAnchor] = useState<
+    { top: number; left: number } | undefined
+  >();
   const selectionStats = useMemo(
     () => (selectionText ? documentStats(selectionText) : null),
     [selectionText],
@@ -2428,15 +2436,55 @@ export default function App() {
               )
             }
             onDirty={() => workspace.markDirty(current.id)}
-            onCursorChange={(position, line, column, selection) => {
+            onCursorChange={(position, line, column, selection, anchor) => {
               setCursor({ position, line, column });
               setSelectionText(selection);
+              setSelectionAnchor(anchor);
             }}
             onLink={(href) => void openLink(href)}
             onImages={withImages(current)}
             onError={setMessage}
           />
         </div>
+        {preferences.floatingToolbar &&
+          !source &&
+          selectionText &&
+          selectionAnchor && (
+            <div
+              className="selection-toolbar"
+              role="toolbar"
+              aria-label="选区格式工具栏"
+              style={{
+                top: Math.max(8, selectionAnchor.top - 48),
+                left: Math.max(
+                  8,
+                  Math.min(window.innerWidth - 296, selectionAnchor.left - 140),
+                ),
+              }}
+            >
+              {(
+                [
+                  ["bold", "粗体", Bold],
+                  ["italic", "斜体", Italic],
+                  ["highlight", "高亮", Highlighter],
+                  ["strike", "删除线", Strikethrough],
+                  ["code", "行内代码", Code],
+                  ["link", "链接", LinkIcon],
+                ] as const
+              ).map(([kind, label, Icon]) => (
+                <button
+                  key={kind}
+                  type="button"
+                  aria-label={label}
+                  title={label}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => editor.current?.format(kind)}
+                >
+                  <Icon size={15} />
+                </button>
+              ))}
+            </div>
+          )}
         <footer className="statusbar">
           <button onClick={() => saveCurrent()} disabled={busy}>
             {current.dirty ? <Save size={13} /> : <Check size={13} />}

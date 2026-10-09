@@ -1185,6 +1185,29 @@ test("偏好设置在其他应用窗口变更后同步外观与编辑选项", as
   await expect(page.getByLabel("自动保存到原文件")).toBeChecked();
 });
 
+test("浮动格式工具栏按偏好出现并保留选区焦点", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "浮动工具栏.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("选择这段文字应用格式"),
+  });
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("选中文本时显示浮动格式工具栏").check();
+  await page.getByRole("button", { name: "完成" }).click();
+
+  const content = page.locator(".cm-content");
+  await content.click();
+  await page.keyboard.press(shortcut("a"));
+  const floatingToolbar = page.getByRole("toolbar", {
+    name: "选区格式工具栏",
+  });
+  await expect(floatingToolbar).toBeVisible();
+  await floatingToolbar.getByRole("button", { name: "粗体" }).click();
+  await expect(content).toContainText("**选择这段文字应用格式**");
+  await expect(content).toBeFocused();
+});
+
 test("普通复制按偏好输出富文本并保留 Markdown 纯文本", async ({ page }) => {
   await page.addInitScript(() => {
     const writes: { html: string; text: string }[] = [];
