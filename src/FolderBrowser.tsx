@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -369,6 +369,15 @@ export function FolderBrowser({
       return new Set();
     }
   });
+  useEffect(() => {
+    const syncPins = (event: Event) => {
+      const paths = (event as CustomEvent<string[]>).detail;
+      if (Array.isArray(paths)) setPinned(new Set(paths));
+    };
+    window.addEventListener("moxie:folder-pins-changed", syncPins);
+    return () =>
+      window.removeEventListener("moxie:folder-pins-changed", syncPins);
+  }, []);
   const togglePin = (path: string) =>
     setPinned((previous) => {
       const next = new Set(previous);

@@ -359,13 +359,27 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
   await page.evaluate(() => {
     const state = window as unknown as {
       desktop: {
-        fileOperation: (input: Record<string, unknown>) => Promise<unknown>;
+        fileOperation: (input: {
+          action: string;
+          root: string;
+          target?: string;
+          name?: string;
+        }) => Promise<unknown>;
       };
       operations: Record<string, unknown>[];
     };
     state.operations = [];
     state.desktop.fileOperation = async (input) => {
       state.operations.push(input);
+      if (input.action === "undo")
+        return {
+          action: "undo",
+          path: "/notes/新章节",
+          from: "/notes/章节",
+          kind: "directory",
+          undid: "rename",
+          paths: [],
+        };
       return {
         action: "rename",
         path: "/notes/新章节",
@@ -376,6 +390,9 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
     };
   });
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.getByRole("button", { name: "文件操作：note.md" }).click();
+  await page.getByRole("button", { name: "置顶", exact: true }).click();
   await page.getByRole("button", { name: "文件操作：章节" }).click();
   await page.getByRole("button", { name: "重命名", exact: true }).click();
   await expect(
@@ -383,6 +400,13 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
   ).toBeVisible();
   await page.getByLabel("名称").fill("新章节");
   await page.getByRole("button", { name: "确定" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("moxie.folder-pinned.v1") || "[]"),
+      ),
+    )
+    .toEqual(["/notes/新章节/note.md"]);
   await expect
     .poll(() => page.evaluate(() => (window as any).operations))
     .toEqual([
@@ -394,6 +418,14 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
         directory: undefined,
       },
     ]);
+  await page.getByRole("button", { name: "撤销文件操作" }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        JSON.parse(localStorage.getItem("moxie.folder-pinned.v1") || "[]"),
+      ),
+    )
+    .toEqual(["/notes/章节/note.md"]);
 });
 
 test("长图导出将完整 HTML 和文档名交给桌面分页捕获", async ({ page }) => {

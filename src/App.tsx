@@ -89,6 +89,33 @@ function isQuickOpenDocument(name: string) {
   return /\.(?:md|markdown|txt)$/i.test(name);
 }
 
+function remapPinnedPath(from: string, to?: string) {
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem("moxie.folder-pinned.v1") || "[]",
+    );
+    if (!Array.isArray(stored)) return;
+    const prefix =
+      from.endsWith("/") || from.endsWith("\\")
+        ? from
+        : from + (from.includes("\\") ? "\\" : "/");
+    const updated = [
+      ...new Set(
+        stored
+          .filter((path): path is string => typeof path === "string")
+          .flatMap((path) => {
+            if (path !== from && !path.startsWith(prefix)) return [path];
+            return to ? [to + path.slice(from.length)] : [];
+          }),
+      ),
+    ].slice(0, 200);
+    localStorage.setItem("moxie.folder-pinned.v1", JSON.stringify(updated));
+    window.dispatchEvent(
+      new CustomEvent("moxie:folder-pins-changed", { detail: updated }),
+    );
+  } catch {}
+}
+
 function collectQuickOpenFiles(nodes: FolderNode[]): FolderNode[] {
   return nodes.flatMap((node) =>
     node.kind === "file" ? [node] : collectQuickOpenFiles(node.children || []),
@@ -322,6 +349,18 @@ export default function App() {
           : {}),
       });
       if (!result) return;
+      if (request.action === "undo") {
+        if (result.undid === "rename" || result.undid === "move") {
+          if (result.from) remapPinnedPath(result.path, result.from);
+        } else remapPinnedPath(result.path);
+      } else if (request.action === "trash" && request.target) {
+        remapPinnedPath(request.target);
+      } else if (
+        (request.action === "rename" || request.action === "move") &&
+        request.target
+      ) {
+        remapPinnedPath(request.target, result.path);
+      }
       if (result.paths) {
         for (const mapping of result.paths) {
           const affected = workspace.docsRef.current.filter(

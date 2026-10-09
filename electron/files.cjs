@@ -535,6 +535,8 @@ class FileStore {
         action: "undo",
         path: previous.path,
         from: previous.from,
+        kind: previous.directory ? "directory" : "file",
+        undid: previous.action,
         paths: undoPaths,
         version:
           !previous.directory &&
@@ -643,7 +645,7 @@ class FileStore {
       this.recent = this.recent.filter((file) => file !== source);
       await this.persist();
       this.rememberFileOperation({ action: "trash", path: source });
-      return { action, path: source };
+      return { action, path: source, kind: "file" };
     }
     const parent =
       action === "move"
@@ -701,7 +703,7 @@ class FileStore {
       version,
       fingerprint: await this.contentFingerprint(destination),
     });
-    return { action, path: destination, from: source, version };
+    return { action, path: destination, from: source, kind: "file", version };
   }
   async authorizedPath(value) {
     if (typeof value !== "string" || !path.isAbsolute(value))

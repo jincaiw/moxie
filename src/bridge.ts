@@ -74,6 +74,7 @@ declare global {
         from?: string;
         version?: string;
         kind?: "file" | "directory";
+        undid?: string;
         paths?: {
           from: string;
           to?: string;
