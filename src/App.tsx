@@ -44,6 +44,7 @@ import { Dialog } from "./Dialog";
 import { headingLabel, headingTarget, usableLink } from "./links";
 import { documentStats } from "./stats";
 import type { UpdateStatus } from "./bridge";
+import type { FolderNode } from "./bridge";
 import {
   parseFrontMatter,
   updateDocumentMetadata,
@@ -55,6 +56,43 @@ function metadataField(value: unknown) {
   return typeof value === "string" || typeof value === "number"
     ? String(value)
     : "";
+}
+
+type QuickOpenItem = {
+  key: string;
+  name: string;
+  path?: string;
+  documentId?: string;
+  location: string;
+  recent: boolean;
+};
+
+function fuzzyScore(value: string, query: string) {
+  const text = value.toLocaleLowerCase();
+  const needle = query.toLocaleLowerCase().replace(/\s+/g, "");
+  if (!needle) return 0;
+  let cursor = 0,
+    first = -1,
+    gaps = 0;
+  for (const character of needle) {
+    const found = text.indexOf(character, cursor);
+    if (found < 0) return Number.POSITIVE_INFINITY;
+    if (first < 0) first = found;
+    gaps += found - cursor;
+    cursor = found + 1;
+  }
+  const compact = text.replace(/[\s_-]+/g, "");
+  return first * 2 + gaps - (compact.startsWith(needle) ? 24 : 0);
+}
+
+function isQuickOpenDocument(name: string) {
+  return /\.(?:md|markdown|txt)$/i.test(name);
+}
+
+function collectQuickOpenFiles(nodes: FolderNode[]): FolderNode[] {
+  return nodes.flatMap((node) =>
+    node.kind === "file" ? [node] : collectQuickOpenFiles(node.children || []),
+  );
 }
 
 function Tool({
@@ -219,6 +257,11 @@ export default function App() {
     | null
   >(null);
   const folderWorkspace = useFolder();
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickOpenQuery, setQuickOpenQuery] = useState("");
+  const [quickOpenIndex, setQuickOpenIndex] = useState(0);
+  const quickOpenInput = useRef<HTMLInputElement>(null);
+  const quickOpenResultsRef = useRef<HTMLDivElement>(null);
   const [tabGroup, setTabGroup] = useState("全部");
   const tabGroups = useMemo(
     () =>
@@ -236,6 +279,78 @@ export default function App() {
       setTabGroup("全部");
   }, [tabGroup, tabGroups]);
   const { tree, busy: folderBusy } = folderWorkspace;
+  const quickOpenItems = useMemo(() => {
+    const items = new Map<string, QuickOpenItem>();
+    recent.forEach((file, index) => {
+      if (!isQuickOpenDocument(file.name)) return;
+      items.set(file.path, {
+        key: file.path,
+        name: file.name,
+        path: file.path,
+        location: `最近打开 · ${index + 1}`,
+        recent: true,
+      });
+    });
+    const root = folderWorkspace.root?.replace(/[\\/]+$/, "");
+    const separator = folderWorkspace.root?.includes("\\") ? "\\" : "/";
+    for (const file of collectQuickOpenFiles(tree?.entries || [])) {
+      if (!isQuickOpenDocument(file.name)) continue;
+      const existing = items.get(file.path);
+      const location =
+        root && file.path.startsWith(root + separator)
+          ? file.path.slice(root.length + 1)
+          : file.path;
+      items.set(file.path, {
+        key: file.path,
+        name: file.name,
+        path: file.path,
+        location,
+        recent: existing?.recent || false,
+      });
+    }
+    docs.forEach((document) => {
+      if (!isQuickOpenDocument(document.name)) return;
+      const key = document.path || `document:${document.id}`;
+      const existing = items.get(key);
+      items.set(key, {
+        key,
+        name: document.name,
+        path: document.path,
+        documentId: document.id,
+        location: document.path ? `已打开 · ${document.path}` : "当前窗口",
+        recent: existing?.recent || false,
+      });
+    });
+    return [...items.values()];
+  }, [docs, folderWorkspace.root, recent, tree]);
+  const quickOpenResults = useMemo(() => {
+    const query = quickOpenQuery.trim();
+    return quickOpenItems
+      .map((item) => {
+        if (!query)
+          return {
+            item,
+            score: item.recent ? -1000 : item.documentId ? -500 : 0,
+          };
+        const nameScore = fuzzyScore(item.name, query);
+        const pathScore = item.path
+          ? fuzzyScore(item.path, query) + 12
+          : Number.POSITIVE_INFINITY;
+        const score = Math.min(nameScore, pathScore);
+        return { item, score: score - (item.recent ? 20 : 0) };
+      })
+      .filter((entry) => Number.isFinite(entry.score))
+      .sort(
+        (a, b) => a.score - b.score || a.item.name.localeCompare(b.item.name),
+      )
+      .slice(0, 50)
+      .map((entry) => entry.item);
+  }, [quickOpenItems, quickOpenQuery]);
+  useEffect(() => {
+    quickOpenResultsRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [quickOpenIndex, quickOpenResults]);
   const [pendingAnchor, setPendingAnchor] = useState<{
     path?: string;
     id?: string;
@@ -846,6 +961,18 @@ export default function App() {
       );
     }
   };
+  const showQuickOpen = () => {
+    setMenu(null);
+    setQuickOpenQuery("");
+    setQuickOpenIndex(0);
+    setQuickOpen(true);
+    requestAnimationFrame(() => quickOpenInput.current?.focus());
+  };
+  const openQuickOpenItem = async (item: QuickOpenItem) => {
+    setQuickOpen(false);
+    if (item.documentId) workspace.setActive(item.documentId);
+    else if (item.path) await reopen(item.path);
+  };
   const handleAction = (action: string) => {
     if (action.startsWith("format-")) {
       const kind = action.slice(7) as Format;
@@ -867,6 +994,7 @@ export default function App() {
     if (action === "source") setSource((value) => !value);
     if (action === "find") editor.current?.find();
     if (action === "copy-as-html") void copySelectionAsHTML();
+    if (action === "quick-open") showQuickOpen();
     if (action === "export")
       setMenu((value) => (value === "export" ? null : "export"));
     if (action === "settings") setSettings(true);
@@ -924,6 +1052,15 @@ export default function App() {
       )
         return;
       if (document.querySelector("dialog[open]")) return;
+      const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+      if (
+        (isMac && event.shiftKey && event.code === "KeyO") ||
+        (!isMac && !event.shiftKey && event.key.toLowerCase() === "p")
+      ) {
+        event.preventDefault();
+        actionRef.current("quick-open");
+        return;
+      }
       if (event.shiftKey && event.code === "BracketLeft") {
         event.preventDefault();
         actionRef.current("previous-document");
@@ -1394,6 +1531,9 @@ export default function App() {
               onClick={() => setWorkspaceSearch((open) => !open)}
             >
               <FolderSearch2 size={18} />
+            </Tool>
+            <Tool label="快速打开" onClick={showQuickOpen}>
+              <FileText size={18} />
             </Tool>
             <button
               className="tool mobile-more"
@@ -2462,6 +2602,96 @@ export default function App() {
               </button>
             </div>
           </form>
+        </Dialog>
+      )}
+      {quickOpen && (
+        <Dialog title="快速打开" onClose={() => setQuickOpen(false)}>
+          <div className="quick-open-dialog">
+            <header>
+              <h2>快速打开</h2>
+              <Tool label="关闭快速打开" onClick={() => setQuickOpen(false)}>
+                <X size={18} />
+              </Tool>
+            </header>
+            <input
+              ref={quickOpenInput}
+              autoFocus
+              className="quick-open-input"
+              aria-label="搜索文件名"
+              aria-controls="quick-open-results"
+              aria-activedescendant={
+                quickOpenResults.length
+                  ? `quick-open-option-${quickOpenIndex}`
+                  : undefined
+              }
+              placeholder="搜索当前文件夹、最近文件和已打开文档"
+              value={quickOpenQuery}
+              onChange={(event) => {
+                setQuickOpenQuery(event.target.value);
+                setQuickOpenIndex(0);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowDown" && quickOpenResults.length) {
+                  event.preventDefault();
+                  setQuickOpenIndex(
+                    (index) => (index + 1) % quickOpenResults.length,
+                  );
+                } else if (event.key === "ArrowUp" && quickOpenResults.length) {
+                  event.preventDefault();
+                  setQuickOpenIndex(
+                    (index) =>
+                      (index - 1 + quickOpenResults.length) %
+                      quickOpenResults.length,
+                  );
+                } else if (event.key === "Enter" && quickOpenResults.length) {
+                  event.preventDefault();
+                  void openQuickOpenItem(
+                    quickOpenResults[
+                      Math.min(quickOpenIndex, quickOpenResults.length - 1)
+                    ],
+                  );
+                }
+              }}
+            />
+            <div
+              ref={quickOpenResultsRef}
+              id="quick-open-results"
+              className="quick-open-results"
+              role="listbox"
+              aria-label="匹配的文档"
+            >
+              {quickOpenResults.map((item, index) => (
+                <button
+                  id={`quick-open-option-${index}`}
+                  key={item.key}
+                  role="option"
+                  aria-selected={index === quickOpenIndex}
+                  className={index === quickOpenIndex ? "selected" : ""}
+                  onMouseEnter={() => setQuickOpenIndex(index)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => void openQuickOpenItem(item)}
+                >
+                  <FileText size={17} />
+                  <span>
+                    <strong>{item.name}</strong>
+                    <small title={item.location}>{item.location}</small>
+                  </span>
+                </button>
+              ))}
+              {!quickOpenResults.length && (
+                <p role="status">
+                  {quickOpenItems.length
+                    ? "没有匹配的文档。"
+                    : "打开文件夹或文档后，可在此快速切换。"}
+                </p>
+              )}
+            </div>
+            <footer>
+              <span>↑↓ 选择</span>
+              <span>Enter 打开</span>
+              <span>Esc 关闭</span>
+            </footer>
+          </div>
         </Dialog>
       )}
       {statsOpen && (

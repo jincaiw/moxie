@@ -516,6 +516,11 @@ function createMenu() {
             click: () => createWindow(),
           },
           command("打开…", "open", "CmdOrCtrl+O"),
+          command(
+            "快速打开…",
+            "quick-open",
+            process.platform === "darwin" ? "CmdOrCtrl+Shift+O" : "Ctrl+P",
+          ),
           command("打开文件夹…", "folder"),
           { type: "separator" },
           command("保存", "save", "CmdOrCtrl+S"),

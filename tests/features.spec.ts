@@ -3986,6 +3986,41 @@ test("格式菜单可将选中的 Markdown 复制为带富文本结构的 HTML",
   expect(html).toContain("<em>斜体</em>");
 });
 
+test("快速打开按文件名模糊筛选，并可用方向键打开文档", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles([
+    {
+      name: "meeting-notes.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Meeting notes"),
+    },
+    {
+      name: "release-plan.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Release plan"),
+    },
+    {
+      name: "research-plan.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Research plan"),
+    },
+  ]);
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "快速打开" });
+  const search = dialog.getByRole("textbox", { name: "搜索文件名" });
+  await search.fill("rpl");
+  await expect(
+    dialog.getByRole("option", { name: /release-plan\.md/ }),
+  ).toBeVisible();
+  await expect(dialog.getByRole("option")).toHaveCount(2);
+  await search.press("ArrowDown");
+  await search.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".document-tab.selected")).toContainText(
+    "research-plan.md",
+  );
+});
+
 test("字数统计展示字数、字符、段落与预计阅读时间", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
