@@ -195,7 +195,7 @@ async function harness(userData) {
     events = new Map();
   const windows = [],
     externalUrls = [];
-  let menuTemplate, dialogParent;
+  let menuTemplate, dialogParent, clipboardContent;
   const mockUpdater = new EventEmitter();
   mockUpdater.checkForUpdates = async () => {};
   mockUpdater.downloadUpdate = async () => {};
@@ -277,6 +277,11 @@ async function harness(userData) {
     ipcMain: {
       handle: (name, fn) => handlers.set(name, fn),
       on: (name, fn) => events.set(name, fn),
+    },
+    clipboard: {
+      write: (value) => {
+        clipboardContent = value;
+      },
     },
     shell: {
       openExternal: async (url) => {
@@ -363,11 +368,33 @@ async function harness(userData) {
     event,
     mockUpdater,
     menuTemplate,
+    get clipboardContent() {
+      return clipboardContent;
+    },
     get dialogParent() {
       return dialogParent;
     },
   };
 }
+test("富文本剪贴板 IPC 同时写入 HTML 与纯文本并限制大小", async () => {
+  const h = await harness();
+  assert.equal(
+    await h.call("clipboard:write-rich-text", {
+      html: "<p><strong>加粗</strong></p>",
+      text: "**加粗**",
+    }),
+    true,
+  );
+  assert.equal(h.clipboardContent.html, "<p><strong>加粗</strong></p>");
+  assert.equal(h.clipboardContent.text, "**加粗**");
+  await assert.rejects(
+    h.call("clipboard:write-rich-text", {
+      html: "x".repeat(5 * 1024 * 1024 + 1),
+      text: "x",
+    }),
+    /5 MB 限制/,
+  );
+});
 test("打开、原子保存、外部修改取消和明确覆盖", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-test-"));
   try {

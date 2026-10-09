@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("image:download-remote", input),
   previewPDF: (input) => ipcRenderer.invoke("pdf:preview", input),
   export: (input) => ipcRenderer.invoke("file:export", input),
+  copyRichText: (input) =>
+    ipcRenderer.invoke("clipboard:write-rich-text", input),
   getUpdateStatus: () => ipcRenderer.invoke("update:status"),
   checkForUpdates: () => ipcRenderer.invoke("update:check"),
   downloadUpdate: () => ipcRenderer.invoke("update:download"),

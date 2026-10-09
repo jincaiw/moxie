@@ -1,5 +1,12 @@
 # 实施进度
 
+## v0.16.210 选区复制为 HTML
+
+- [x] 格式菜单与桌面编辑菜单支持把选中 Markdown 转为富文本 HTML，并同时提供 Markdown 纯文本回退。
+- [x] 复用安全导出渲染与本地图片解析；空选区提示，剪贴板 IPC 限制数据大小。
+- [x] Playwright 170 项通过、3 项性能基准按配置跳过；桌面剪贴板 IPC 29 项、生产构建通过。
+- [ ] v0.16.210 Release CI 与 macOS 双架构、Windows、Linux 安装包待远端验证。
+
 ## v0.16.209 Pandoc 扩展导出格式
 
 - [x] 桌面导出菜单接入 RTF、EPUB、ODT、LaTeX 和 MediaWiki；Pandoc 保持可选依赖，未安装时提示安装说明。

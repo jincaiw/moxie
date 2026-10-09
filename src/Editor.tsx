@@ -62,6 +62,7 @@ export type Format =
   | "toc";
 export type EditorHandle = {
   flush: () => void;
+  selection: () => string;
   go: (pos: number) => void;
   find: () => void;
   undo: () => void;
@@ -642,6 +643,12 @@ export const Editor = forwardRef<EditorHandle, Props>(
     useImperativeHandle(ref, () => ({
       flush() {
         flushChangeRef.current();
+      },
+      selection() {
+        const instance = view.current;
+        if (!instance) return "";
+        const { from, to } = instance.state.selection.main;
+        return from === to ? "" : instance.state.sliceDoc(from, to);
       },
       go(pos) {
         const instance = view.current;

@@ -1,5 +1,9 @@
 # Typora 功能差距盘点
 
+## v0.16.210 选区复制为 HTML
+
+补齐 Typora 写作时将排版结果粘贴到邮件/文档等富文本应用的工作流。格式菜单和桌面“编辑”菜单现可把选中的 Markdown 经与导出相同的安全渲染管线转换，并同时写入 HTML 与 Markdown 纯文本剪贴板；未选中文本会提示先选择，桌面 IPC 对两种数据均限制 5 MB。浏览器使用 Clipboard API，须在允许剪贴板访问的安全上下文中运行。回归验证了加粗/斜体结构保留、状态反馈、IPC 双格式写入与大小限制。真实第三方应用的粘贴样式仍建议按平台验收。
+
 ## v0.16.209 Pandoc 扩展导出格式
 
 Typora 官方导出支持 RTF、EPUB、ODT、LaTeX 和 MediaWiki，并注明这些扩展格式需要 Pandoc。桌面版墨写现通过 Pandoc 接入这五种格式；安装为可选外部依赖，未安装时显示官方安装说明。导出使用固定格式映射和参数数组，不经 shell 执行；本地图片对 RTF/EPUB/ODT 嵌入，对 LaTeX/MediaWiki 随文件生成资源目录，远程图片转成 alt 提示且不会自动联网抓取。菜单在小窗口内可滚动。验证覆盖导出格式选择、图片隔离和资源文件；本机 Pandoc 五种实际输出均成功。详见 [Typora 导出说明](https://support.typora.io/Export/) 与 [Pandoc 安装说明](https://support.typora.io/Install-and-Use-Pandoc/)。

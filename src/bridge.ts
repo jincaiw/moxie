@@ -127,6 +127,7 @@ declare global {
           headerFooter: boolean;
         };
       }) => Promise<boolean>;
+      copyRichText: (input: { html: string; text: string }) => Promise<boolean>;
       getUpdateStatus: () => Promise<UpdateStatus>;
       checkForUpdates: () => Promise<UpdateStatus>;
       downloadUpdate: () => Promise<UpdateStatus>;

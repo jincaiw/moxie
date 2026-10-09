@@ -4,6 +4,7 @@ const {
   Menu,
   dialog,
   ipcMain,
+  clipboard,
   shell,
   nativeImage,
 } = require("electron");
@@ -161,6 +162,18 @@ function setupIPC() {
   handle("update:download", () => updates.download());
   handle("update:install", () => updates.install());
   handle("theme:fetch", (url) => fetchThemeResource(url));
+  handle("clipboard:write-rich-text", (input) => {
+    if (
+      !input ||
+      typeof input.html !== "string" ||
+      typeof input.text !== "string" ||
+      input.html.length > 5 * 1024 * 1024 ||
+      input.text.length > 5 * 1024 * 1024
+    )
+      throw Error("复制内容无效或超出 5 MB 限制");
+    clipboard.write({ html: input.html, text: input.text });
+    return true;
+  });
   handle("file:open", async (_input, { window }) => {
     const result = await dialog.showOpenDialog(window, {
       properties: ["openFile"],
@@ -521,6 +534,7 @@ function createMenu() {
           { type: "separator" },
           { role: "cut" },
           { role: "copy" },
+          command("复制为 HTML", "copy-as-html"),
           { role: "paste" },
           { role: "selectAll" },
           { type: "separator" },

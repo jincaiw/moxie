@@ -811,6 +811,41 @@ export default function App() {
       setMessage(`PDF 预览失败：${String(error)}`);
     }
   };
+  const copySelectionAsHTML = async () => {
+    const selected = editor.current?.selection() || "";
+    if (!selected) {
+      setMessage("请先选中要复制为 HTML 的内容。");
+      return;
+    }
+    try {
+      const htmlDocument = await exportHTML(
+        selected,
+        current.name,
+        current.path,
+        preferences.customCSS,
+        preferences.theme,
+      );
+      const parsed = new DOMParser().parseFromString(htmlDocument, "text/html");
+      const styles = Array.from(parsed.head.querySelectorAll("style"))
+        .map((style) => style.outerHTML)
+        .join("");
+      const html = `${styles}<div>${parsed.body.innerHTML}</div>`;
+      if (window.desktop) {
+        await window.desktop.copyRichText({ html, text: selected });
+      } else {
+        const item = new ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([selected], { type: "text/plain" }),
+        });
+        await navigator.clipboard.write([item]);
+      }
+      setMessage("已复制为 HTML，可粘贴到支持富文本的应用。");
+    } catch (error) {
+      setMessage(
+        `复制为 HTML 失败：${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
   const handleAction = (action: string) => {
     if (action.startsWith("format-")) {
       const kind = action.slice(7) as Format;
@@ -831,6 +866,7 @@ export default function App() {
     }
     if (action === "source") setSource((value) => !value);
     if (action === "find") editor.current?.find();
+    if (action === "copy-as-html") void copySelectionAsHTML();
     if (action === "export")
       setMenu((value) => (value === "export" ? null : "export"));
     if (action === "settings") setSettings(true);
@@ -1540,6 +1576,17 @@ export default function App() {
                   )}
                 </button>
               ))}
+              <button
+                role="menuitem"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setMenu(null);
+                  void copySelectionAsHTML();
+                }}
+              >
+                <Copy size={17} />
+                复制选区为 HTML
+              </button>
               {window.desktop && (
                 <button
                   role="menuitem"

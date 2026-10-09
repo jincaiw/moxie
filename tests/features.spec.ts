@@ -3961,6 +3961,31 @@ test("即时排版代码块显示语言并可复制代码", async ({ page, conte
   await expect(page.locator(".cm-content")).toContainText("```ts");
 });
 
+test("格式菜单可将选中的 Markdown 复制为带富文本结构的 HTML", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "富文本复制.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("**加粗** 与 *斜体*"),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(shortcut("A"));
+  await page.getByRole("button", { name: "格式", exact: true }).click();
+  await page.getByRole("menuitem", { name: "复制选区为 HTML" }).click();
+  await expect(page.getByRole("status")).toContainText("已复制为 HTML");
+  const html = await page.evaluate(async () => {
+    const items = await navigator.clipboard.read();
+    const item = items.find((entry) => entry.types.includes("text/html"));
+    return item ? item.getType("text/html").then((blob) => blob.text()) : "";
+  });
+  expect(html).toContain("<strong>加粗</strong>");
+  expect(html).toContain("<em>斜体</em>");
+});
+
 test("字数统计展示字数、字符、段落与预计阅读时间", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
