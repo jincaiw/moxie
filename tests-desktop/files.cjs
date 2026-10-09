@@ -1711,12 +1711,13 @@ test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文�
     ]);
     const store = new FileStore(path.join(root, ".state", "files.json"));
     const defaults = await store.folder(root);
+    const authorizedRoot = defaults.path;
     assert.deepEqual(
       defaults.entries.map((entry) => entry.name),
       ["note.md"],
     );
 
-    const filtered = await store.folder(root, true, undefined, {
+    const filtered = await store.folder(authorizedRoot, true, undefined, {
       showHiddenFiles: true,
       showOtherFiles: true,
     });
