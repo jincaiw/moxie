@@ -4,8 +4,8 @@
 
 - [x] 文件侧栏监听 `localStorage` 的置顶项变化，在其他窗口置顶、取消置顶或清空置顶时刷新当前侧栏。
 - [x] 新增跨窗口同步回归，验证存储事件到达后对应文档菜单显示“取消置顶”。
-- [x] 定向 Playwright 用例通过；全量浏览器、桌面逻辑、构建和 Release 验证待完成。
-- [ ] 发布完成后补录主分支 CI、Release 工作流及资产结果。
+- [x] 全量 Playwright 185 项通过、3 项性能基准按配置跳过；桌面逻辑 35 项、生产构建和 3 款主题目录校验通过。
+- [x] 主分支 CI #390、Release #187 和 macOS arm64/x64、Windows x64、Linux x64 构建全部成功；macOS 双架构签名/公证检查通过，正式 Release 含 20 项资产：[v0.16.218](https://github.com/jincaiw/moxie/releases/tag/v0.16.218)。
 
 ## v0.16.217 文件置顶状态跟随路径操作
 
