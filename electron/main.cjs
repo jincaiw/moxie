@@ -12,6 +12,7 @@ const { URL } = require("node:url");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const { FileStore, atomicWrite, validateText } = require("./files.cjs");
+const { pandocFormats, findPandoc, exportWithPandoc } = require("./pandoc.cjs");
 const { autoUpdater } = require("electron-updater");
 const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
@@ -22,17 +23,32 @@ let store,
   windowProfileWrites = Promise.resolve(),
   isQuitting = false;
 
-function docxCompatibleImages(html) {
+function writerCompatibleImages(html) {
   return html.replace(
     /(\bsrc\s*=\s*)(["']?)((?:data:image\/(?:avif|bmp|svg\+xml);base64,)[A-Za-z\d+/=]+)\2/gi,
     (_match, attribute, quote, source) => {
       const image = nativeImage.createFromDataURL(source);
       const { width, height } = image.getSize();
       if (image.isEmpty() || width <= 0 || height <= 0)
-        throw Error("无法解码 BMP/AVIF/SVG 图片，DOCX 导出已取消");
+        throw Error("无法解码 BMP/AVIF/SVG 图片，导出已取消");
       return `${attribute}${quote}data:image/png;base64,${image.toPNG().toString("base64")}${quote}`;
     },
   );
+}
+async function reservePandocAssetsDirectory(outputPath) {
+  const parent = path.dirname(outputPath);
+  const base = `${path.basename(outputPath)}_assets`;
+  for (let index = 1; index < 1000; index++) {
+    const name = index === 1 ? base : `${base}-${index}`;
+    const directory = path.join(parent, name);
+    try {
+      await fs.mkdir(directory);
+      return { name, directory };
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  throw Error("无法为导出图片创建资源目录");
 }
 const windowStates = new Map();
 const windowProfiles = new Set();
@@ -224,9 +240,17 @@ function setupIPC() {
   });
   handle("file:export", async (input, { window }) => {
     validateText(input.html);
-    if (!["html", "pdf", "docx"].includes(input.format))
+    const pandocDefinition = Object.hasOwn(pandocFormats, input.format)
+      ? pandocFormats[input.format]
+      : null;
+    if (!["html", "pdf", "docx"].includes(input.format) && !pandocDefinition)
       throw Error("不支持的导出格式");
-    const extension = input.format === "docx" ? "docx" : input.format;
+    const pandocBinary = pandocDefinition ? await findPandoc() : null;
+    if (pandocDefinition && !pandocBinary)
+      throw Error(
+        "此格式需要安装 Pandoc 并确保命令可用。安装说明：https://pandoc.org/installing.html",
+      );
+    const extension = pandocDefinition?.extension ?? input.format;
     const result = await dialog.showSaveDialog(window, {
       defaultPath:
         path.basename(String(input.name)).replace(/\.(md|markdown)$/i, "") +
@@ -235,25 +259,63 @@ function setupIPC() {
       filters: [
         {
           name:
-            input.format === "docx" ? "Word 文档" : input.format.toUpperCase(),
+            pandocDefinition?.label ??
+            (input.format === "docx"
+              ? "Word 文档"
+              : input.format.toUpperCase()),
           extensions: [extension],
         },
       ],
     });
     if (result.canceled) return false;
+    if (pandocDefinition) {
+      const assetsDirectory = pandocDefinition.companionAssets
+        ? await reservePandocAssetsDirectory(result.filePath)
+        : null;
+      try {
+        const output = await exportWithPandoc({
+          html: writerCompatibleImages(input.html),
+          format: input.format,
+          name: input.name,
+          executable: pandocBinary,
+          assetsDirectoryName: assetsDirectory?.name,
+        });
+        for (const asset of output.assets)
+          await fs.writeFile(
+            path.join(assetsDirectory.directory, asset.name),
+            asset.data,
+            { flag: "wx", mode: 0o600 },
+          );
+        await atomicWrite(result.filePath, output.data);
+        if (!output.assets.length && assetsDirectory)
+          await fs.rmdir(assetsDirectory.directory);
+      } catch (error) {
+        if (assetsDirectory)
+          await fs.rm(assetsDirectory.directory, {
+            recursive: true,
+            force: true,
+          });
+        throw error;
+      }
+      return true;
+    }
     if (input.format === "docx") {
       const htmlToDocx = require("html-to-docx");
-      const buffer = await htmlToDocx(docxCompatibleImages(input.html), null, {
-        title: path
-          .basename(String(input.name))
-          .replace(/\.(md|markdown)$/i, ""),
-        creator: "墨写 Moxie",
-        lang: "zh-CN",
-        font: "Arial",
-        fontSize: 24,
-        pageSize: { width: 11906, height: 16838 },
-        margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-      });
+      const buffer = await htmlToDocx(
+        writerCompatibleImages(input.html),
+        null,
+        {
+          title: path
+            .basename(String(input.name))
+            .replace(/\.(md|markdown)$/i, ""),
+          creator: "墨写 Moxie",
+          lang: "zh-CN",
+          font: "Arial",
+          fontSize: 24,
+          pageSize: { width: 11906, height: 16838 },
+          margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+        },
+      );
       await atomicWrite(result.filePath, buffer);
       return true;
     }

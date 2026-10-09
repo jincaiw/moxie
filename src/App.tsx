@@ -693,7 +693,18 @@ export default function App() {
     remove(document.id);
     setClosing(null);
   };
-  const performExport = async (format: "md" | "html" | "pdf" | "docx") => {
+  const performExport = async (
+    format:
+      | "md"
+      | "html"
+      | "pdf"
+      | "docx"
+      | "rtf"
+      | "epub"
+      | "odt"
+      | "latex"
+      | "mediawiki",
+  ) => {
     setMenu(null);
     editor.current?.flush();
     const document =
@@ -756,7 +767,9 @@ export default function App() {
         printWindow.document.close();
         if (printWindow.document.readyState === "complete") printWindow.print();
         else printWindow.onload = () => printWindow.print();
-      } else setMessage("Word 导出请使用 Moxie 桌面版。");
+      } else if (format === "docx")
+        setMessage("Word 导出请使用 Moxie 桌面版。");
+      else setMessage("更多格式导出请使用桌面版并安装 Pandoc。");
     } catch (error) {
       setMessage(String(error));
     }
@@ -1425,6 +1438,46 @@ export default function App() {
                   <FileText size={17} />
                   Word 文档（DOCX）
                 </button>
+              )}
+              {window.desktop && (
+                <>
+                  <hr />
+                  <button
+                    role="menuitem"
+                    onClick={() => void performExport("rtf")}
+                  >
+                    <FileText size={17} />
+                    RTF 文档（需 Pandoc）
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => void performExport("epub")}
+                  >
+                    <FileText size={17} />
+                    EPUB 电子书（需 Pandoc）
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => void performExport("odt")}
+                  >
+                    <FileText size={17} />
+                    OpenDocument 文档（需 Pandoc）
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => void performExport("latex")}
+                  >
+                    <FileText size={17} />
+                    LaTeX 文档（需 Pandoc）
+                  </button>
+                  <button
+                    role="menuitem"
+                    onClick={() => void performExport("mediawiki")}
+                  >
+                    <FileText size={17} />
+                    MediaWiki 文本（需 Pandoc）
+                  </button>
+                </>
               )}
               {window.desktop && (
                 <>

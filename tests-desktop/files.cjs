@@ -19,6 +19,11 @@ const {
   isThemeResourceURL,
 } = require("../electron/theme-gallery.cjs");
 const { verifyThemeCatalog } = require("../scripts/verify-theme-catalog.cjs");
+const {
+  pandocFormats,
+  pandocCandidates,
+  exportWithPandoc,
+} = require("../electron/pandoc.cjs");
 const harnessDirectories = [];
 after(async () => {
   await Promise.all(
@@ -49,6 +54,78 @@ test("精选主题网络入口仅允许官方目录和版本化 Release 资源",
     "https://example.com/theme.css",
   ])
     assert.equal(isThemeResourceURL(url), false, url);
+});
+
+test("Pandoc 导出只开放固定格式，并从 PATH 查找可执行文件", () => {
+  assert.deepEqual(Object.keys(pandocFormats).sort(), [
+    "epub",
+    "latex",
+    "mediawiki",
+    "odt",
+    "rtf",
+  ]);
+  const candidates = pandocCandidates(
+    { PATH: ["/custom/bin", "/usr/bin"].join(path.delimiter) },
+    "linux",
+  );
+  assert.ok(candidates.includes(path.join("/custom/bin", "pandoc")));
+  assert.ok(candidates.includes(path.join("/usr/bin", "pandoc")));
+});
+
+test("Pandoc 导出隔离远程图片并保留本地资源", async (t) => {
+  if (process.platform === "win32")
+    return t.skip("测试桩使用 POSIX 可执行脚本");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-pandoc-test-"));
+  try {
+    const executable = path.join(root, "pandoc");
+    await fs.writeFile(
+      executable,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+const path = require("node:path");
+const args = process.argv.slice(2);
+const output = args[args.indexOf("--output") + 1];
+const latex = args.includes("--to=latex");
+let html = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => html += chunk);
+process.stdin.on("end", () => {
+  const hasImage = fs.existsSync(path.join(process.cwd(), "media/image-1.png"));
+  const containsImage = hasImage && html.includes('src="media/image-1.png"') && !html.includes("https://");
+  fs.writeFileSync(output, Buffer.from(latex ? (containsImage ? "\\\\includegraphics{media/image-1.png}" : "missing-image") : "{\\\\rtf1\\\\ansi " + (containsImage ? "embedded-image" : "missing-image") + "}"));
+});
+`,
+      { mode: 0o755 },
+    );
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
+      "base64",
+    );
+    const result = await exportWithPandoc({
+      html: `<html><body><h1>中文</h1><img alt="图标" src="data:image/png;base64,${png.toString("base64")}"><img alt="远程图" src="https://example.com/image.png"></body></html>`,
+      format: "rtf",
+      name: "测试.md",
+      executable,
+    });
+    assert.equal(result.data.toString(), "{\\rtf1\\ansi embedded-image}");
+    assert.deepEqual(result.assets, []);
+    const latex = await exportWithPandoc({
+      html: `<html><body><img alt="图标" src="data:image/png;base64,${png.toString("base64")}"><img alt="远程图" src="https://example.com/image.png"></body></html>`,
+      format: "latex",
+      name: "测试.md",
+      executable,
+      assetsDirectoryName: "测试.tex_assets",
+    });
+    assert.equal(
+      latex.data.toString(),
+      "\\includegraphics{测试.tex_assets/image-1.png}",
+    );
+    assert.equal(latex.assets.length, 1);
+    assert.equal(latex.assets[0].name, "image-1.png");
+    assert.deepEqual(latex.assets[0].data, png);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test("发布前主题目录校验 CSS 摘要、预览资源和应用版本", () => {

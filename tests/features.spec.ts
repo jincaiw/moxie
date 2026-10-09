@@ -1335,6 +1335,50 @@ test("导出菜单支持方向键、Home/End 和 Escape 焦点返回", async ({ 
   await expect(items).toHaveCount(0);
 });
 
+test("桌面导出菜单列出 Pandoc 格式并限制菜单高度", async ({ page }) => {
+  await page.addInitScript(() => {
+    const desktop = new Proxy(
+      {},
+      {
+        get: (_target, property) => {
+          if (property === "recent" || property === "inspect")
+            return async () => [];
+          if (property === "getUpdateStatus" || property === "checkForUpdates")
+            return async () => ({ status: "idle" });
+          if (property === "onAction" || property === "onUpdateStatus")
+            return () => () => {};
+          if (property === "dirty" || property === "closeReady")
+            return () => {};
+          return async () => null;
+        },
+      },
+    );
+    Object.defineProperty(window, "desktop", {
+      configurable: true,
+      value: desktop,
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "导出" }).click();
+  const menu = page.getByRole("menu");
+  for (const label of [
+    "RTF 文档（需 Pandoc）",
+    "EPUB 电子书（需 Pandoc）",
+    "OpenDocument 文档（需 Pandoc）",
+    "LaTeX 文档（需 Pandoc）",
+    "MediaWiki 文本（需 Pandoc）",
+  ])
+    await expect(menu.getByRole("menuitem", { name: label })).toBeVisible();
+  await expect
+    .poll(() =>
+      menu.evaluate((element) => ({
+        overflowY: getComputedStyle(element).overflowY,
+        maxHeight: getComputedStyle(element).maxHeight,
+      })),
+    )
+    .toEqual({ overflowY: "auto", maxHeight: "560px" });
+});
+
 test("即时排版隐藏水平线 Markdown 定界符", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".md-rule-text")).toHaveText("---");

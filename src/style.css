@@ -560,6 +560,9 @@ p {
   box-shadow: 0 8px 25px #0002;
   z-index: 10;
   min-width: 180px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .export-menu button {
   display: flex;

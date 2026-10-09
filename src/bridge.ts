@@ -111,7 +111,15 @@ declare global {
       export: (input: {
         html: string;
         name: string;
-        format: "html" | "pdf" | "docx";
+        format:
+          | "html"
+          | "pdf"
+          | "docx"
+          | "rtf"
+          | "epub"
+          | "odt"
+          | "latex"
+          | "mediawiki";
         pdf?: {
           pageSize: "A4" | "Letter" | "Legal";
           landscape: boolean;

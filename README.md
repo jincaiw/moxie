@@ -41,6 +41,10 @@ npm run package:mac
 
 Windows 使用 NSIS 安装器，Linux 提供 AppImage；对应构建命令为 `npm run package:win` 和 `npm run package:linux`。Windows 安装版与 Linux AppImage 接入 GitHub Releases 应用内更新；Linux 其他打包格式及开发运行不启用自动更新。v0.16.121 起发布工作流会为三个桌面平台构建安装包。
 
+## 更多桌面导出格式
+
+桌面版可选导出 RTF、EPUB、OpenDocument（ODT）、LaTeX 和 MediaWiki 格式。它们需要单独安装 [Pandoc](https://pandoc.org/installing.html)，并确保 `pandoc` 命令在系统 `PATH` 中；安装后重启墨写。RTF/EPUB/ODT 会将本地图片嵌入文件；LaTeX 和 MediaWiki 会在导出文件旁创建 `_assets` 图片目录。远程图片不会在导出时自动下载。
+
 ## v0.16.39 已发布
 
 - 修复大文档 IndexedDB 恢复写队列以延迟旧快照覆盖新文本的问题。
