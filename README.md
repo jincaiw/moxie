@@ -5,7 +5,7 @@
 ## 本轮补齐（v0.16.221）
 
 - 将共享桌面测试桥接初始化提升到浏览器上下文，跨窗口回归通过两个共享存储的页面实际更改偏好、置顶状态与文件排序。
-- 这验证浏览器多页面存储事件，不等同于真实 Electron 原生窗口和系统行为验收；完整差距及发布记录见 [Typora 差距报告](docs/typora-gap-audit.md) 与 [实施计划](docs/implementation-plan.md)。
+- v0.16.221 已正式发布，含四平台构建的 20 项资产；完整差距、签名状态及验证记录见 [Typora 差距报告](docs/typora-gap-audit.md) 与 [实施计划](docs/implementation-plan.md)。
 
 ## 本轮补齐（v0.16.220）
 

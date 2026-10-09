@@ -5,7 +5,8 @@
 - [x] 桌面测试桥接通过 BrowserContext 初始化，使同一测试中的第二个页面获得与首个页面相同的文件系统模拟。
 - [x] 置顶、排序、偏好设置三项跨窗口用例改由第二个共享存储页面执行真实 UI 操作；3 项定向回归通过。
 - [x] 完整 Playwright 回归 187 项通过、3 项性能基准按配置跳过；桌面逻辑 35 项和生产构建通过。
-- [ ] 发布后观察主分支 CI、Release 流程及多平台打包结果。
+- [x] 主分支 CI #396、Release #190 及 macOS arm64/x64、Windows x64、Linux x64 打包成功；正式 Release 含 20 项资产：[v0.16.221](https://github.com/jincaiw/moxie/releases/tag/v0.16.221)。
+- [x] macOS 包未签名：CI 确认仓库没有 Developer ID/公证凭据。真实设备安装更新、输入法和 PDF 分页仍待验收。
 
 ## v0.16.220 跨窗口同步文件侧栏排序
 
