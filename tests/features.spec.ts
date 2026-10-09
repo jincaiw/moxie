@@ -2565,6 +2565,29 @@ test("大纲可按标题搜索、清空并跳转匹配结果", async ({ page }) 
   await expect(rows).toHaveCount(5);
 });
 
+test("编辑标题前的正文后仍保留对应大纲折叠状态", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "大纲折叠稳定性.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 根标题\n\n## 子标题\n\n## 其他章节\n"),
+  });
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  const rows = page.locator(".outline-row");
+  await page.getByRole("button", { name: "折叠 根标题" }).click();
+  await expect(rows).toHaveText(["根标题"]);
+
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await page
+    .locator(".cm-content")
+    .fill("前言\n\n# 根标题\n\n## 子标题\n\n## 其他章节\n");
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await expect(rows).toHaveText(["根标题"]);
+  await expect(
+    page.getByRole("button", { name: "展开 根标题" }),
+  ).toHaveAttribute("aria-expanded", "false");
+});
+
 test("窄屏打开侧栏后可点击遮罩关闭", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");

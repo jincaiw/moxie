@@ -122,7 +122,7 @@ export default function App() {
     [current.text],
   );
   const [outlineQuery, setOutlineQuery] = useState("");
-  const [collapsedOutline, setCollapsedOutline] = useState<Set<number>>(
+  const [collapsedOutline, setCollapsedOutline] = useState<Set<string>>(
     () => new Set(),
   );
   useEffect(() => {
@@ -132,7 +132,16 @@ export default function App() {
   const outlineRows = useMemo(() => {
     const query = outlineQuery.trim().toLocaleLowerCase();
     const collapsedLevels: number[] = [];
+    const occurrences = new Map<string, number>();
     return documentHeadings.flatMap((heading, index) => {
+      const titleIdentity = JSON.stringify([heading.level, heading.title]);
+      const occurrence = occurrences.get(titleIdentity) || 0;
+      occurrences.set(titleIdentity, occurrence + 1);
+      const identity = JSON.stringify([
+        heading.level,
+        heading.title,
+        occurrence,
+      ]);
       while (
         collapsedLevels.length &&
         heading.level <= collapsedLevels[collapsedLevels.length - 1]
@@ -145,10 +154,12 @@ export default function App() {
       const hasChildren =
         index + 1 < documentHeadings.length &&
         documentHeadings[index + 1].level > heading.level;
-      const collapsed = collapsedOutline.has(heading.from);
+      const collapsed = collapsedOutline.has(identity);
       if (!query && hasChildren && collapsed)
         collapsedLevels.push(heading.level);
-      return hidden || !matches ? [] : [{ heading, hasChildren, collapsed }];
+      return hidden || !matches
+        ? []
+        : [{ heading, hasChildren, collapsed, identity }];
     });
   }, [collapsedOutline, documentHeadings, outlineQuery]);
   const [cursor, setCursor] = useState({ position: 0, line: 1, column: 1 });
@@ -1138,56 +1149,57 @@ export default function App() {
                     </button>
                   </div>
                 ))
-              : outlineRows.map(({ heading, hasChildren, collapsed }) => (
-                  <div
-                    className="outline-entry"
-                    key={heading.from}
-                    style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
-                  >
-                    {hasChildren ? (
-                      <button
-                        className="outline-toggle"
-                        aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
-                        aria-expanded={!collapsed}
-                        title={`${collapsed ? "展开" : "折叠"}子标题`}
-                        onClick={() =>
-                          setCollapsedOutline((previous) => {
-                            const next = new Set(previous);
-                            if (next.has(heading.from))
-                              next.delete(heading.from);
-                            else next.add(heading.from);
-                            return next;
-                          })
-                        }
-                      >
-                        {collapsed ? (
-                          <ChevronRight size={14} aria-hidden="true" />
-                        ) : (
-                          <ChevronDown size={14} aria-hidden="true" />
-                        )}
-                      </button>
-                    ) : (
-                      <span
-                        className="outline-toggle-spacer"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <button
-                      className={
-                        "outline-row " +
-                        (heading.from === activeHeading?.from ? "active" : "")
-                      }
-                      aria-current={
-                        heading.from === activeHeading?.from
-                          ? "location"
-                          : undefined
-                      }
-                      onClick={() => editor.current?.go(heading.from)}
+              : outlineRows.map(
+                  ({ heading, hasChildren, collapsed, identity }) => (
+                    <div
+                      className="outline-entry"
+                      key={heading.from}
+                      style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
                     >
-                      {heading.title}
-                    </button>
-                  </div>
-                ))}
+                      {hasChildren ? (
+                        <button
+                          className="outline-toggle"
+                          aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
+                          aria-expanded={!collapsed}
+                          title={`${collapsed ? "展开" : "折叠"}子标题`}
+                          onClick={() =>
+                            setCollapsedOutline((previous) => {
+                              const next = new Set(previous);
+                              if (next.has(identity)) next.delete(identity);
+                              else next.add(identity);
+                              return next;
+                            })
+                          }
+                        >
+                          {collapsed ? (
+                            <ChevronRight size={14} aria-hidden="true" />
+                          ) : (
+                            <ChevronDown size={14} aria-hidden="true" />
+                          )}
+                        </button>
+                      ) : (
+                        <span
+                          className="outline-toggle-spacer"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <button
+                        className={
+                          "outline-row " +
+                          (heading.from === activeHeading?.from ? "active" : "")
+                        }
+                        aria-current={
+                          heading.from === activeHeading?.from
+                            ? "location"
+                            : undefined
+                        }
+                        onClick={() => editor.current?.go(heading.from)}
+                      >
+                        {heading.title}
+                      </button>
+                    </div>
+                  ),
+                )}
             {tab === "outline" && outlineRows.length === 0 && (
               <p className="outline-empty" role="status">
                 {documentHeadings.length === 0
