@@ -625,8 +625,10 @@ test("引用内嵌套列表中的链接组合与代码边界在预览和导出�
     "> - 引用列表 [嵌套目标](https://example.org/a_(b_(c)))\n" +
     ">   - 内层列表 [转义目标](https://example.org/a\\(b\\))\n" +
     ">     [引用目标][guide]\n" +
+    ">     同一容器内的脚注引用[^combo]\n" +
     ">\n" +
     '>     [Guide]: https://example.org/guide "引用标题"\n' +
+    ">     [^combo]: 组合脚注正文 **强调**\n" +
     ">\n" +
     ">     `[代码链接](https://ignored.example)`";
 
@@ -651,6 +653,9 @@ test("引用内嵌套列表中的链接组合与代码边界在预览和导出�
   });
   await expect(reference).toHaveAttribute("href", "https://example.org/guide");
   await expect(reference).toHaveAttribute("title", /^引用标题/);
+  await expect(
+    page.getByRole("link", { name: "跳转到脚注 combo" }),
+  ).toBeVisible();
   await expect(page.getByRole("link", { name: "代码链接" })).toHaveCount(0);
 
   const html = await page.evaluate(async (markdown) => {
@@ -666,6 +671,7 @@ test("引用内嵌套列表中的链接组合与代码边界在预览和导出�
   expect(html).toContain(
     '<a href="https://example.org/guide" title="引用标题">引用目标</a>',
   );
+  expect(html).toContain("组合脚注正文 <strong>强调</strong>");
   expect(html).toContain("<code>[代码链接](https://ignored.example)</code>");
   expect(html).not.toContain('<a href="https://ignored.example">');
 });
