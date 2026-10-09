@@ -578,6 +578,47 @@ test("格式菜单提供全部标题级别、正文和当前平台快捷键", as
   await expect(editor.locator(".cm-line")).toHaveText("菜单标题");
 });
 
+test("插入表格可设置行列并用键盘完成", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.fill("# 数据\n\n末尾");
+  await editor.press(documentEnd);
+  await page.getByRole("button", { name: "格式" }).click();
+  await page
+    .getByRole("menu")
+    .getByRole("menuitem", { name: "插入表格", exact: true })
+    .click();
+
+  const dialog = page.getByRole("dialog", { name: "插入表格" });
+  const rows = dialog.getByLabel("表格行数");
+  const columns = dialog.getByLabel("表格列数");
+  const close = dialog.getByRole("button", { name: "关闭表格设置" });
+  await expect(close).toBeFocused();
+  await close.press("Tab");
+  await expect(rows).toBeFocused();
+  await rows.press("ArrowDown");
+  await rows.press("Tab");
+  await columns.press("ArrowDown");
+  await expect(dialog.getByRole("status")).toHaveText(
+    "将插入 4 行 × 3 列的表格，首行为表头。",
+  );
+  await dialog.getByRole("button", { name: "插入表格" }).click();
+
+  await expect(page.locator(".editable-table th")).toHaveCount(3);
+  await expect(page.locator(".editable-table tbody tr")).toHaveCount(3);
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  const lines = await editor.locator(".cm-line").allInnerTexts();
+  const headerIndex = lines.indexOf("| 标题 1 | 标题 2 | 标题 3 |");
+  expect(headerIndex).toBeGreaterThanOrEqual(0);
+  expect(lines.slice(headerIndex, headerIndex + 5)).toEqual([
+    "| 标题 1 | 标题 2 | 标题 3 |",
+    "| --- | --- | --- |",
+    "| 内容 | 内容 | 内容 |",
+    "| 内容 | 内容 | 内容 |",
+    "| 内容 | 内容 | 内容 |",
+  ]);
+});
+
 test("标签中键关闭会保留未保存修改确认", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "新建文件", exact: true }).click();

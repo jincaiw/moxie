@@ -66,7 +66,7 @@ export type EditorHandle = {
   find: () => void;
   undo: () => void;
   redo: () => void;
-  format: (kind: Format) => void;
+  format: (kind: Format, tableSize?: { rows: number; columns: number }) => void;
   images: (files: File[]) => Promise<void>;
   imageSize: () => { width: string; height: string } | null;
   setImageSize: (width: string, height: string) => boolean;
@@ -91,7 +91,11 @@ type Props = {
   onError: (message: string) => void;
 };
 
-function formatSelection(view: EditorView, kind: Format) {
+function formatSelection(
+  view: EditorView,
+  kind: Format,
+  tableSize?: { rows: number; columns: number },
+) {
   const { from, to } = view.state.selection.main;
   const selected = view.state.sliceDoc(from, to);
   if (kind === "footnote") {
@@ -216,7 +220,37 @@ function formatSelection(view: EditorView, kind: Format) {
       annotations: Transaction.userEvent.of("input.format"),
     });
   } else if (kind === "table") {
-    const text = "\n\n| 标题一 | 标题二 |\n| --- | --- |\n| 内容 | 内容 |\n\n";
+    const rows = Math.max(2, Math.min(20, Math.floor(tableSize?.rows || 3)));
+    const columns = Math.max(
+      1,
+      Math.min(12, Math.floor(tableSize?.columns || 2)),
+    );
+    const table = [
+      `| ${Array.from({ length: columns }, (_, index) => `标题 ${index + 1}`).join(" | ")} |`,
+      `| ${Array.from({ length: columns }, () => "---").join(" | ")} |`,
+      ...Array.from(
+        { length: rows - 1 },
+        () =>
+          `| ${Array.from({ length: columns }, () => "内容").join(" | ")} |`,
+      ),
+    ].join("\n");
+    const before = view.state.sliceDoc(0, from);
+    const after = view.state.sliceDoc(to);
+    const prefix = before
+      ? before.endsWith("\n\n")
+        ? ""
+        : before.endsWith("\n")
+          ? "\n"
+          : "\n\n"
+      : "";
+    const suffix = after
+      ? after.startsWith("\n\n")
+        ? ""
+        : after.startsWith("\n")
+          ? "\n"
+          : "\n\n"
+      : "\n\n";
+    const text = `${prefix}${table}${suffix}`;
     view.dispatch({
       changes: { from, to, insert: text },
       selection: { anchor: from + text.length },
@@ -634,8 +668,8 @@ export const Editor = forwardRef<EditorHandle, Props>(
           view.current.focus();
         }
       },
-      format(kind) {
-        if (view.current) formatSelection(view.current, kind);
+      format(kind, tableSize) {
+        if (view.current) formatSelection(view.current, kind, tableSize);
       },
       imageSize() {
         const instance = view.current;

@@ -194,6 +194,10 @@ export default function App() {
   );
   const [pdfPreviewURL, setPdfPreviewURL] = useState<string | null>(null);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [tableDialog, setTableDialog] = useState<{
+    rows: number;
+    columns: number;
+  } | null>(null);
   const [imageSizeDialog, setImageSizeDialog] = useState<{
     width: string;
     height: string;
@@ -796,7 +800,9 @@ export default function App() {
   };
   const handleAction = (action: string) => {
     if (action.startsWith("format-")) {
-      editor.current?.format(action.slice(7) as Format);
+      const kind = action.slice(7) as Format;
+      if (kind === "table") setTableDialog({ rows: 3, columns: 2 });
+      else editor.current?.format(kind);
       return;
     }
     if (action === "undo") editor.current?.undo();
@@ -1469,8 +1475,10 @@ export default function App() {
                   key={format.kind}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    editor.current?.format(format.kind);
                     setMenu(null);
+                    if (format.kind === "table")
+                      setTableDialog({ rows: 3, columns: 2 });
+                    else editor.current?.format(format.kind);
                   }}
                 >
                   <span>{format.label}</span>
@@ -2008,6 +2016,78 @@ export default function App() {
             src={`${pdfPreviewURL}#toolbar=1&view=FitH`}
             title="PDF 页面预览"
           />
+        </Dialog>
+      )}
+      {tableDialog && (
+        <Dialog title="插入表格" onClose={() => setTableDialog(null)}>
+          <header>
+            <h2>插入表格</h2>
+            <Tool label="关闭表格设置" onClick={() => setTableDialog(null)}>
+              <X size={18} />
+            </Tool>
+          </header>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              editor.current?.format("table", tableDialog);
+              setTableDialog(null);
+            }}
+          >
+            <label>
+              行数（含表头）
+              <select
+                aria-label="表格行数"
+                value={tableDialog.rows}
+                onChange={(event) =>
+                  setTableDialog((size) =>
+                    size ? { ...size, rows: Number(event.target.value) } : size,
+                  )
+                }
+              >
+                {Array.from({ length: 19 }, (_, index) => index + 2).map(
+                  (rows) => (
+                    <option key={rows} value={rows}>
+                      {rows}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <label>
+              列数
+              <select
+                aria-label="表格列数"
+                value={tableDialog.columns}
+                onChange={(event) =>
+                  setTableDialog((size) =>
+                    size
+                      ? { ...size, columns: Number(event.target.value) }
+                      : size,
+                  )
+                }
+              >
+                {Array.from({ length: 12 }, (_, index) => index + 1).map(
+                  (columns) => (
+                    <option key={columns} value={columns}>
+                      {columns}
+                    </option>
+                  ),
+                )}
+              </select>
+            </label>
+            <p role="status" aria-live="polite">
+              将插入 {tableDialog.rows} 行 × {tableDialog.columns}{" "}
+              列的表格，首行为表头。
+            </p>
+            <div className="dialog-actions">
+              <button type="button" onClick={() => setTableDialog(null)}>
+                取消
+              </button>
+              <button className="primary-button" type="submit">
+                插入表格
+              </button>
+            </div>
+          </form>
         </Dialog>
       )}
       {imageSizeDialog && (
