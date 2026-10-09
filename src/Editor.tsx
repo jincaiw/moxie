@@ -58,7 +58,8 @@ export type Format =
   | "task"
   | "table"
   | "link"
-  | "footnote";
+  | "footnote"
+  | "toc";
 export type EditorHandle = {
   flush: () => void;
   go: (pos: number) => void;
@@ -123,6 +124,33 @@ function formatSelection(view: EditorView, kind: Format) {
     view.dispatch({
       changes,
       selection: { anchor: definitionStart },
+      annotations: Transaction.userEvent.of("input.format"),
+    });
+    view.focus();
+    return;
+  }
+  if (kind === "toc") {
+    const source = view.state.doc.toString();
+    const before = source.slice(0, from);
+    const after = source.slice(from);
+    const prefix = before
+      ? before.endsWith("\n\n")
+        ? ""
+        : before.endsWith("\n")
+          ? "\n"
+          : "\n\n"
+      : "";
+    const suffix = after
+      ? after.startsWith("\n\n")
+        ? ""
+        : after.startsWith("\n")
+          ? "\n"
+          : "\n\n"
+      : "\n\n";
+    const insertion = `${prefix}[TOC]${suffix}`;
+    view.dispatch({
+      changes: { from, insert: insertion },
+      selection: { anchor: from + insertion.length },
       annotations: Transaction.userEvent.of("input.format"),
     });
     view.focus();

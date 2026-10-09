@@ -110,6 +110,7 @@ const formats: { kind: Format; label: string; shortcut?: string }[] = [
   { kind: "orderedList", label: "有序列表", shortcut: "⌘⇧7" },
   { kind: "task", label: "任务列表", shortcut: "⌘⇧L" },
   { kind: "footnote", label: "插入脚注" },
+  { kind: "toc", label: "插入文档目录" },
   { kind: "table", label: "插入表格" },
   { kind: "link", label: "插入链接", shortcut: "⌘K" },
 ];

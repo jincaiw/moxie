@@ -3056,6 +3056,29 @@ test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) 
   expect(html).toContain('href="#html-标题"');
 });
 
+test("格式菜单可插入独立文档目录并立即预览", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.fill("# 第一章\n\n## 子章节\n\n正文");
+  await editor.press(documentEnd);
+  await page.getByRole("button", { name: "格式" }).click();
+  await page
+    .getByRole("menu")
+    .getByRole("menuitem", { name: "插入文档目录" })
+    .click();
+
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(editor).toContainText("[TOC]");
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  const toc = page.locator(".md-toc");
+  await expect(toc).toBeVisible();
+  await toc.locator("summary").click();
+  await expect(toc.getByRole("button", { name: "第一章" })).toBeVisible();
+  await expect(toc.getByRole("button", { name: "子章节" })).toBeVisible();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(editor).toContainText("\n\n[TOC]");
+});
+
 test("自动补全括号、引号与反引号，退格删除空配对", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
