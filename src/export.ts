@@ -1,5 +1,6 @@
 import { Lexer, Marked, type MarkedExtension, type Tokens } from "marked";
 import DOMPurify from "dompurify";
+import { nestedGfmAutolink } from "./gfm-autolink";
 import { resolveImage } from "./assets";
 import {
   headingElementIsHidden,
@@ -421,6 +422,7 @@ const imageExtensions: NonNullable<MarkedExtension["extensions"]> = [
 
 function createParser(footnotes: FootnoteState, enableFootnotes = true) {
   const parser = new Marked();
+  parser.use(nestedGfmAutolink);
   parser.use({
     async: true,
     async walkTokens(token) {

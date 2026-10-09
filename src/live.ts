@@ -13,6 +13,7 @@ import {
 } from "@codemirror/view";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { marked } from "marked";
+import { nestedGfmAutolink } from "./gfm-autolink";
 import DOMPurify from "dompurify";
 import { renderInlineHTMLMarkdown } from "./export";
 import { Facet } from "@codemirror/state";
@@ -33,6 +34,8 @@ import {
 } from "./links";
 import { headings } from "./data";
 import { LinkWidget } from "./link-widget";
+
+marked.use(nestedGfmAutolink);
 import { renderMermaid } from "./mermaid";
 import { highlightCodeElement } from "./code-highlight";
 import { inlineMathMatches, renderMath } from "./math";

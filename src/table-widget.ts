@@ -2,6 +2,7 @@ import { EditorView, WidgetType } from "@codemirror/view";
 import { Transaction } from "@codemirror/state";
 import { undo, redo } from "@codemirror/commands";
 import { Marked } from "marked";
+import { nestedGfmAutolink } from "./gfm-autolink";
 import DOMPurify from "dompurify";
 import { inlineMathMatches, renderMath } from "./math";
 import {
@@ -27,6 +28,7 @@ const positions = new WeakMap<
 function renderCellContent(cell: HTMLElement, source: string) {
   const formulas: string[] = [];
   const parser = new Marked();
+  parser.use(nestedGfmAutolink);
   parser.use({
     extensions: [
       {
