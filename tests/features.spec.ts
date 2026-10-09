@@ -596,9 +596,9 @@ test("插入表格可设置行列并用键盘完成", async ({ page }) => {
   await expect(close).toBeFocused();
   await close.press("Tab");
   await expect(rows).toBeFocused();
-  await rows.press("ArrowDown");
+  await rows.selectOption("4");
   await rows.press("Tab");
-  await columns.press("ArrowDown");
+  await columns.selectOption("3");
   await expect(dialog.getByRole("status")).toHaveText(
     "将插入 4 行 × 3 列的表格，首行为表头。",
   );
