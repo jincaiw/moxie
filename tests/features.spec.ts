@@ -444,6 +444,31 @@ test("表格单元格即时排版支持行内公式并保留代码与转义文�
   expect(html).toContain("<td>$literal</td>");
 });
 
+test("GFM 表格单元格保留嵌套括号网址及合法尾随字符", async ({ page }) => {
+  const markdown =
+    "| 地址 |\n| --- |\n| https://example.org/guide_(release_(beta)); |\n";
+  await page.goto("/");
+  await page.locator(".cm-content").fill(markdown);
+  await page.locator(".cm-content").press(documentEnd);
+
+  const link = page.locator(".editable-table tbody a");
+  await expect(link).toHaveAttribute(
+    "href",
+    "https://example.org/guide_(release_(beta));",
+  );
+  await expect(link).toHaveText("https://example.org/guide_(release_(beta));");
+
+  const html = await page.evaluate(async (source) => {
+    const module = (await new Function(
+      "return import('/src/export.ts')",
+    )()) as { exportHTML: (source: string, name: string) => Promise<string> };
+    return module.exportHTML(source, "table-autolink.md");
+  }, markdown);
+  expect(html).toContain(
+    '<a href="https://example.org/guide_(release_(beta));">https://example.org/guide_(release_(beta));</a>',
+  );
+});
+
 test("表格 Tab 到末尾会新建行，Shift+Tab 和方向键可导航单元格", async ({
   page,
 }) => {
