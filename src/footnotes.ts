@@ -7,11 +7,14 @@ export type FootnoteDefinitionLine = {
 
 export function parseFootnoteDefinitionLine(
   line: string,
+  allowDeepQuoteIndent = false,
 ): FootnoteDefinitionLine | null {
   let remaining = line;
   let quotePrefix = "";
   for (let depth = 0; depth < 12; depth++) {
-    const quote = /^ {0,3}>[ \t]?/.exec(remaining);
+    const quote = new RegExp(
+      `^ {0,${allowDeepQuoteIndent ? 12 : 3}}>[ \\t]?`,
+    ).exec(remaining);
     if (!quote) break;
     quotePrefix += quote[0];
     remaining = remaining.slice(quote[0].length);

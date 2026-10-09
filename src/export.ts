@@ -202,6 +202,45 @@ function markNestedHTMLLines(
   }
 }
 
+function markNestedCodeLines(
+  token: Tokens.Generic,
+  parentLines: string[],
+  parentStart: number,
+  codeLines: Set<number>,
+) {
+  const structured = token as Tokens.Generic & {
+    tokens?: Tokens.Generic[];
+    items?: { tokens?: Tokens.Generic[] }[];
+  };
+  const children = [
+    ...(structured.tokens || []),
+    ...(structured.items || []).flatMap((item) => item.tokens || []),
+  ];
+  let cursor = 0;
+  for (const child of children) {
+    const childLines = child.raw.split("\n");
+    const first = stripMarkdownContainers(childLines[0] || "");
+    let relativeStart = -1;
+    for (let index = cursor; index < parentLines.length; index++) {
+      const parent = stripMarkdownContainers(parentLines[index]);
+      if (parent === first || parent.includes(first)) {
+        relativeStart = index;
+        break;
+      }
+    }
+    if (relativeStart < 0) continue;
+    const childStart = parentStart + relativeStart;
+    const rawLineCount = (child.raw.match(/\n/g) || []).length;
+    if (child.type === "code") {
+      const coveredLines = rawLineCount + Number(!child.raw.endsWith("\n"));
+      for (let line = childStart; line < childStart + coveredLines; line++)
+        codeLines.add(line);
+    }
+    markNestedCodeLines(child, childLines, childStart, codeLines);
+    cursor = relativeStart + Math.max(rawLineCount, 1);
+  }
+}
+
 function markRawHTMLElementLines(
   lines: string[],
   htmlLines: Set<number>,
@@ -274,11 +313,23 @@ function extractFootnotes(source: string) {
   const normalized = source.replace(/\r\n?/g, "\n");
   const lines = normalized.split("\n");
   const htmlLines = new Set<number>();
+  const codeBlockLines = new Set<number>();
   let lineOffset = 0;
   for (const token of Lexer.lex(normalized)) {
     const startLine = lineOffset;
     const rawLineCount = token.raw.match(/\n/g)?.length || 0;
     lineOffset += rawLineCount;
+    if (token.type === "code") {
+      const coveredLines = rawLineCount + Number(!token.raw.endsWith("\n"));
+      for (let line = startLine; line < startLine + coveredLines; line++)
+        codeBlockLines.add(line);
+    }
+    markNestedCodeLines(
+      token,
+      token.raw.split("\n"),
+      startLine,
+      codeBlockLines,
+    );
     if (token.type === "html" && token.block) {
       const coveredLines = rawLineCount + Number(!token.raw.endsWith("\n"));
       for (let line = startLine; line < startLine + coveredLines; line++)
@@ -288,6 +339,7 @@ function extractFootnotes(source: string) {
     }
   }
   const codeLines = inlineCodeLines(lines, htmlLines);
+  for (const line of codeBlockLines) codeLines.add(line);
   markRawHTMLElementLines(lines, htmlLines, codeLines);
   const remaining: string[] = [];
   const definitions = new Map<string, string>();
@@ -317,7 +369,7 @@ function extractFootnotes(source: string) {
       remaining.push(lines[i]);
       continue;
     }
-    const definition = parseFootnoteDefinitionLine(lines[i]);
+    const definition = parseFootnoteDefinitionLine(lines[i], true);
     if (!definition) {
       remaining.push(lines[i]);
       continue;

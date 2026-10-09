@@ -3354,6 +3354,58 @@ test("引用块中的脚注定义可跳转并正确导出", async ({ page }) => 
   expect(html).not.toContain('href="%E5%BC%95%E7%94%A8');
 });
 
+test("列表项中的引用块脚注定义可跳转并正确导出", async ({ page }) => {
+  const source =
+    "- 列表项目\n  > 引用正文[^nested]。\n  >\n  > [^nested]: 引用脚注首行\n  >   脚注续行。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "列表引用块脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const marker = page.getByRole("link", { name: "跳转到脚注 nested" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "引用脚注首行" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fnref-1-1"');
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("引用脚注首行");
+  expect(html).toContain("脚注续行");
+  expect(html).not.toContain('href="%E5%88%97%E8%A1%A8');
+});
+
+test("深层嵌套列表中的引用块脚注定义可跳转并正确导出", async ({ page }) => {
+  const source =
+    "- 外层列表\n  - 内层列表\n    > 引用正文[^deep]。\n    >\n    > [^deep]: 深层脚注定义";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "深层列表引用脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const marker = page.getByRole("link", { name: "跳转到脚注 deep" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "深层脚注定义" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("深层脚注定义");
+  expect(html).not.toContain('href="%E6%B7%B1%E5%B1%82');
+});
+
 test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
   const source =
     "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";
@@ -3452,7 +3504,7 @@ test("引用内嵌套列表的 HTML 块不会把脚注样式文本提取为定�
 
 test("GFM 列表中的围栏代码与缩进代码保留脚注样式文本", async ({ page }) => {
   const source =
-    "- 围栏代码：\n\n  ```md\n  [^fenced]: 这不是脚注定义\n  ```\n\n- 缩进代码：\n\n      [^indented]: 这也不是脚注定义\n\n正文[^real]。\n\n[^real]: 真实脚注内容";
+    "    > [^quoted-code]: 缩进代码中的引用块伪脚注\n\n- 围栏代码：\n\n  ```md\n  [^fenced]: 这不是脚注定义\n  ```\n\n- 缩进代码：\n\n      [^indented]: 这也不是脚注定义\n\n正文[^real]。\n\n[^real]: 真实脚注内容";
   await page.goto("/");
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
@@ -3463,6 +3515,7 @@ test("GFM 列表中的围栏代码与缩进代码保留脚注样式文本", asyn
 
   expect(html).toContain("[^fenced]: 这不是脚注定义");
   expect(html).toContain("[^indented]: 这也不是脚注定义");
+  expect(html).toContain("[^quoted-code]: 缩进代码中的引用块伪脚注");
   expect(html).toContain("真实脚注内容");
   expect(html).toContain('id="fn-1"');
   expect(html).not.toContain('id="fn-2"');
