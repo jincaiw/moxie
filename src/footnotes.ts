@@ -8,13 +8,13 @@ export type FootnoteDefinitionLine = {
 
 export function parseFootnoteDefinitionLine(
   line: string,
-  allowDeepQuoteIndent = false,
+  allowDeepContainerIndent = false,
 ): FootnoteDefinitionLine | null {
   let remaining = line;
   let quotePrefix = "";
   for (let depth = 0; depth < 12; depth++) {
     const quote = new RegExp(
-      `^ {0,${allowDeepQuoteIndent ? 12 : 3}}>[ \\t]?`,
+      `^ {0,${allowDeepContainerIndent ? 12 : 3}}>[ \\t]?`,
     ).exec(remaining);
     if (!quote) break;
     quotePrefix += quote[0];
@@ -22,9 +22,12 @@ export function parseFootnoteDefinitionLine(
   }
 
   const match = new RegExp(
-    `^([ ]{0,${allowDeepQuoteIndent && quotePrefix ? 12 : 3}})\\[\\^([^\\]]+)\\]:[ \\t]*(.*)$`,
+    `^([ ]{0,${allowDeepContainerIndent ? 12 : 3}})\\[\\^([^\\]]+)\\]:[ \\t]*(.*)$`,
   ).exec(remaining);
-  if (!match || (!quotePrefix && !/^ {0,3}\[\^/.test(line))) return null;
+  const definitionStart = new RegExp(
+    `^ {0,${allowDeepContainerIndent ? 12 : 3}}\\[\\^`,
+  );
+  if (!match || (!quotePrefix && !definitionStart.test(line))) return null;
   return {
     label: match[2],
     content: match[3],
@@ -36,7 +39,7 @@ export function parseFootnoteDefinitionLine(
 
 export function isFootnoteDefinitionLine(
   line: string,
-  allowDeepQuoteIndent = false,
+  allowDeepContainerIndent = false,
 ) {
-  return parseFootnoteDefinitionLine(line, allowDeepQuoteIndent) !== null;
+  return parseFootnoteDefinitionLine(line, allowDeepContainerIndent) !== null;
 }

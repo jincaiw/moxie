@@ -1211,7 +1211,22 @@ class FootnoteWidget extends WidgetType {
           continue;
         }
         const definition = parseFootnoteDefinitionLine(line.text, true);
-        if (definition && normalize(definition.label) === target) {
+        let isIndentedCode = false;
+        if (definition && definition.definitionIndent.length >= 4) {
+          syntaxTree(view.state).iterate({
+            from: line.from,
+            to: line.to,
+            enter(node) {
+              if (node.name === "CodeBlock" || node.name === "FencedCode")
+                isIndentedCode = true;
+            },
+          });
+        }
+        if (
+          definition &&
+          !isIndentedCode &&
+          normalize(definition.label) === target
+        ) {
           view.dispatch({
             selection: { anchor: line.from },
             effects: EditorView.scrollIntoView(line.from, { y: "center" }),

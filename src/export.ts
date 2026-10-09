@@ -223,10 +223,10 @@ function markNestedCodeLines(
   let cursor = 0;
   for (const child of children) {
     const childLines = child.raw.split("\n");
-    const first = stripMarkdownContainers(childLines[0] || "");
+    const first = stripMarkdownContainers(childLines[0] || "", true);
     let relativeStart = -1;
     for (let index = cursor; index < parentLines.length; index++) {
-      const parent = stripMarkdownContainers(parentLines[index]);
+      const parent = stripMarkdownContainers(parentLines[index], true);
       if (parent === first || parent.includes(first)) {
         relativeStart = index;
         break;
@@ -241,7 +241,8 @@ function markNestedCodeLines(
         codeLines.add(line);
     }
     markNestedCodeLines(child, childLines, childStart, codeLines);
-    cursor = relativeStart + Math.max(rawLineCount, 1);
+    cursor =
+      relativeStart + (child.type === "space" ? 1 : Math.max(rawLineCount, 1));
   }
 }
 
@@ -387,6 +388,13 @@ function extractFootnotes(source: string) {
         : line.trimEnd() === definition.quotePrefix.trimEnd()
           ? ""
           : null;
+    const listContent = (line: string) => {
+      if (!definition.definitionIndent) return line;
+      if (!line.trim()) return "";
+      return line.startsWith(definition.definitionIndent)
+        ? line.slice(definition.definitionIndent.length)
+        : null;
+    };
     while (next < lines.length) {
       if (definition.quotePrefix) {
         const quotedContinuation = quoteContent(lines[next]);
@@ -415,16 +423,20 @@ function extractFootnotes(source: string) {
           next++;
           continue;
         }
-      } else if (!definition.quotePrefix && /^(?: {2,}|\t)/.test(lines[next])) {
-        contents.push(lines[next].replace(/^(?: {2,}|\t)/, ""));
-        next++;
-        continue;
+      } else if (!definition.quotePrefix) {
+        const continuation = listContent(lines[next]);
+        if (continuation === null) break;
+        if (/^(?: {2,}|\t)/.test(continuation)) {
+          contents.push(continuation.replace(/^(?: {2,}|\t)/, ""));
+          next++;
+          continue;
+        }
       }
       if (
         !definition.quotePrefix &&
         !lines[next].trim() &&
         next + 1 < lines.length &&
-        /^(?: {2,}|\t)/.test(lines[next + 1])
+        /^(?: {2,}|\t)/.test(listContent(lines[next + 1]) || "")
       ) {
         contents.push("");
         next++;
