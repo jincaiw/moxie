@@ -34,6 +34,10 @@ import {
 } from "./links";
 import { headings } from "./data";
 import { LinkWidget } from "./link-widget";
+import {
+  isFootnoteDefinitionLine,
+  parseFootnoteDefinitionLine,
+} from "./footnotes";
 
 marked.use(nestedGfmAutolink);
 import { renderMermaid } from "./mermaid";
@@ -990,7 +994,7 @@ function build(
               return false;
             }
             const footnote = /^\[\^([^\]]+)\]$/.exec(raw);
-            if (footnote && !/^\s*\[\^[^\]]+\]\s*:/.test(line.text)) {
+            if (footnote && !isFootnoteDefinitionLine(line.text)) {
               codeRanges.push({ from: node.from, to: node.to });
               add(
                 node.from,
@@ -1206,8 +1210,8 @@ class FootnoteWidget extends WidgetType {
           fence = { character: opening[1][0], length: opening[1].length };
           continue;
         }
-        const definition = /^ {0,3}\[\^([^\]]+)\]:/.exec(line.text);
-        if (definition && normalize(definition[1]) === target) {
+        const definition = parseFootnoteDefinitionLine(line.text);
+        if (definition && normalize(definition.label) === target) {
           view.dispatch({
             selection: { anchor: line.from },
             effects: EditorView.scrollIntoView(line.from, { y: "center" }),

@@ -13,6 +13,7 @@ import { inlineMathMatches, renderMath } from "./math";
 import { themeCSSError } from "./theme-css";
 import type { ThemePreset } from "./preferences";
 import { parseFrontMatter } from "./front-matter";
+import { parseFootnoteDefinitionLine } from "./footnotes";
 type FootnoteState = {
   definitions: Map<string, string>;
   numbers: Map<string, number>;
@@ -316,19 +317,46 @@ function extractFootnotes(source: string) {
       remaining.push(lines[i]);
       continue;
     }
-    const match = /^ {0,3}\[\^([^\]]+)\]:[ \t]*(.*)$/.exec(lines[i]);
-    if (!match) {
+    const definition = parseFootnoteDefinitionLine(lines[i]);
+    if (!definition) {
       remaining.push(lines[i]);
       continue;
     }
-    const key = normalizeFootnote(match[1]);
-    const contents = [match[2]];
+    const key = normalizeFootnote(definition.label);
+    const contents = [definition.content];
     let next = i + 1;
+    const quoteContent = (line: string) =>
+      line.startsWith(definition.quotePrefix)
+        ? line.slice(definition.quotePrefix.length)
+        : line.trimEnd() === definition.quotePrefix.trimEnd()
+          ? ""
+          : null;
     while (next < lines.length) {
-      if (/^(?: {2,}|\t)/.test(lines[next])) {
+      if (definition.quotePrefix) {
+        const continuation = quoteContent(lines[next]);
+        if (continuation === null) break;
+        if (/^(?: {2,}|\t)/.test(continuation)) {
+          contents.push(continuation.replace(/^(?: {2,}|\t)/, ""));
+          next++;
+          continue;
+        }
+        if (
+          !continuation.trim() &&
+          next + 1 < lines.length &&
+          quoteContent(lines[next + 1]) !== null &&
+          /^(?: {2,}|\t)/.test(quoteContent(lines[next + 1]) || "")
+        ) {
+          contents.push("");
+          next++;
+          continue;
+        }
+      } else if (!definition.quotePrefix && /^(?: {2,}|\t)/.test(lines[next])) {
         contents.push(lines[next].replace(/^(?: {2,}|\t)/, ""));
         next++;
-      } else if (
+        continue;
+      }
+      if (
+        !definition.quotePrefix &&
         !lines[next].trim() &&
         next + 1 < lines.length &&
         /^(?: {2,}|\t)/.test(lines[next + 1])
@@ -338,6 +366,7 @@ function extractFootnotes(source: string) {
       } else break;
     }
     if (!definitions.has(key)) definitions.set(key, contents.join("\n").trim());
+    remaining.push(definition.prefix);
     i = next - 1;
   }
   return { source: remaining.join("\n"), definitions };

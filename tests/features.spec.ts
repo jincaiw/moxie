@@ -3326,6 +3326,34 @@ test("脚注重复引用、大小写标签、多行内容与围栏隔离正确�
   expect(html).not.toContain('id="fn-2"');
 });
 
+test("引用块中的脚注定义可跳转并正确导出", async ({ page }) => {
+  const source =
+    "> 引用正文[^note]。\n>\n> [^note]: 注释首行\n>   第二段开头\n>\n>   后续**加粗**。";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "引用块脚注.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const marker = page.getByRole("link", { name: "跳转到脚注 note" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "注释首行" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toContain('id="fnref-1-1"');
+  expect(html).toContain('id="fn-1"');
+  expect(html).toContain("注释首行");
+  expect(html).toContain("第二段开头");
+  expect(html).toContain("后续<strong>加粗</strong>");
+  expect(html).not.toContain('href="%E5%BC%95%E7%94%A8');
+});
+
 test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
   const source =
     "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";
