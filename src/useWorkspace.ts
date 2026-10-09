@@ -671,6 +671,24 @@ export function useWorkspace(
     docsRef.current = next;
     setDocs(next);
   }, []);
+  const updateDocumentPath = useCallback(
+    (from: string, to: string, version: string) => {
+      const next = docsRef.current.map((document) =>
+        document.path === from
+          ? {
+              ...document,
+              path: to,
+              name: to.split(/[\\/]/).at(-1) || document.name,
+              diskVersion: version,
+              dirty: false,
+            }
+          : document,
+      );
+      docsRef.current = next;
+      setDocs(next);
+    },
+    [],
+  );
   return {
     docs,
     recoveryReady,
@@ -695,5 +713,6 @@ export function useWorkspace(
     remove,
     moveDocument,
     setDocumentGroup,
+    updateDocumentPath,
   };
 }

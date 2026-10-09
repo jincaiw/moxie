@@ -54,6 +54,25 @@ declare global {
         root: string,
         version?: string,
       ) => Promise<FolderTree | null>;
+      fileOperation: (input: {
+        action:
+          | "new-file"
+          | "new-folder"
+          | "copy"
+          | "rename"
+          | "move"
+          | "trash"
+          | "undo";
+        root: string;
+        target?: string;
+        directory?: string;
+        name?: string;
+      }) => Promise<{
+        action: string;
+        path: string;
+        from?: string;
+        version?: string;
+      } | null>;
       searchFolder: (
         root: string,
         query: string,

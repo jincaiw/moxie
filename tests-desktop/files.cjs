@@ -1345,3 +1345,126 @@ test("重启后仍阻止已授权目录文档被替换为外部符号链接", as
     await fs.rm(outside, { recursive: true, force: true });
   }
 });
+
+test("目录文件操作限制授权范围、拒绝覆盖并安全撤销", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-file-ops-"));
+  const outside = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-file-ops-outside-"),
+  );
+  const trashed = [];
+  try {
+    const original = path.join(root, "note.md");
+    const destination = path.join(root, "nested");
+    await fs.writeFile(original, "# note\n");
+    await fs.mkdir(destination);
+    const store = new FileStore(undefined, async (file) => {
+      trashed.push(file);
+    });
+    await store.folder(root);
+    await store.fileOperation({
+      action: "new-file",
+      root,
+      target: root,
+      name: "new.md",
+    });
+    await assert.rejects(
+      store.fileOperation({
+        action: "new-file",
+        root,
+        target: root,
+        name: "new.md",
+      }),
+      /同名|EEXIST/,
+    );
+    await assert.rejects(
+      store.fileOperation({
+        action: "new-file",
+        root,
+        target: root,
+        name: ".." + path.sep + "outside.md",
+      }),
+      /名称无效/,
+    );
+    await store.fileOperation({ action: "undo", root });
+    await assert.rejects(fs.access(path.join(root, "new.md")));
+    await store.fileOperation({
+      action: "copy",
+      root,
+      target: original,
+      name: "copy.md",
+    });
+    await assert.equal(
+      await fs.readFile(path.join(root, "copy.md"), "utf8"),
+      "# note\n",
+    );
+    await store.fileOperation({
+      action: "rename",
+      root,
+      target: path.join(root, "copy.md"),
+      name: "renamed.md",
+    });
+    await store.fileOperation({
+      action: "move",
+      root,
+      target: path.join(root, "renamed.md"),
+      directory: destination,
+    });
+    await assert.equal(
+      await fs.readFile(path.join(destination, "renamed.md"), "utf8"),
+      "# note\n",
+    );
+    await fs.writeFile(path.join(destination, "renamed.md"), "user edit\n");
+    await assert.rejects(
+      store.fileOperation({ action: "undo", root }),
+      /内容已更改/,
+    );
+    await fs.writeFile(path.join(destination, "renamed.md"), "# note\n");
+    await store.fileOperation({ action: "undo", root });
+    await assert.equal(
+      await fs.readFile(path.join(root, "renamed.md"), "utf8"),
+      "# note\n",
+    );
+    await store.fileOperation({ action: "undo", root });
+    await assert.equal(
+      await fs.readFile(path.join(root, "copy.md"), "utf8"),
+      "# note\n",
+    );
+    await store.fileOperation({ action: "undo", root });
+    await assert.rejects(fs.access(path.join(root, "copy.md")));
+    await store.fileOperation({ action: "trash", root, target: original });
+    await assert.deepEqual(trashed, [original]);
+    await assert.rejects(store.read(original, true), /授权|打开/);
+    await fs.mkdir(path.join(root, "safe-target"));
+    await fs.symlink(
+      path.join(root, "safe-target"),
+      path.join(root, "safe-alias"),
+    );
+    await assert.rejects(
+      store.fileOperation({
+        action: "new-file",
+        root,
+        target: path.join(root, "safe-alias"),
+        name: "hidden.md",
+      }),
+      /符号链接/,
+    );
+    const link = path.join(root, "escape.md");
+    await fs.symlink(path.join(outside, "secret.md"), link);
+    await assert.rejects(
+      store.fileOperation({ action: "trash", root, target: link }),
+      /授权|符号链接|普通文件/,
+    );
+    await assert.rejects(
+      store.fileOperation({
+        action: "new-file",
+        root: outside,
+        target: outside,
+        name: "bad.md",
+      }),
+      /授权/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});

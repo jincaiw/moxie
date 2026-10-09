@@ -198,6 +198,16 @@ function setupIPC() {
     ),
   );
   handle("folder:search", (input) => store.searchFolder(input));
+  handle("file:operation", async (input, { window }) => {
+    if (input?.action !== "move") return store.fileOperation(input);
+    const result = await dialog.showOpenDialog(window, {
+      properties: ["openDirectory"],
+      defaultPath: input.root,
+      buttonLabel: "移动到此处",
+    });
+    if (result.canceled) return null;
+    return store.fileOperation({ ...input, directory: result.filePaths[0] });
+  });
   handle("link:open", async (input) => {
     if (typeof input?.href !== "string" || input.href.length > 8192)
       throw Error("链接无效");
@@ -588,6 +598,7 @@ app.whenReady().then(async () => {
     windowProfileFile = path.join(app.getPath("userData"), "windows.json");
   store = new FileStore(
     app.getPath ? path.join(app.getPath("userData"), "files.json") : undefined,
+    (file) => shell.trashItem(file),
   );
   await store.init();
   await loadWindowProfiles();

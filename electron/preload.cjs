@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("folder:refresh", { path: root, version }),
   searchFolder: (root, query) =>
     ipcRenderer.invoke("folder:search", { root, query }),
+  fileOperation: (input) => ipcRenderer.invoke("file:operation", input),
   openLink: (input) => ipcRenderer.invoke("link:open", input),
   inspect: (files) => ipcRenderer.invoke("file:inspect", files),
   recent: () => ipcRenderer.invoke("file:recent"),

@@ -2077,6 +2077,63 @@ p {
   padding: 5px;
   border-radius: 4px;
 }
+.tree-entry-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tree-row {
+  flex: 1;
+  min-width: 0;
+}
+.tree-actions-trigger {
+  padding: 5px;
+  margin-right: 4px;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+.tree-entry-line:hover .tree-actions-trigger,
+.tree-actions-trigger:focus-visible {
+  opacity: 1;
+  background: var(--selected);
+}
+.tree-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px 8px 18px;
+}
+.tree-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.tree-actions button:hover {
+  background: var(--selected);
+  color: var(--text);
+}
+.tree-actions .tree-action-danger {
+  color: #b73e3e;
+}
+.file-operation-form {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+.file-operation-form input {
+  width: 100%;
+}
+.danger-button {
+  background: #b64040;
+  color: white;
+}
+.danger-button:hover {
+  background: #9f3030;
+}
 .folder-browser ul {
   list-style: none;
   padding: 0;

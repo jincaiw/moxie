@@ -257,6 +257,64 @@ export default function App() {
     | null
   >(null);
   const folderWorkspace = useFolder();
+  const operateOnFolderFile = async (request: {
+    action:
+      "new-file" | "new-folder" | "copy" | "rename" | "move" | "trash" | "undo";
+    target?: string;
+    name?: string;
+  }) => {
+    const root = folderWorkspace.root;
+    if (!root || !window.desktop) return;
+    const opened = request.target
+      ? workspace.docsRef.current.filter(
+          (document) => document.path === request.target,
+        )
+      : [];
+    try {
+      for (const document of opened) {
+        if (document.dirty && !(await workspace.save(document)))
+          throw Error("文档未能保存，文件操作已取消。");
+      }
+      const result = await window.desktop.fileOperation({
+        ...request,
+        root,
+        ...(request.action === "new-file" || request.action === "new-folder"
+          ? { target: request.target || root }
+          : {}),
+      });
+      if (!result) return;
+      if (request.action === "rename" || request.action === "move") {
+        if (request.target && result.version)
+          workspace.updateDocumentPath(
+            request.target,
+            result.path,
+            result.version,
+          );
+      } else if (request.action === "undo" && result.from && result.version) {
+        workspace.updateDocumentPath(result.path, result.from, result.version);
+      } else if (request.action === "trash") {
+        for (const document of opened) workspace.remove(document.id);
+      } else if (request.action === "undo") {
+        for (const document of workspace.docsRef.current.filter(
+          (item) => item.path === result.path,
+        ))
+          workspace.remove(document.id);
+      } else if (request.action === "copy" || request.action === "new-file") {
+        const file = await window.desktop.reopen(result.path);
+        workspace.importFile(file);
+      }
+      await folderWorkspace.refresh();
+      setMessage(
+        request.action === "undo"
+          ? "已撤销上一次文件操作。"
+          : request.action === "trash"
+            ? "已移入系统废纸篓。"
+            : "文件操作完成。",
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
+  };
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickOpenQuery, setQuickOpenQuery] = useState("");
   const [quickOpenIndex, setQuickOpenIndex] = useState(0);
@@ -1431,6 +1489,7 @@ export default function App() {
                 expandedPaths={folderWorkspace.expanded}
                 toggle={folderWorkspace.toggle}
                 error={folderWorkspace.error}
+                operate={operateOnFolderFile}
               />
             )}
             {tab === "files" && folderWorkspace.root && !tree && (

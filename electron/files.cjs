@@ -207,6 +207,16 @@ function inside(root, target) {
     !path.isAbsolute(relative)
   );
 }
+async function moveFileNoReplace(source, destination) {
+  await fs.link(source, destination);
+  try {
+    await fs.unlink(source);
+  } catch (error) {
+    throw Error(
+      `移动未完成；为避免覆盖或丢失文件，原文件和目标副本都已保留。${error.message}`,
+    );
+  }
+}
 async function createAuthorizedDirectory(root, target) {
   const relative = path.relative(root, target);
   if (!inside(root, target)) throw Error("图片目录必须位于已打开的文件夹内");
@@ -230,13 +240,236 @@ async function createAuthorizedDirectory(root, target) {
 }
 
 class FileStore {
-  constructor(stateFile) {
+  constructor(stateFile, trashItem) {
     this.stateFile = stateFile;
     this.authorized = new Set();
     this.recent = [];
     this.writing = Promise.resolve();
     this.folders = new Set();
     this.treeRoots = new Map();
+    this.trashItem = trashItem;
+    this.fileOperationHistory = [];
+  }
+  async fileOperation(input) {
+    const {
+      action,
+      root: suppliedRoot,
+      target: suppliedTarget,
+      directory: suppliedDirectory,
+      name,
+    } = input || {};
+    if (
+      typeof suppliedRoot !== "string" ||
+      !path.isAbsolute(suppliedRoot) ||
+      !this.folders.has(suppliedRoot)
+    )
+      throw Error("请选择已授权的文件夹");
+    const root = await fs.realpath(suppliedRoot);
+    if (root !== suppliedRoot) throw Error("文件夹位置已改变，请重新选择");
+    const insideRoot = (target) => inside(root, target);
+    const directory = async (value) => {
+      if (
+        typeof value !== "string" ||
+        !path.isAbsolute(value) ||
+        !insideRoot(value)
+      )
+        throw Error("目标必须位于已授权文件夹内");
+      let current = root;
+      const relative = path.relative(root, path.resolve(value));
+      for (const segment of relative ? relative.split(path.sep) : []) {
+        current = path.join(current, segment);
+        const metadata = await fs.lstat(current);
+        if (!metadata.isDirectory() || metadata.isSymbolicLink())
+          throw Error("目标目录不能包含符号链接");
+        const real = await fs.realpath(current);
+        if (real !== current || !insideRoot(real))
+          throw Error("目标目录不能指向授权范围之外");
+      }
+      return current;
+    };
+    const document = async (value) => {
+      if (
+        typeof value !== "string" ||
+        !path.isAbsolute(value) ||
+        !insideRoot(value)
+      )
+        throw Error("文件必须位于已授权文件夹内");
+      await directory(path.dirname(value));
+      const metadata = await fs.lstat(value);
+      if (metadata.size > 30 * 1024 * 1024) throw Error("文档超出 30 MB 限制");
+      if (metadata.isSymbolicLink() || !metadata.isFile())
+        throw Error("仅支持普通文件和目录，不能操作符号链接");
+      if (!insideRoot(await fs.realpath(value)))
+        throw Error("文件不能指向授权文件夹之外");
+      return value;
+    };
+    const filename = (value) => {
+      if (
+        typeof value !== "string" ||
+        !value.trim() ||
+        value.length > 160 ||
+        /[<>:"|?*\\/\x00-\x1f]/.test(value) ||
+        value === "." ||
+        value === ".."
+      )
+        throw Error("名称无效；请使用不含路径分隔符的文件名");
+      return value.trim();
+    };
+    if (action === "new-file" || action === "new-folder") {
+      const parent = await directory(suppliedTarget || root);
+      const label = filename(name);
+      if (action === "new-file" && !/\.(md|markdown|txt)$/i.test(label))
+        throw Error("文件名需以 .md、.markdown 或 .txt 结尾");
+      const target = path.join(parent, label);
+      if (!insideRoot(target)) throw Error("目标必须位于已授权文件夹内");
+      if (action === "new-folder") await fs.mkdir(target);
+      else
+        await fs.writeFile(target, "", {
+          encoding: "utf8",
+          flag: "wx",
+          mode: 0o600,
+        });
+      if (action === "new-file") {
+        this.authorized.add(target);
+        this.treeRoots.set(target, root);
+        await this.persist();
+      }
+      this.rememberFileOperation({
+        action,
+        path: target,
+        fingerprint:
+          action === "new-file"
+            ? await this.contentFingerprint(target)
+            : undefined,
+      });
+      return { action, path: target };
+    }
+    if (action === "undo") {
+      const previous = this.fileOperationHistory.at(-1);
+      if (!previous || !insideRoot(previous.path))
+        throw Error("没有可撤销的文件操作");
+      if (previous.action === "trash")
+        throw Error("此系统的废纸篓操作无法由应用自动撤销");
+      if (["new-file", "new-folder", "copy"].includes(previous.action)) {
+        const metadata = await fs.lstat(previous.path);
+        if (
+          metadata.isSymbolicLink() ||
+          (metadata.isDirectory() && (await fs.readdir(previous.path)).length)
+        )
+          throw Error("目标已包含新内容，无法安全撤销");
+        if (
+          metadata.isFile() &&
+          (await this.contentFingerprint(previous.path)) !==
+            previous.fingerprint
+        )
+          throw Error("文件内容已更改，无法安全撤销");
+        await fs.rm(previous.path);
+      } else {
+        if (
+          await fs.lstat(previous.from).then(
+            () => true,
+            (error) =>
+              error.code === "ENOENT" ? false : Promise.reject(error),
+          )
+        )
+          throw Error("原位置已被占用，无法撤销");
+        if (
+          previous.fingerprint &&
+          (await this.contentFingerprint(previous.path)) !==
+            previous.fingerprint
+        )
+          throw Error("文件内容已更改，无法安全撤销");
+        await moveFileNoReplace(previous.path, previous.from);
+        if (["rename", "move"].includes(previous.action)) {
+          this.authorized.delete(previous.path);
+          this.authorized.add(previous.from);
+          this.treeRoots.delete(previous.path);
+          this.treeRoots.set(previous.from, root);
+          this.recent = this.recent.map((file) =>
+            file === previous.path ? previous.from : file,
+          );
+          await this.persist();
+        }
+      }
+      this.fileOperationHistory.pop();
+      return {
+        action: "undo",
+        path: previous.path,
+        from: previous.from,
+        version:
+          previous.from &&
+          (await this.signature(previous.from).catch(() => undefined)),
+      };
+    }
+    const source = await document(suppliedTarget);
+    const metadata = await fs.lstat(source);
+    if (action === "trash") {
+      if (!this.trashItem) throw Error("当前平台不支持移入系统废纸篓");
+      await this.trashItem(source);
+      this.authorized.delete(source);
+      this.treeRoots.delete(source);
+      this.recent = this.recent.filter((file) => file !== source);
+      await this.persist();
+      this.rememberFileOperation({ action: "trash", path: source });
+      return { action, path: source };
+    }
+    const parent =
+      action === "move"
+        ? await directory(suppliedDirectory)
+        : path.dirname(source);
+    if (!["rename", "copy", "move"].includes(action))
+      throw Error("未知文件操作");
+    if (metadata.isDirectory())
+      throw Error(
+        "暂不支持复制、重命名或移动整个目录；请逐个操作其中的 Markdown 文件",
+      );
+    const label =
+      action === "copy" && !name
+        ? `${path.parse(source).name} 副本${path.extname(source)}`
+        : filename(name || path.basename(source));
+    if (
+      ![".md", ".markdown", ".txt"].includes(path.extname(label).toLowerCase())
+    )
+      throw Error("只支持 Markdown 和 TXT 文档");
+    const destination = path.join(parent, label);
+    if (!insideRoot(destination)) throw Error("目标必须位于已授权文件夹内");
+    if (
+      await fs.lstat(destination).then(
+        () => true,
+        (error) => (error.code === "ENOENT" ? false : Promise.reject(error)),
+      )
+    )
+      throw Error("目标位置已存在同名文件");
+    if (action === "copy") {
+      await fs.copyFile(
+        source,
+        destination,
+        require("node:fs").constants.COPYFILE_EXCL,
+      );
+      this.authorized.add(destination);
+      this.treeRoots.set(destination, this.treeRoots.get(source) || root);
+      await this.persist();
+    } else await moveFileNoReplace(source, destination);
+    if (action !== "copy") {
+      this.authorized.delete(source);
+      this.authorized.add(destination);
+      const treeRoot = this.treeRoots.get(source) || root;
+      this.treeRoots.delete(source);
+      this.treeRoots.set(destination, treeRoot);
+      this.recent = this.recent.map((file) =>
+        file === source ? destination : file,
+      );
+      await this.persist();
+    }
+    const version = await this.signature(destination);
+    this.rememberFileOperation({
+      action,
+      path: destination,
+      from: source,
+      version,
+      fingerprint: await this.contentFingerprint(destination),
+    });
+    return { action, path: destination, from: source, version };
   }
   async init() {
     if (!this.stateFile) return;
@@ -480,6 +713,16 @@ class FileStore {
     if (!stat.isFile()) throw Error("请选择普通文件");
     if (stat.size > 30 * 1024 * 1024) throw Error("文档超出 30 MB 限制");
     return `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`;
+  }
+  async contentFingerprint(file) {
+    const bytes = await fs.readFile(file);
+    if (bytes.length > 30 * 1024 * 1024) throw Error("文档超出 30 MB 限制");
+    return crypto.createHash("sha256").update(bytes).digest("hex");
+  }
+  rememberFileOperation(operation) {
+    this.fileOperationHistory.push(operation);
+    if (this.fileOperationHistory.length > 50)
+      this.fileOperationHistory.shift();
   }
   async inspect(files) {
     if (!Array.isArray(files) || files.length > 100)

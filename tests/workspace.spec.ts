@@ -464,3 +464,84 @@ test("目录恢复失败时保留文档，重试后恢复目录", async ({ page 
   await page.getByRole("button", { name: "重试读取文件夹" }).click();
   await expect(page.getByRole("button", { name: "文件夹 章节" })).toBeVisible();
 });
+
+test("文件侧栏可新建及重命名文档并拒绝覆盖同名目标", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as unknown as {
+      desktop: {
+        fileOperation: (input: {
+          action: string;
+          root: string;
+          target?: string;
+          name?: string;
+        }) => Promise<{ action: string; path: string; version?: string }>;
+      };
+      operations: { action: string; target?: string; name?: string }[];
+    };
+    state.operations = [];
+    state.desktop.fileOperation = async (input) => {
+      state.operations.push(input);
+      if (input.action === "rename")
+        return {
+          action: input.action,
+          path: "/notes/章节/renamed.md",
+          version: "v2",
+        };
+      if (input.action === "new-file")
+        return { action: input.action, path: "/notes/新建.md" };
+      throw new Error("unexpected operation");
+    };
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "新建文档", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "文件操作" });
+  await dialog.getByLabel("名称").fill("新建.md");
+  await dialog.getByRole("button", { name: "确定", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              operations: { action: string; name?: string }[];
+            }
+          ).operations[0],
+      ),
+    )
+    .toMatchObject({ action: "new-file", name: "新建.md" });
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.getByRole("button", { name: "打开 note.md", exact: true }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(documentEnd);
+  await page.keyboard.insertText("正在编辑");
+  await page.getByRole("button", { name: "文件操作：note.md" }).click();
+  await page.getByRole("button", { name: "重命名", exact: true }).click();
+  const rename = page.getByRole("dialog", { name: "文件操作" });
+  await expect(rename.getByLabel("名称")).toHaveValue("note.md");
+  await rename.getByLabel("名称").fill("renamed.md");
+  await rename.getByRole("button", { name: "确定", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { saves: object[] }).saves.length,
+      ),
+    )
+    .toBe(1);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (
+            window as unknown as {
+              operations: { action: string; target?: string; name?: string }[];
+            }
+          ).operations[1],
+      ),
+    )
+    .toMatchObject({
+      action: "rename",
+      target: "/notes/章节/note.md",
+      name: "renamed.md",
+    });
+});
