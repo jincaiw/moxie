@@ -6,7 +6,8 @@
 - [x] 增加屏幕阅读器可读的键盘操作说明。
 - [x] 专项 Playwright 用例通过；生产构建通过；桌面逻辑回归 35 项通过。
 - [x] 全量 Playwright 189 项通过、3 项性能基准按配置跳过；首次并发运行有 1 项非稳定大纲用例失败，定向连续 6 次及完整重跑均通过。桌面逻辑 35 项与生产构建通过。
-- [ ] 四平台 CI/Release 与线上资产待验收。
+- [x] 主分支 CI #400 与 Release #192 成功；macOS arm64/x64、Windows x64、Linux x64 构建通过，正式 Release 含 20 项资产：[v0.16.223](https://github.com/jincaiw/moxie/releases/tag/v0.16.223)。
+- [x] 线上 `latest-mac.yml` 版本为 0.16.223，arm64/x64 ZIP/DMG 各一条，SHA256SUMS 含 9 项校验记录。
 
 ## v0.16.222 软件更新增加官方手动下载入口
 
