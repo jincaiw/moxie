@@ -3,7 +3,7 @@ import { documentEnd, shortcut } from "./keyboard";
 import { Buffer } from "node:buffer";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
+  await page.context().addInitScript(() => {
     const state = window as unknown as {
       desktop: object;
       disk: { text: string; version: string; status: string };
@@ -358,17 +358,16 @@ test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) 
   await page.goto("/");
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
   await page.getByRole("button", { name: "文件夹 章节" }).click();
-  await page.evaluate(() => {
-    const paths = ["/notes/章节/note.md"];
-    localStorage.setItem("moxie.folder-pinned.v1", JSON.stringify(paths));
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "moxie.folder-pinned.v1",
-        newValue: JSON.stringify(paths),
-        storageArea: localStorage,
-      }),
-    );
-  });
+  const otherWindow = await page.context().newPage();
+  await otherWindow.goto("/");
+  await otherWindow
+    .getByRole("button", { name: "打开文件夹", exact: true })
+    .click();
+  const otherFolder = otherWindow.getByRole("button", { name: "文件夹 章节" });
+  if ((await otherFolder.getAttribute("aria-expanded")) !== "true")
+    await otherFolder.click();
+  await otherWindow.getByRole("button", { name: "文件操作：note.md" }).click();
+  await otherWindow.getByRole("button", { name: "置顶", exact: true }).click();
   await page.getByRole("button", { name: "文件操作：note.md" }).click();
   await expect(page.getByRole("button", { name: "取消置顶" })).toBeVisible();
 });
@@ -376,16 +375,12 @@ test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) 
 test("文件侧栏同步其他窗口的排序设置", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
-  await page.evaluate(() => {
-    localStorage.setItem("moxie.folder-sort.v1", "type");
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "moxie.folder-sort.v1",
-        newValue: "type",
-        storageArea: localStorage,
-      }),
-    );
-  });
+  const otherWindow = await page.context().newPage();
+  await otherWindow.goto("/");
+  await otherWindow
+    .getByRole("button", { name: "打开文件夹", exact: true })
+    .click();
+  await otherWindow.getByLabel("文件排序").selectOption("type");
   await expect(page.getByLabel("文件排序")).toHaveValue("type");
 });
 
