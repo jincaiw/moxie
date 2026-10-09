@@ -311,25 +311,26 @@ function markRawHTMLElementLines(
   }
 }
 
-function indentationColumns(indentation: string) {
-  let columns = 0;
+function indentationColumns(indentation: string, startingColumn = 0) {
+  let columns = startingColumn;
   for (const character of indentation)
     columns += character === "\t" ? 4 - (columns % 4) : 1;
-  return columns;
+  return columns - startingColumn;
 }
 
-function stripIndentColumns(line: string, columns: number) {
-  let current = 0;
+function stripIndentColumns(line: string, columns: number, startingColumn = 0) {
+  const targetColumn = startingColumn + columns;
+  let current = startingColumn;
   let offset = 0;
-  while (current < columns && offset < line.length) {
+  while (current < targetColumn && offset < line.length) {
     const character = line[offset];
     if (character === " ") current++;
     else if (character === "\t") current += 4 - (current % 4);
     else return null;
     offset++;
   }
-  if (current < columns) return null;
-  return `${" ".repeat(current - columns)}${line.slice(offset)}`;
+  if (current < targetColumn) return null;
+  return `${" ".repeat(current - targetColumn)}${line.slice(offset)}`;
 }
 
 function extractFootnotes(source: string) {
@@ -400,8 +401,10 @@ function extractFootnotes(source: string) {
     const key = normalizeFootnote(definition.label);
     const contents = [definition.content];
     let next = i + 1;
+    const quotePrefixColumn = indentationColumns(definition.quotePrefix);
     const definitionIndentColumns = indentationColumns(
       definition.definitionIndent,
+      quotePrefixColumn,
     );
     const quoteContent = (line: string) =>
       line.startsWith(definition.quotePrefix)
@@ -412,7 +415,11 @@ function extractFootnotes(source: string) {
     const listContent = (line: string) => {
       if (!definition.definitionIndent) return line;
       if (!line.trim()) return "";
-      return stripIndentColumns(line, definitionIndentColumns);
+      return stripIndentColumns(
+        line,
+        definitionIndentColumns,
+        quotePrefixColumn,
+      );
     };
     while (next < lines.length) {
       if (definition.quotePrefix) {

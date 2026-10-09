@@ -3546,6 +3546,33 @@ test("制表符缩进的列表续行脚注可跳转并正确导出", async ({ pa
   expect(html).toContain("[^tab]: 缩进代码伪定义");
 });
 
+test("引用列表脚注按引用前缀计算制表位并保留续文", async ({ page }) => {
+  const source =
+    "> - 引用列表正文[^mixed]\n>\n> \t[^mixed]: 引用脚注首行\n>     混合缩进续文";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "引用列表脚注混合缩进.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+
+  const marker = page.getByRole("link", { name: "跳转到脚注 mixed" });
+  await expect(marker).toBeVisible();
+  await marker.click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "引用脚注首行" }),
+  ).toHaveClass(/cm-activeLine/);
+
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "HTML 网页", exact: true }).click();
+  const html = await fs.readFile((await (await downloading).path())!, "utf8");
+  expect(html).toMatch(
+    /<li id="fn-1"[^>]*>[\s\S]*引用脚注首行[\s\S]*混合缩进续文[\s\S]*<\/li>/,
+  );
+  expect(html).not.toMatch(/<li id="fn-1"[^>]*>[\s\S]*?<pre>/);
+});
+
 test("多行行内代码中的脚注样式行保留为代码文本", async ({ page }) => {
   const source =
     "行内代码 `第一行\n[^fake]: 代码里的伪脚注\n最后一行` 仍在正文。\n\n正文[^real]。\n\n[^real]: 真正的脚注";
