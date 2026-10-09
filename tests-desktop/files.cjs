@@ -1712,6 +1712,7 @@ test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文�
     const store = new FileStore(path.join(root, ".state", "files.json"));
     const defaults = await store.folder(root);
     const authorizedRoot = defaults.path;
+    const authorizedImage = path.join(authorizedRoot, "diagram.png");
     assert.deepEqual(
       defaults.entries.map((entry) => entry.name),
       ["note.md"],
@@ -1733,10 +1734,16 @@ test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文�
       filtered.entries.some((entry) => entry.name === "node_modules"),
       false,
     );
-    await assert.rejects(store.authorizedPath(image), /尚未由文件夹浏览器授权/);
-    assert.equal(await store.authorizedPath(image, true), image);
+    await assert.rejects(
+      store.authorizedPath(authorizedImage),
+      /尚未由文件夹浏览器授权/,
+    );
+    assert.equal(
+      await store.authorizedPath(authorizedImage, true),
+      authorizedImage,
+    );
 
-    const hiddenOnly = await store.folder(root, true, undefined, {
+    const hiddenOnly = await store.folder(authorizedRoot, true, undefined, {
       showHiddenFiles: true,
       showOtherFiles: false,
     });
