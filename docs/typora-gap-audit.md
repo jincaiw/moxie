@@ -15,7 +15,7 @@
 
 **流程记录**：①桌面写作区与内容层级健康；②格式菜单全部标题级别可见，菜单高度受限时可滚动；③导出菜单入口与文案清楚；④窄屏写作区没有横向溢出，表格工具条换行后仍完整可用。截图证据：[桌面写作区](../audit-captures/typora-current/01-writing.png)、[格式菜单](../audit-captures/typora-current/02-format-menu.png)、[导出菜单](../audit-captures/typora-current/03-export-menu.png)、[窄屏写作区](../audit-captures/typora-current/04-mobile-default.png)、[窄屏表格操作](../audit-captures/typora-current/05-mobile-table-controls.png)。截图审计不能代替屏幕阅读器、色觉模拟或真实平台输入/打印验收。
 
-本轮可直接修复项已实施。待办按前置条件排期：先完成平台设备与 macOS 签名准备，再进行跨平台桌面验收；主题图库等待用户反馈；CommonMark/GFM 持续按可复现差异修复；性能放在最后。
+本轮可直接修复项已实施。v0.16.204 已正式发布：Release 工作流 #172、主分支 CI #362、四个平台构建成功；正式 Release 含 20 项资产，三个平台更新清单版本正确，六个更新目标文件大小匹配，SHA256SUMS 含 9 条记录。详见 [GitHub Release](https://github.com/jincaiw/moxie/releases/tag/v0.16.204)。待办按前置条件排期：先完成平台设备与 macOS 签名准备，再进行跨平台桌面验收；主题图库等待用户反馈；CommonMark/GFM 持续按可复现差异修复；性能放在最后。
 
 ## v0.16.203 格式菜单标题级别与快捷键标识
 
