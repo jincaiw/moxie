@@ -165,7 +165,7 @@ function markNestedHTMLLines(
       child.raw.includes("\n");
     const inlineRawElement =
       child.type === "html" &&
-      /^<(script|style|pre|textarea|title|xmp|iframe|noembed|noframes|listing)\b/i.exec(
+      /^<(script|style|pre|textarea|title|xmp|iframe|noembed|noframes|noscript|template|listing|plaintext)\b/i.exec(
         child.raw,
       )?.[1];
     let relativeStart = -1;
@@ -201,6 +201,74 @@ function markNestedHTMLLines(
   }
 }
 
+function markRawHTMLElementLines(
+  lines: string[],
+  htmlLines: Set<number>,
+  codeLines: Set<number>,
+) {
+  const rawTextElements =
+    "script|style|pre|textarea|title|xmp|iframe|noembed|noframes|noscript|template|listing|plaintext";
+  let activeElement: string | undefined;
+  let fence: { character: string; length: number } | undefined;
+
+  for (let index = 0; index < lines.length; index++) {
+    const content = stripMarkdownContainers(lines[index]);
+    if (fence) {
+      const close = new RegExp(
+        `^ {0,3}${fence.character}{${fence.length},}[ \\t]*$`,
+      );
+      if (close.test(content)) fence = undefined;
+      continue;
+    }
+    const openingFence = /^ {0,3}(`{3,}|~{3,})/.exec(content);
+    if (openingFence) {
+      fence = {
+        character: openingFence[1][0],
+        length: openingFence[1].length,
+      };
+      continue;
+    }
+    if (codeLines.has(index)) continue;
+
+    if (activeElement) {
+      htmlLines.add(index);
+      if (
+        activeElement !== "plaintext" &&
+        new RegExp(`</${activeElement}\\s*>`, "i").test(content)
+      ) {
+        activeElement = undefined;
+      }
+      continue;
+    }
+
+    const tokens = Lexer.lex(content);
+    const pending = [...tokens];
+    while (pending.length) {
+      const token = pending.pop() as Tokens.Generic;
+      const children = token as Tokens.Generic & {
+        tokens?: Tokens.Generic[];
+        items?: { tokens?: Tokens.Generic[] }[];
+      };
+      pending.push(
+        ...(children.tokens || []),
+        ...(children.items || []).flatMap((item) => item.tokens || []),
+      );
+      if (token.type !== "html") continue;
+      const opening = new RegExp(`<(${rawTextElements})\\b`, "i").exec(
+        token.raw,
+      );
+      if (!opening) continue;
+      const element = opening[1].toLowerCase();
+      const openingEnd = opening.index + opening[0].length;
+      const closing =
+        element === "plaintext" ? null : new RegExp(`</${element}\\s*>`, "ig");
+      if (closing) closing.lastIndex = openingEnd;
+      if (!closing || !closing.test(token.raw)) activeElement = element;
+      break;
+    }
+  }
+}
+
 function extractFootnotes(source: string) {
   const normalized = source.replace(/\r\n?/g, "\n");
   const lines = normalized.split("\n");
@@ -219,6 +287,7 @@ function extractFootnotes(source: string) {
     }
   }
   const codeLines = inlineCodeLines(lines, htmlLines);
+  markRawHTMLElementLines(lines, htmlLines, codeLines);
   const remaining: string[] = [];
   const definitions = new Map<string, string>();
   let fence: { character: string; length: number } | undefined;
