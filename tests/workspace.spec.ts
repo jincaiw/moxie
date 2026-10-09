@@ -354,6 +354,25 @@ test("文件侧栏支持按类型排序并持久保存置顶文档", async ({ pa
   await expect(page.getByRole("button", { name: "取消置顶" })).toBeVisible();
 });
 
+test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  await page.evaluate(() => {
+    const paths = ["/notes/章节/note.md"];
+    localStorage.setItem("moxie.folder-pinned.v1", JSON.stringify(paths));
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "moxie.folder-pinned.v1",
+        newValue: JSON.stringify(paths),
+        storageArea: localStorage,
+      }),
+    );
+  });
+  await page.getByRole("button", { name: "文件操作：note.md" }).click();
+  await expect(page.getByRole("button", { name: "取消置顶" })).toBeVisible();
+});
+
 test("目录侧栏提供重命名入口并将其作为目录操作提交", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => {

@@ -372,11 +372,38 @@ export function FolderBrowser({
   useEffect(() => {
     const syncPins = (event: Event) => {
       const paths = (event as CustomEvent<string[]>).detail;
-      if (Array.isArray(paths)) setPinned(new Set(paths));
+      if (Array.isArray(paths))
+        setPinned(
+          new Set(
+            paths
+              .filter((item): item is string => typeof item === "string")
+              .slice(0, 200),
+          ),
+        );
+    };
+    const syncPinsAcrossWindows = (event: StorageEvent) => {
+      if (event.key !== "moxie.folder-pinned.v1" && event.key !== null) return;
+      try {
+        const paths = JSON.parse(event.newValue || "[]");
+        setPinned(
+          new Set(
+            Array.isArray(paths)
+              ? paths
+                  .filter((item): item is string => typeof item === "string")
+                  .slice(0, 200)
+              : [],
+          ),
+        );
+      } catch {
+        setPinned(new Set());
+      }
     };
     window.addEventListener("moxie:folder-pins-changed", syncPins);
-    return () =>
+    window.addEventListener("storage", syncPinsAcrossWindows);
+    return () => {
       window.removeEventListener("moxie:folder-pins-changed", syncPins);
+      window.removeEventListener("storage", syncPinsAcrossWindows);
+    };
   }, []);
   const togglePin = (path: string) =>
     setPinned((previous) => {
