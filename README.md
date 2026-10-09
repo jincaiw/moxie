@@ -126,7 +126,7 @@ Windows 使用 NSIS 安装器，Linux 提供 AppImage；对应构建命令为 `n
 
 - 链接标签里的公式改由 Markdown 解析器识别，保留 `\$` 转义语义，避免把字面美元符号误排版。
 - 代码片段、链接目标和 HTML 导出继续保持一致。
-- GitHub Actions 源码验证及 arm64/x64 包构建全部通过；Release 上传 job 等待 Ubuntu runner 超时后被取消。
+- 主分支 CI #407 与 Release #197 成功；macOS arm64/x64、Windows x64、Linux x64 安装包全部发布。正式 Release 含 20 项资产，macOS 自动更新清单版本为 0.16.225，SHA256SUMS 含 9 项校验记录：[下载 v0.16.225](https://github.com/jincaiw/moxie/releases/tag/v0.16.225)。
 
 ## v0.16.43 发布候选
 
