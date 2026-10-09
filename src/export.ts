@@ -124,10 +124,13 @@ function inlineCodeLines(lines: string[], excludedLines: Set<number>) {
   return protectedLines;
 }
 
-function stripMarkdownContainers(line: string) {
+function stripMarkdownContainers(line: string, allowDeepIndent = false) {
   let content = line;
   for (let depth = 0; depth < 12; depth++) {
-    content = content.replace(/^ {0,3}/, "");
+    content = content.replace(
+      new RegExp(`^ {0,${allowDeepIndent ? 12 : 3}}`),
+      "",
+    );
     if (content.startsWith(">")) {
       content = content.slice(1).replace(/^[ \t]?/, "");
       continue;
@@ -159,7 +162,7 @@ function markNestedHTMLLines(
   let cursor = 0;
   for (const child of children) {
     const childLines = child.raw.split("\n");
-    const first = stripMarkdownContainers(childLines[0] || "");
+    const first = stripMarkdownContainers(childLines[0] || "", true);
     const inlineMultilineComment =
       child.type === "html" &&
       child.raw.startsWith("<!--") &&
@@ -171,7 +174,7 @@ function markNestedHTMLLines(
       )?.[1];
     let relativeStart = -1;
     for (let index = cursor; index < parentLines.length; index++) {
-      const parent = stripMarkdownContainers(parentLines[index]);
+      const parent = stripMarkdownContainers(parentLines[index], true);
       if (
         parent === first ||
         ((inlineMultilineComment || inlineRawElement) && parent.includes(first))
@@ -198,7 +201,8 @@ function markNestedHTMLLines(
       }
     }
     markNestedHTMLLines(child, childLines, childStart, htmlLines);
-    cursor = relativeStart + Math.max(rawLineCount, 1);
+    cursor =
+      relativeStart + (child.type === "space" ? 1 : Math.max(rawLineCount, 1));
   }
 }
 
@@ -385,8 +389,17 @@ function extractFootnotes(source: string) {
           : null;
     while (next < lines.length) {
       if (definition.quotePrefix) {
-        const continuation = quoteContent(lines[next]);
-        if (continuation === null) break;
+        const quotedContinuation = quoteContent(lines[next]);
+        if (quotedContinuation === null) break;
+        if (
+          definition.definitionIndent &&
+          quotedContinuation.trim() &&
+          !quotedContinuation.startsWith(definition.definitionIndent)
+        )
+          break;
+        const continuation = definition.definitionIndent
+          ? quotedContinuation.slice(definition.definitionIndent.length)
+          : quotedContinuation;
         if (/^(?: {2,}|\t)/.test(continuation)) {
           contents.push(continuation.replace(/^(?: {2,}|\t)/, ""));
           next++;

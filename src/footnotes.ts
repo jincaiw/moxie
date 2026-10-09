@@ -3,6 +3,7 @@ export type FootnoteDefinitionLine = {
   content: string;
   prefix: string;
   quotePrefix: string;
+  definitionIndent: string;
 };
 
 export function parseFootnoteDefinitionLine(
@@ -20,16 +21,22 @@ export function parseFootnoteDefinitionLine(
     remaining = remaining.slice(quote[0].length);
   }
 
-  const match = /^([ ]{0,3})\[\^([^\]]+)\]:[ \t]*(.*)$/.exec(remaining);
+  const match = new RegExp(
+    `^([ ]{0,${allowDeepQuoteIndent && quotePrefix ? 12 : 3}})\\[\\^([^\\]]+)\\]:[ \\t]*(.*)$`,
+  ).exec(remaining);
   if (!match || (!quotePrefix && !/^ {0,3}\[\^/.test(line))) return null;
   return {
     label: match[2],
     content: match[3],
     prefix: quotePrefix + match[1],
     quotePrefix,
+    definitionIndent: match[1],
   };
 }
 
-export function isFootnoteDefinitionLine(line: string) {
-  return parseFootnoteDefinitionLine(line) !== null;
+export function isFootnoteDefinitionLine(
+  line: string,
+  allowDeepQuoteIndent = false,
+) {
+  return parseFootnoteDefinitionLine(line, allowDeepQuoteIndent) !== null;
 }

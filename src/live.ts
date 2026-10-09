@@ -994,7 +994,7 @@ function build(
               return false;
             }
             const footnote = /^\[\^([^\]]+)\]$/.exec(raw);
-            if (footnote && !isFootnoteDefinitionLine(line.text)) {
+            if (footnote && !isFootnoteDefinitionLine(line.text, true)) {
               codeRanges.push({ from: node.from, to: node.to });
               add(
                 node.from,
@@ -1210,7 +1210,7 @@ class FootnoteWidget extends WidgetType {
           fence = { character: opening[1][0], length: opening[1].length };
           continue;
         }
-        const definition = parseFootnoteDefinitionLine(line.text);
+        const definition = parseFootnoteDefinitionLine(line.text, true);
         if (definition && normalize(definition.label) === target) {
           view.dispatch({
             selection: { anchor: line.from },
