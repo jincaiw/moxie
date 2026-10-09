@@ -2,7 +2,7 @@
 
 ## v0.16.211 快速打开
 
-Typora 的 [文件管理说明](https://support.typora.io/File-Management/)与[快速入门](https://support.typora.io/Quick-Start/)提供快速打开面板，可模糊搜索当前文件夹和最近文件。墨写此前已有侧栏树、最近文件和跨文件内容搜索，但缺少轻量的文件名切换入口。现在快速打开汇总当前文件夹、最近打开和已打开 Markdown/TXT 文档，按文件名或路径字符序列排序，支持键盘上下选择、Enter 打开和 Escape 关闭；macOS 快捷键为 ⌘⇧O，Windows/Linux 为 Ctrl+P。窄屏工具栏也提供入口。回归验证模糊匹配、多结果键盘选择和活动文档切换。
+Typora 的 [文件管理说明](https://support.typora.io/File-Management/)与[快速入门](https://support.typora.io/Quick-Start/)提供快速打开面板，可模糊搜索当前文件夹和最近文件。墨写此前已有侧栏树、最近文件和跨文件内容搜索，但缺少轻量的文件名切换入口。现在快速打开汇总当前文件夹、最近打开和已打开 Markdown/TXT 文档，按文件名或路径字符序列排序，支持键盘上下选择、Enter 打开和 Escape 关闭；macOS 快捷键为 ⌘⇧O，Windows/Linux 为 Ctrl+P。窄屏工具栏也提供入口。Playwright 171 项通过、3 项性能基准跳过，桌面逻辑 29 项和生产构建通过；v0.16.211 四平台发布成功并含 20 项资产：[下载 v0.16.211](https://github.com/jincaiw/moxie/releases/tag/v0.16.211)。
 
 ## v0.16.210 选区复制为 HTML
 
