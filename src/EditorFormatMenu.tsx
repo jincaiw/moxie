@@ -19,34 +19,48 @@ export function EditorFormatMenu({
   close.current = onClose;
   const [position, setPosition] = useState(point);
   useLayoutEffect(() => {
-    const rect = menu.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPosition({
-      left: Math.max(
-        8,
-        Math.min(
-          Number.isFinite(point.left) ? point.left : 8,
-          window.innerWidth - rect.width - 8,
+    const element = menu.current;
+    if (!element) return;
+    const reposition = () => {
+      const rect = element.getBoundingClientRect();
+      const next = {
+        left: Math.max(
+          8,
+          Math.min(
+            Number.isFinite(point.left) ? point.left : 8,
+            window.innerWidth - rect.width - 8,
+          ),
         ),
-      ),
-      top: Math.max(
-        8,
-        Math.min(
-          Number.isFinite(point.top) ? point.top : 8,
-          window.innerHeight - rect.height - 8,
+        top: Math.max(
+          8,
+          Math.min(
+            Number.isFinite(point.top) ? point.top : 8,
+            window.innerHeight - rect.height - 8,
+          ),
         ),
-      ),
-    });
-    menu.current
-      ?.querySelector<HTMLButtonElement>("button")
+      };
+      setPosition((current) =>
+        current.left === next.left && current.top === next.top ? current : next,
+      );
+    };
+    reposition();
+    const observer = new ResizeObserver(reposition);
+    observer.observe(element);
+    element
+      .querySelector<HTMLButtonElement>("button")
       ?.focus({ preventScroll: true });
+    return () => observer.disconnect();
   }, [point]);
   useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (!menu.current?.contains(event.target as Node)) close.current(false);
     };
     const dismiss = (event: Event) => {
-      if (!menu.current?.contains(event.target as Node)) close.current(false);
+      if (
+        !(event.target instanceof Node) ||
+        !menu.current?.contains(event.target)
+      )
+        close.current(false);
     };
     window.addEventListener("pointerdown", outside);
     window.addEventListener("resize", dismiss);

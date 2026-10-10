@@ -4557,6 +4557,68 @@ test("编辑区右键格式菜单保留选区，支持键盘、撤销和视口�
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
 });
 
+test("格式菜单尺寸变化后保持视口边界、焦点和编辑选区", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "context-resize.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("保留选区"),
+  });
+  const content = page.locator(".cm-content");
+  await content.click();
+  await page.keyboard.press(shortcut("a"));
+  const openMenu = async () => {
+    await content.evaluate((el) =>
+      el.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          clientX: 389,
+          clientY: 843,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+  };
+  await openMenu();
+  const menu = page.getByRole("menu", { name: "编辑区格式菜单" });
+  const italic = menu.getByRole("menuitem", { name: /^斜体/ });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await expect(italic).toBeFocused();
+  // Simulate font/line metric changes after the initial positioning pass.
+  const style = await page.addStyleTag({
+    content:
+      ".editor-context-menu button { min-height: 48px; font-size: 18px; }",
+  });
+  await expect
+    .poll(async () => {
+      const box = await menu.boundingBox();
+      return box ? box.y + box.height : Infinity;
+    })
+    .toBeLessThanOrEqual(836);
+  await expect(italic).toBeFocused();
+  await page.keyboard.press("End");
+  const last = menu.getByRole("menuitem").last();
+  await expect(last).toBeFocused();
+  const lastBox = await last.boundingBox();
+  expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(836);
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(menu).toHaveCount(0);
+  await expect(content).toBeFocused();
+  await expect(content).toContainText("*保留选区*");
+  await style.evaluate((el) => el.remove());
+  await openMenu();
+  await expect(menu).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 500 });
+  await expect(menu).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test("用户综合渲染样本的元数据与矩阵不进入标题大纲", async () => {
   const sample = await fs.readFile(
     "tests/fixtures/MARKDOWN_RENDERING_TEST.md",
