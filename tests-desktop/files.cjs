@@ -498,7 +498,9 @@ async function harness(userData) {
     events,
     event,
     mockUpdater,
-    menuTemplate,
+    get menuTemplate() {
+      return menuTemplate;
+    },
     get clipboardContent() {
       return clipboardContent;
     },
@@ -2079,6 +2081,92 @@ test("大纲偏好写盘失败保持已提交值，重试和连续写入可恢�
     const restored = new FileStore(stateFile);
     await restored.init();
     assert.equal(await restored.getOutlinePreference(), false);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("最近菜单实时更新、编码路径、保留固定目录并拒绝陌生窗口", async () => {
+  const h = await harness();
+  const root = path.join(h.userData, "中文 %:项目");
+  await fs.mkdir(root);
+  const file = path.join(root, "中文 %:文档.md");
+  await fs.writeFile(file, "# 原文");
+  h.open(root);
+  await h.call("file:folder");
+  await h.call("folder:history", { action: "pin", path: root });
+  h.open(file);
+  await h.call("file:open");
+  const recentMenu = () =>
+    h.menuTemplate
+      .find((menu) => menu.label === "文件")
+      .submenu.find((item) => item.label === "最近打开").submenu;
+  recentMenu()
+    .find((item) => item.label === "中文 %:文档.md")
+    .click();
+  assert.equal(h.window.lastAction, "open-recent:" + encodeURIComponent(file));
+  recentMenu()
+    .find((item) => item.label?.startsWith("固定文件夹"))
+    .click();
+  assert.equal(
+    h.window.lastAction,
+    "folder-recent:" + encodeURIComponent(root),
+  );
+  await assert.rejects(h.foreign("file:clear-recent"), /未知窗口/);
+  assert.equal((await h.call("file:clear-recent"))[0].pinned, true);
+  assert.equal(
+    recentMenu().some((item) => item.label === "中文 %:文档.md"),
+    false,
+  );
+  assert.equal(
+    recentMenu().find((item) => item.label === "清除最近记录（保留固定文件夹）")
+      .enabled,
+    false,
+  );
+  h.menuTemplate
+    .find((menu) => menu.label === "视图")
+    .submenu.find((item) => item.label === "浮动格式工具栏")
+    .click();
+  assert.equal(h.window.lastAction, "toggle-floating-toolbar");
+  assert.equal(await fs.readFile(file, "utf8"), "# 原文");
+});
+
+test("历史写盘失败不改变已提交记录，队列重试恢复且清除保留授权", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-history-"));
+  try {
+    const blocked = path.join(root, "blocked");
+    const file = path.join(root, "原文.md");
+    await fs.writeFile(file, "# 不删除");
+    const store = new FileStore(path.join(blocked, "state.json"));
+    store.folders.add(root);
+    store.folderHistory = [root];
+    store.pinnedFolders = [root];
+    store.recent = [file];
+    store.authorized.add(file);
+    await fs.writeFile(blocked, "阻塞");
+    await assert.rejects(
+      store.updateFolderHistory({ action: "remove", path: root }),
+    );
+    assert.deepEqual(store.recentFolders(), [
+      { path: root, name: path.basename(root), pinned: true },
+    ]);
+    await assert.rejects(store.clearRecent());
+    assert.deepEqual(store.recent, [file]);
+    await fs.unlink(blocked);
+    await Promise.all([
+      store.updateFolderHistory({ action: "unpin", path: root }),
+      store.updateFolderHistory({ action: "pin", path: root }),
+      store.clearRecent(),
+    ]);
+    assert.deepEqual(store.recent, []);
+    assert.deepEqual(store.folderHistory, []);
+    assert.deepEqual(store.pinnedFolders, [root]);
+    assert.equal(store.authorized.has(file), true);
+    const saved = JSON.parse(await fs.readFile(store.stateFile, "utf8"));
+    assert.deepEqual(saved.recent, []);
+    assert.deepEqual(saved.folderHistory, []);
+    assert.deepEqual(saved.pinnedFolders, [root]);
+    assert.equal((await store.read(file, true)).text, "# 不删除");
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

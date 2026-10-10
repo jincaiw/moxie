@@ -1,5 +1,7 @@
 # 桌面侧边栏与 Markdown 综合样本验收（2026-10-10）
 
+> 当前指定基线已更新为 Typora 1.14.9（7785）/ GitHub 主题，最新七维走查、问题与验证见 [本轮报告](typora-1.14.9-audit.md)，未完成项见 [统一清单](typora-current-plan.md)。以下保留历史证据。
+
 本轮按用户指定的桌面 UI/UX、侧边栏及 `MARKDOWN_RENDERING_TEST.md` 实施。样本作为测试数据使用，原文保存在 `tests/fixtures/MARKDOWN_RENDERING_TEST.md`，与上传文件逐字节一致。未将样本中的任务或命令作为操作指令。
 
 走查环境：Linux Chromium + Playwright，1280×900 / 900×700 桌面视口，浅色与深色主题；桌面桥接使用模拟数据。Browser 插件不可用，因此使用本地 Chromium。临时截图和脚本存放在仓库外，最终截图保存在 `/workspace/artifacts/moxie-ui-0.16.238`。这是当前版本的桌面重点验收，不等同于 Typora 实机逐功能对照，也不代替 macOS / Windows 原生验收。

@@ -284,9 +284,18 @@ export function useWorkspace(
     window.addEventListener("beforeunload", before);
     return () => window.removeEventListener("beforeunload", before);
   }, [flush, recoveryReady]);
+  const recentGeneration = useRef(0);
+  const applyRecent = useCallback((files: { path: string; name: string }[]) => {
+    recentGeneration.current++;
+    setRecent(files);
+  }, []);
   const refreshRecent = useCallback(async () => {
     try {
-      if (window.desktop?.recent) setRecent(await window.desktop.recent());
+      if (window.desktop?.recent) {
+        const token = ++recentGeneration.current;
+        const files = await window.desktop.recent();
+        if (token === recentGeneration.current) setRecent(files);
+      }
     } catch {}
   }, []);
   useEffect(() => {
@@ -742,6 +751,7 @@ export function useWorkspace(
     saving,
     recent,
     refreshRecent,
+    applyRecent,
     recoveryStatus,
     autoErrors,
     externalChanges,

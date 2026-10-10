@@ -161,7 +161,9 @@ function setupIPC() {
   const handle = (name, handler) =>
     ipcMain.handle(name, async (event, input) => {
       const state = verify(event);
-      return handler(input, state);
+      const result = await handler(input, state);
+      refreshRecentMenu();
+      return result;
     });
   handle("preferences:outline-read", () => store.getOutlinePreference());
   handle("preferences:outline-write", async (value) => {
@@ -239,6 +241,7 @@ function setupIPC() {
   handle("folder:search", (input) => store.searchFolder(input));
   handle("folder:startup", (root) => store.setStartupFolder(root));
   handle("folder:recent", () => store.recentFolders());
+  handle("file:clear-recent", () => store.clearRecent());
   handle("folder:history", (input) => store.updateFolderHistory(input));
   handle("folder:for-file", (input) =>
     store.folderForFile(input.path, input.options),
@@ -692,7 +695,25 @@ function setupUpdater() {
     },
   });
 }
+let recentMenuSignature = "";
+function refreshRecentMenu() {
+  const signature = JSON.stringify([store.recent, store.recentFolders()]);
+  if (signature !== recentMenuSignature) createMenu();
+}
 function createMenu() {
+  recentMenuSignature = JSON.stringify([store.recent, store.recentFolders()]);
+  const folders = store.recentFolders();
+  const recentEntries = [
+    ...folders.map((folder) => ({
+      label: `${folder.pinned ? "固定文件夹" : "文件夹"} · ${folder.name}`,
+      click: () => action("folder-recent:" + encodeURIComponent(folder.path)),
+    })),
+    ...(folders.length && store.recent.length ? [{ type: "separator" }] : []),
+    ...store.recent.map((file) => ({
+      label: path.basename(file),
+      click: () => action("open-recent:" + encodeURIComponent(file)),
+    })),
+  ];
   const command = (label, name, accelerator) => ({
     label,
     accelerator,
@@ -734,6 +755,22 @@ function createMenu() {
             process.platform === "darwin" ? "CmdOrCtrl+Shift+O" : "Ctrl+P",
           ),
           command("打开文件夹…", "folder"),
+          {
+            label: "最近打开",
+            submenu: [
+              ...(recentEntries.length
+                ? recentEntries
+                : [{ label: "暂无最近记录", enabled: false }]),
+              { type: "separator" },
+              {
+                label: "清除最近记录（保留固定文件夹）",
+                enabled:
+                  store.recent.length > 0 ||
+                  folders.some((folder) => !folder.pinned),
+                click: () => action("clear-recent"),
+              },
+            ],
+          },
           { type: "separator" },
           command("保存", "save", "CmdOrCtrl+S"),
           command("另存为…", "saveAs", "CmdOrCtrl+Shift+S"),
@@ -781,6 +818,7 @@ function createMenu() {
           command("切换侧栏", "toggle-sidebar"),
           command("文件侧栏", "sidebar-files"),
           command("大纲", "sidebar-outline"),
+          command("浮动格式工具栏", "toggle-floating-toolbar"),
           { type: "separator" },
           command("切换源码模式", "source", "CmdOrCtrl+/"),
           command("跨文档搜索", "global-search", "CmdOrCtrl+Shift+F"),

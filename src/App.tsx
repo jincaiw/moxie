@@ -87,6 +87,7 @@ type QuickOpenItem = {
   documentId?: string;
   location: string;
   recent: boolean;
+  folder?: boolean;
 };
 
 function fuzzyScore(value: string, query: string) {
@@ -838,6 +839,16 @@ export default function App() {
   };
   const quickOpenItems = useMemo(() => {
     const items = new Map<string, QuickOpenItem>();
+    folderWorkspace.recent.forEach((folder) => {
+      items.set(`folder:${folder.path}`, {
+        key: `folder:${folder.path}`,
+        name: folder.name,
+        path: folder.path,
+        location: `${folder.pinned ? "固定文件夹" : "最近文件夹"} · ${folder.path}`,
+        recent: folder.pinned,
+        folder: true,
+      });
+    });
     recent.forEach((file, index) => {
       if (!isQuickOpenDocument(file.name)) return;
       items.set(file.path, {
@@ -879,7 +890,7 @@ export default function App() {
       });
     });
     return [...items.values()];
-  }, [docs, folderWorkspace.root, recent, tree]);
+  }, [docs, folderWorkspace.root, folderWorkspace.recent, recent, tree]);
   const quickOpenResults = useMemo(() => {
     const query = quickOpenQuery.trim();
     return quickOpenItems
@@ -1768,10 +1779,51 @@ export default function App() {
   };
   const openQuickOpenItem = async (item: QuickOpenItem) => {
     setQuickOpen(false);
-    if (item.documentId) workspace.setActive(item.documentId);
+    if (item.folder && item.path) {
+      await folderWorkspace.open(item.path);
+      handleAction("sidebar-files");
+    } else if (item.documentId) workspace.setActive(item.documentId);
     else if (item.path) await reopen(item.path);
   };
+  const clearRecentRecords = async () => {
+    if (!window.desktop?.clearRecent) return;
+    try {
+      const folders = await window.desktop.clearRecent();
+      folderWorkspace.applyRecent(folders);
+      workspace.applyRecent([]);
+      setMessage("已清除最近记录，固定文件夹已保留；文件未删除。");
+    } catch (error) {
+      setMessage(
+        "最近记录无法清除：" +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
+  };
   const handleAction = (action: string) => {
+    if (action === "toggle-floating-toolbar")
+      update("floatingToolbar", !preferences.floatingToolbar);
+    if (action === "clear-recent") void clearRecentRecords();
+    if (
+      action.startsWith("open-recent:") ||
+      action.startsWith("folder-recent:")
+    ) {
+      try {
+        const path = decodeURIComponent(action.slice(action.indexOf(":") + 1));
+        if (action.startsWith("folder-recent:"))
+          void openQuickOpenItem({
+            key: `folder:${path}`,
+            name: path,
+            path,
+            location: "最近文件夹",
+            recent: true,
+            folder: true,
+          });
+        else void reopen(path);
+      } catch {
+        setMessage("最近项目路径无效，请重新打开。");
+      }
+      return;
+    }
     if (action.startsWith("format-")) {
       const kind = action.slice(7) as Format;
       if (kind === "table") setTableDialog({ rows: 3, columns: 2 });
@@ -4109,7 +4161,7 @@ export default function App() {
                   ? `quick-open-option-${quickOpenIndex}`
                   : undefined
               }
-              placeholder="搜索当前文件夹、最近文件和已打开文档"
+              placeholder="搜索文档、最近文件夹与固定文件夹"
               value={quickOpenQuery}
               onChange={(event) => {
                 setQuickOpenQuery(event.target.value);
@@ -4143,7 +4195,7 @@ export default function App() {
               id="quick-open-results"
               className="quick-open-results"
               role="listbox"
-              aria-label="匹配的文档"
+              aria-label="匹配的文档与文件夹"
             >
               {quickOpenResults.map((item, index) => (
                 <button
@@ -4156,7 +4208,11 @@ export default function App() {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => void openQuickOpenItem(item)}
                 >
-                  <FileText size={17} />
+                  {item.folder ? (
+                    <FolderOpen size={17} />
+                  ) : (
+                    <FileText size={17} />
+                  )}
                   <span>
                     <strong>{item.name}</strong>
                     <small title={item.location}>{item.location}</small>

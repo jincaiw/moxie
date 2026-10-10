@@ -2159,3 +2159,167 @@ test("最近文件夹失败保留记录与入口焦点，重试和清空反馈�
   );
   await page.screenshot({ path: testInfo.outputPath("recent-empty-dark.png") });
 });
+
+test("快速打开区分同名文件与固定文件夹，键盘打开目录保留正文", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.assign(window.desktop!, {
+      recent: async () => [{ path: "/archive/项目.md", name: "项目.md" }],
+      recentFolders: async () => [
+        { path: "/pinned/项目.md", name: "项目.md", pinned: true },
+        { path: "/recent/资料", name: "资料", pinned: false },
+      ],
+      reopenFolder: async (path: string) => ({
+        path,
+        name: "项目.md",
+        entries: [],
+        truncated: false,
+      }),
+    });
+  });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "正文.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("目录切换必须保留此正文"),
+  });
+  await expect(page.locator(".cm-content")).toHaveText(
+    "目录切换必须保留此正文",
+  );
+  const original = await page.locator(".cm-content").innerText();
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "快速打开" });
+  const search = dialog.getByRole("textbox", { name: "搜索文件名" });
+  await search.fill("项目");
+  await expect(dialog.getByRole("option")).toHaveCount(2);
+  await expect(dialog.getByRole("option").first()).toContainText("固定文件夹");
+  await search.press("Enter");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "项目",
+  );
+  await expect
+    .poll(() => page.locator(".cm-content").innerText())
+    .toBe(original);
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  await search.fill("/recent/资料");
+  await expect(dialog.getByRole("option")).toHaveCount(1);
+  await expect(dialog.getByRole("option")).toContainText("最近文件夹");
+});
+
+test("原生最近命令支持编码路径、清除保留固定目录并反馈失败", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const state = window as any;
+    let fail = true;
+    let folders = [
+      { path: "/pinned/固定", name: "固定", pinned: true },
+      { path: "/recent/旧", name: "旧", pinned: false },
+    ];
+    Object.assign(state.desktop, {
+      recent: async () => [
+        { path: "/notes/中文 %:文档.md", name: "中文 %:文档.md" },
+      ],
+      recentFolders: async () => folders,
+      onAction: (listener: (action: string) => void) => {
+        state.nativeAction = listener;
+        return () => {};
+      },
+      clearRecent: async () => {
+        if (fail) {
+          fail = false;
+          throw Error("只读目录");
+        }
+        folders = folders.filter((folder) => folder.pinned);
+        return folders;
+      },
+      reopenFolder: async (path: string) => ({
+        path,
+        name: "固定",
+        entries: [],
+        truncated: false,
+      }),
+    });
+  });
+  await page.goto("/");
+  await page.evaluate(() =>
+    (window as any).nativeAction(
+      "open-recent:" + encodeURIComponent("/notes/中文 %:文档.md"),
+    ),
+  );
+  await expect
+    .poll(() => page.evaluate(() => (window as any).opened))
+    .toEqual(["/notes/中文 %:文档.md"]);
+  await page.evaluate(() => (window as any).nativeAction("clear-recent"));
+  await expect(page.getByRole("status")).toContainText("只读目录");
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "快速打开" });
+  await expect(dialog.getByRole("option", { name: /最近文件夹/ })).toHaveCount(
+    1,
+  );
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => (window as any).nativeAction("clear-recent"));
+  await expect(page.getByRole("status")).toContainText("固定文件夹已保留");
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  await expect(dialog.getByRole("option", { name: /最近文件夹/ })).toHaveCount(
+    0,
+  );
+  await expect(dialog.getByRole("option", { name: /固定文件夹/ })).toHaveCount(
+    1,
+  );
+  await page.keyboard.press("Escape");
+  await page.evaluate(() =>
+    (window as any).nativeAction(
+      "folder-recent:" + encodeURIComponent("/pinned/固定"),
+    ),
+  );
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "固定",
+  );
+});
+
+test("原生工具栏命令与偏好同步且清除隔离迟到的最近文件响应", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const state = window as any;
+    Object.assign(state.desktop, {
+      recent: () =>
+        new Promise((resolve) => {
+          state.resolveRecent = resolve;
+        }),
+      clearRecent: async () => [],
+      onAction: (listener: (action: string) => void) => {
+        state.nativeAction = listener;
+        return () => {};
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  const toolbar = page.getByLabel("选中文本时显示浮动格式工具栏");
+  const before = await toolbar.isChecked();
+  await page.evaluate(() =>
+    (window as any).nativeAction("toggle-floating-toolbar"),
+  );
+  await expect(toolbar).toBeChecked({ checked: !before });
+  await page.evaluate(() =>
+    (window as any).nativeAction("toggle-floating-toolbar"),
+  );
+  await expect(toolbar).toBeChecked({ checked: before });
+  await page.getByRole("button", { name: "完成", exact: true }).click();
+  await page.evaluate(() => (window as any).nativeAction("clear-recent"));
+  await expect(page.getByRole("status")).toContainText("已清除最近记录");
+  await page.evaluate(() =>
+    (window as any).resolveRecent([
+      { path: "/stale/迟到.md", name: "迟到.md" },
+    ]),
+  );
+  await page.getByRole("button", { name: "快速打开", exact: true }).click();
+  await page.getByRole("textbox", { name: "搜索文件名" }).fill("迟到");
+  await expect(
+    page.getByRole("dialog", { name: "快速打开" }).getByRole("option"),
+  ).toHaveCount(0);
+});

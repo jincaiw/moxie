@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld("desktop", {
   importDocument: () => ipcRenderer.invoke("file:import"),
   folder: (options) => ipcRenderer.invoke("file:folder", options),
   setStartupFolder: (root) => ipcRenderer.invoke("folder:startup", root),
+  clearRecent: () => ipcRenderer.invoke("file:clear-recent"),
   recentFolders: () => ipcRenderer.invoke("folder:recent"),
   updateFolderHistory: (input) => ipcRenderer.invoke("folder:history", input),
   folderForFile: (path, options) =>

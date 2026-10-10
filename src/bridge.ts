@@ -84,6 +84,7 @@ declare global {
       folder: (options?: FolderDisplayOptions) => Promise<FolderTree | null>;
       setStartupFolder?: (root: string) => Promise<void>;
       recentFolders?: () => Promise<RecentFolder[]>;
+      clearRecent?: () => Promise<RecentFolder[]>;
       updateFolderHistory?: (input: {
         action: "pin" | "unpin" | "remove" | "clear";
         path?: string;

@@ -826,43 +826,52 @@ class FileStore {
       path.basename(file),
     );
   }
-  async persist() {
-    if (this.stateFile) {
-      const recent = new Set(this.recent);
-      const authorized = [...this.authorized]
-        .filter((file) => !recent.has(file))
-        .slice(-(500 - recent.size))
-        .concat([...this.recent].reverse());
-      const saved = new Set(authorized);
-      const state = JSON.stringify({
-        version: 1,
-        outlinePreference: this.outlinePreference,
-        authorized,
-        recent: this.recent,
-        folders: [
-          ...new Set(
-            [...this.folders]
-              .slice(-10)
-              .concat(
-                this.folderHistory,
-                this.pinnedFolders,
-                this.startupFolder ? [this.startupFolder] : [],
+  async persist(historyChange) {
+    this.writing = this.writing
+      .catch(() => {})
+      .then(async () => {
+        // Derive history updates after earlier writes commit, and publish them
+        // only after this write succeeds. Reads never observe failed changes.
+        const changes = historyChange ? historyChange() : {};
+        const recentFiles = changes.recent || this.recent;
+        const folderHistory = changes.folderHistory || this.folderHistory;
+        const pinnedFolders = changes.pinnedFolders || this.pinnedFolders;
+        if (this.stateFile) {
+          const recent = new Set(recentFiles);
+          const authorized = [...this.authorized]
+            .filter((file) => !recent.has(file))
+            .slice(-(500 - recent.size))
+            .concat([...recentFiles].reverse());
+          const saved = new Set(authorized);
+          const state = JSON.stringify({
+            version: 1,
+            outlinePreference: this.outlinePreference,
+            authorized,
+            recent: recentFiles,
+            folders: [
+              ...new Set(
+                [...this.folders]
+                  .slice(-10)
+                  .concat(
+                    folderHistory,
+                    pinnedFolders,
+                    this.startupFolder ? [this.startupFolder] : [],
+                  ),
               ),
-          ),
-        ],
-        folderHistory: this.folderHistory,
-        pinnedFolders: this.pinnedFolders,
-        startupFolder: this.startupFolder,
-        treeRoots: [...this.treeRoots].filter(([file]) => saved.has(file)),
-      });
-      this.writing = this.writing
-        .catch(() => {})
-        .then(async () => {
+            ],
+            folderHistory,
+            pinnedFolders,
+            startupFolder: this.startupFolder,
+            treeRoots: [...this.treeRoots].filter(([file]) => saved.has(file)),
+          });
           await fs.mkdir(path.dirname(this.stateFile), { recursive: true });
           await atomicWrite(this.stateFile, state);
-        });
-      await this.writing;
-    }
+        }
+        if (changes.recent) this.recent = changes.recent;
+        if (changes.folderHistory) this.folderHistory = changes.folderHistory;
+        if (changes.pinnedFolders) this.pinnedFolders = changes.pinnedFolders;
+      });
+    await this.writing;
   }
   async folder(root, refresh = false, knownVersion, displayOptions = {}) {
     if (refresh && !this.folders.has(root)) throw Error("请先选择该文件夹");
@@ -989,28 +998,32 @@ class FileStore {
     );
   }
   async updateFolderHistory(input) {
-    if (!input || !["pin", "unpin", "remove", "clear"].includes(input.action))
-      throw Error("文件夹历史操作无效");
-    const target = input.path;
-    if (
-      input.action !== "clear" &&
-      (typeof target !== "string" || !this.folders.has(target))
-    )
-      throw Error("请先选择该文件夹");
-    if (input.action === "pin" && !this.pinnedFolders.includes(target)) {
-      if (this.pinnedFolders.length >= 20) throw Error("最多置顶 20 个文件夹");
-      this.pinnedFolders.push(target);
-    }
-    if (input.action === "unpin" || input.action === "remove")
-      this.pinnedFolders = this.pinnedFolders.filter(
-        (value) => value !== target,
-      );
-    if (input.action === "remove")
-      this.folderHistory = this.folderHistory.filter(
-        (value) => value !== target,
-      );
-    if (input.action === "clear") this.folderHistory = [];
-    await this.persist();
+    await this.persist(() => {
+      if (!input || !["pin", "unpin", "remove", "clear"].includes(input.action))
+        throw Error("文件夹历史操作无效");
+      const target = input.path;
+      if (
+        input.action !== "clear" &&
+        (typeof target !== "string" || !this.folders.has(target))
+      )
+        throw Error("请先选择该文件夹");
+      let pinnedFolders = [...this.pinnedFolders];
+      let folderHistory = [...this.folderHistory];
+      if (input.action === "pin" && !pinnedFolders.includes(target)) {
+        if (pinnedFolders.length >= 20) throw Error("最多置顶 20 个文件夹");
+        pinnedFolders.push(target);
+      }
+      if (input.action === "unpin" || input.action === "remove")
+        pinnedFolders = pinnedFolders.filter((value) => value !== target);
+      if (input.action === "remove")
+        folderHistory = folderHistory.filter((value) => value !== target);
+      if (input.action === "clear") folderHistory = [];
+      return { pinnedFolders, folderHistory };
+    });
+    return this.recentFolders();
+  }
+  async clearRecent() {
+    await this.persist(() => ({ recent: [], folderHistory: [] }));
     return this.recentFolders();
   }
   async setStartupFolder(root) {
