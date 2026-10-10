@@ -345,10 +345,12 @@ export default function App() {
     name?: string;
   }) => {
     const root = folderWorkspace.root;
-    if (!root || !window.desktop) return;
+    if (!root || !window.desktop)
+      return { ok: false, error: "文件夹已关闭或当前环境不支持文件操作。" };
     if (dropInFlight.current) {
-      setMessage("正在处理拖入项目，请完成复制后再操作文件。");
-      return;
+      const error = "正在处理拖入项目，请完成复制后再操作文件。";
+      setMessage(error);
+      return { ok: false, error };
     }
     if (request.action === "insert-link") {
       if (request.target) await editor.current?.fileLink(request.target);
@@ -396,6 +398,7 @@ export default function App() {
             document.path && isWithinPath(request.target!, document.path),
         )
       : [];
+    let applied = false;
     try {
       for (const document of opened) {
         if (document.dirty && !(await workspace.save(document)))
@@ -418,7 +421,8 @@ export default function App() {
           ? { target: request.target || root }
           : {}),
       });
-      if (!result) return;
+      if (!result) return { ok: false, error: "文件操作已取消，未执行。" };
+      applied = true;
       if (request.action === "undo") {
         if (result.undid === "rename" || result.undid === "move") {
           if (result.from) remapPinnedPath(result.path, result.from);
@@ -471,7 +475,7 @@ export default function App() {
         const file = await window.desktop.reopen(result.path);
         workspace.importFile(file);
       }
-      await folderWorkspace.refresh();
+      void folderWorkspace.refresh();
       setMessage(
         request.action === "undo"
           ? "已撤销上一次文件操作。"
@@ -479,8 +483,16 @@ export default function App() {
             ? "已移入系统废纸篓。"
             : "文件操作完成。",
       );
+      return { ok: true };
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
+      const detail = error instanceof Error ? error.message : String(error);
+      const message = applied
+        ? "文件操作已执行，但界面更新失败，请刷新文件夹。 " + detail
+        : /EEXIST/.test(detail)
+          ? "目标名称已存在，请更换名称后重试。"
+          : detail;
+      setMessage(message);
+      return { ok: applied, error: message };
     }
   };
   const [quickOpen, setQuickOpen] = useState(false);

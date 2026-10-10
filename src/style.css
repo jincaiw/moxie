@@ -2266,6 +2266,24 @@ p {
 .file-operation-form input {
   width: 100%;
 }
+.file-operation-help,
+.file-operation-error {
+  margin: 8px 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.file-operation-help {
+  color: var(--muted);
+}
+.file-operation-error {
+  color: var(--text);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--code);
+}
 .danger-button {
   background: #b64040;
   color: white;

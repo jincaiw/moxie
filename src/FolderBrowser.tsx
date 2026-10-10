@@ -58,7 +58,9 @@ type OperationRequest = {
   directory?: string;
   name?: string;
 };
-type RunOperation = (request: OperationRequest) => Promise<void>;
+type RunOperation = (
+  request: OperationRequest,
+) => Promise<void | { ok: boolean; error?: string }>;
 function readLayout(): FolderLayout {
   try {
     const saved = JSON.parse(
@@ -527,6 +529,27 @@ export function FolderBrowser({
 }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const [operationError, setOperationError] = useState("");
+  const normalizedName = name.trim();
+  const nameError =
+    !operation || operation.action === "trash"
+      ? ""
+      : normalizedName.length > 160
+        ? "名称不能超过 160 个字符。"
+        : !normalizedName ||
+            normalizedName === "." ||
+            normalizedName === ".." ||
+            /[<>:"|?*\\/\x00-\x1f]/.test(normalizedName)
+          ? '名称不能为空，也不能包含路径分隔符或特殊字符 <>:"|?*。'
+          : operation.action === "new-file" &&
+              !/\.(md|markdown|txt)$/i.test(normalizedName)
+            ? "文档名称需以 .md、.markdown 或 .txt 结尾。"
+            : "";
+  const closeOperation = () => {
+    if (!submittingRef.current) setOperation(null);
+  };
   const treeRef = useRef<HTMLUListElement>(null);
   const [sort, setSort] = useState<SortMode>(() => {
     try {
@@ -626,6 +649,7 @@ export function FolderBrowser({
   };
   const nameInput = useRef<HTMLInputElement>(null);
   const openOperation = (action: FileAction, target?: FolderNode) => {
+    setOperationError("");
     setName(
       action === "new-file"
         ? "未命名.md"
@@ -641,16 +665,31 @@ export function FolderBrowser({
     );
     setOperation({ action, target });
   };
-  const submit = (event?: FormEvent) => {
+  const submit = async (event?: FormEvent) => {
     event?.preventDefault();
-    if (!operation || busy) return;
-    void operate({
-      action: operation.action,
-      target: operation.target?.path || tree.path,
-      directory: operation.directory,
-      name,
-    });
-    setOperation(null);
+    if (!operation || busy || submittingRef.current || nameError) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    setOperationError("");
+    try {
+      const result = await operate({
+        action: operation.action,
+        target: operation.target?.path || tree.path,
+        directory: operation.directory,
+        name: operation.action === "trash" ? undefined : normalizedName,
+      });
+      if (result?.ok) setOperation(null);
+      else {
+        setOperationError(result?.error || "未能完成操作，请重试。");
+        requestAnimationFrame(() => nameInput.current?.focus());
+      }
+    } catch (error) {
+      setOperationError(error instanceof Error ? error.message : String(error));
+      requestAnimationFrame(() => nameInput.current?.focus());
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   };
   const run: RunOperation = async ({ action, target, directory }) => {
     if (busy) return;
@@ -658,6 +697,7 @@ export function FolderBrowser({
       const node = target ? findNode(tree.entries, target) : undefined;
       openOperation(action, node);
     } else if (action === "trash") {
+      setOperationError("");
       setOperation({
         action,
         target: target ? findNode(tree.entries, target) : undefined,
@@ -998,7 +1038,7 @@ export function FolderBrowser({
       {operation && (
         <Dialog
           title={operation.action === "trash" ? "移入系统废纸篓" : "文件操作"}
-          onClose={() => setOperation(null)}
+          onClose={closeOperation}
         >
           <header>
             <h2>
@@ -1025,38 +1065,60 @@ export function FolderBrowser({
               ”及其内容会移入系统废纸篓，可从废纸篓恢复。
             </p>
           ) : (
-            <form className="file-operation-form" onSubmit={submit}>
+            <form
+              className="file-operation-form"
+              onSubmit={(event) => void submit(event)}
+              aria-busy={submitting}
+            >
               <label htmlFor="file-operation-name">名称</label>
               <input
                 id="file-operation-name"
                 ref={nameInput}
                 autoFocus
                 value={name}
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setOperationError("");
+                }}
+                disabled={submitting}
+                aria-invalid={Boolean(nameError || operationError)}
+                aria-describedby="file-operation-help"
                 maxLength={160}
               />
             </form>
           )}
+          <p
+            id="file-operation-help"
+            className={
+              nameError || operationError
+                ? "file-operation-error"
+                : "file-operation-help"
+            }
+            role={nameError || operationError ? "alert" : undefined}
+          >
+            {nameError ||
+              operationError ||
+              (operation.action === "trash" ? "" : "同名项目不会被覆盖。")}
+          </p>
+          {submitting && <p role="status">正在处理，请稍候…</p>}
           <div className="dialog-actions">
-            <button onClick={() => setOperation(null)}>取消</button>
+            <button disabled={submitting} onClick={closeOperation}>
+              取消
+            </button>
             <button
-              disabled={busy}
+              disabled={busy || submitting || Boolean(nameError)}
               className={
                 operation.action === "trash"
                   ? "danger-button"
                   : "primary-button"
               }
-              onClick={() => {
-                if (operation.action === "trash") {
-                  void operate({
-                    action: "trash",
-                    target: operation.target?.path,
-                  });
-                  setOperation(null);
-                } else submit();
-              }}
+              onClick={() => void submit()}
             >
-              {operation.action === "trash" ? "移入废纸篓" : "确定"}
+              {submitting
+                ? "处理中…"
+                : operation.action === "trash"
+                  ? "移入废纸篓"
+                  : "确定"}
             </button>
           </div>
         </Dialog>
