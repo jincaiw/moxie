@@ -4613,6 +4613,13 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   await expect(page.locator(".outline-row")).toHaveCount(34);
   await page.getByRole("button", { name: "6. 表格", exact: true }).click();
   await expect(page.locator(".editable-table").first()).toBeVisible();
+  await page
+    .getByRole("button", { name: "7. 链接、图片与自动链接", exact: true })
+    .click();
+  await expect(page.locator(".linked-image-status")).toContainText(
+    "图片不可用：可点击图片的替代文本",
+  );
+  await expect(page.locator(".linked-image-preview")).not.toContainText("![");
   await page.getByRole("button", { name: "9. 数学公式", exact: true }).click();
   await expect(page.locator(".formula .katex")).toHaveCount(2);
   await expect(page.locator(".formula .katex-error")).toHaveCount(0);
@@ -4660,4 +4667,33 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   });
   expect(content).toBe(sample);
   expect(errors).toEqual([]);
+});
+
+test("图片链接显示真实图片，普通单击仍可编辑原文", async ({ page }) => {
+  const source = `[![封面](data:image/png;base64,${png.toString("base64")})](https://example.com)\n\n正文`;
+  await page.addInitScript((text) => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify([
+        { id: "linked-image", name: "image.md", text, dirty: false },
+      ]),
+    );
+    localStorage.setItem("moxie.active.v1", "linked-image");
+  }, source);
+  await page.goto("/");
+  const link = page
+    .locator(".rendered-link")
+    .filter({ has: page.getByRole("img", { name: "封面", exact: true }) });
+  await expect(link).toHaveAttribute("href", "https://example.com");
+  await expect
+    .poll(() =>
+      link
+        .locator("img")
+        .evaluate((img) => (img as HTMLImageElement).naturalWidth),
+    )
+    .toBe(1);
+  await link.click();
+  await expect(page.locator(".cm-content")).toContainText(
+    "[![封面](data:image/png;base64,",
+  );
 });

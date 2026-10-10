@@ -1113,6 +1113,7 @@ function build(
                     link.href,
                     node.from,
                     link.title,
+                    state.facet(documentPath),
                   ),
                 }),
               );

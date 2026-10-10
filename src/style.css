@@ -2604,3 +2604,20 @@ p {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+.rendered-link .linked-image-preview {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+.linked-image-preview img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+.linked-image-status {
+  display: inline-block;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+}
