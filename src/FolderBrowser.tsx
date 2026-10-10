@@ -125,8 +125,14 @@ function Branch({
           directory &&
           (event.dataTransfer.types.includes("text/plain") ||
             event.dataTransfer.types.includes("Files"))
-        )
+        ) {
           event.preventDefault();
+          event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
+            "Files",
+          )
+            ? "copy"
+            : "move";
+        }
       }}
       onDrop={(event) => {
         if (!directory) return;
@@ -173,16 +179,14 @@ function Branch({
           onDragStart={(event) => {
             if (event.altKey && window.desktop?.dragFileOut) {
               event.preventDefault();
-              void window.desktop
-                .dragFileOut(node.path)
-                .catch((error) =>
-                  window.dispatchEvent(
-                    new CustomEvent("moxie:drag-error", {
-                      detail:
-                        error instanceof Error ? error.message : String(error),
-                    }),
-                  ),
-                );
+              void window.desktop.dragFileOut(node.path).catch((error) =>
+                window.dispatchEvent(
+                  new CustomEvent("moxie:drag-error", {
+                    detail:
+                      error instanceof Error ? error.message : String(error),
+                  }),
+                ),
+              );
               return;
             }
             event.dataTransfer.effectAllowed = "copyMove";
@@ -699,8 +703,14 @@ export function FolderBrowser({
           if (
             event.dataTransfer.types.includes("text/plain") ||
             event.dataTransfer.types.includes("Files")
-          )
+          ) {
             event.preventDefault();
+            event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
+              "Files",
+            )
+              ? "copy"
+              : "move";
+          }
         }}
         onDrop={(event) => {
           if (event.dataTransfer.files.length) {
