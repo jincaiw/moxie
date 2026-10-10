@@ -2235,28 +2235,45 @@ p {
 }
 .tree-actions {
   min-width: 0;
-  margin: 0;
-  border: 0;
+  margin: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px 8px 8px 18px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  max-height: min(240px, 35vh);
+  overflow-y: auto;
+  background: var(--panel);
 }
 .tree-actions button {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 7px;
+  gap: 6px;
+  padding: 7px;
   border-radius: 4px;
-  font-size: 11px;
-  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+  color: var(--text);
+  flex-shrink: 0;
 }
-.tree-actions button:hover:not(:disabled) {
+.tree-actions button:hover:not(:disabled),
+.tree-actions button:focus-visible {
   background: var(--selected);
   color: var(--text);
 }
+.tree-actions button:not(:has(svg)) {
+  padding-left: 27px;
+}
+.tree-actions button svg {
+  flex-shrink: 0;
+}
 .tree-actions .tree-action-danger {
   color: #b73e3e;
+}
+:root[data-theme="dark"] .tree-actions .tree-action-danger,
+:root[data-theme="solarized-dark"] .tree-actions .tree-action-danger {
+  color: #f28b82;
 }
 .file-operation-form {
   display: grid;

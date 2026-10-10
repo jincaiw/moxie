@@ -5,6 +5,8 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type RefObject,
+  type Dispatch,
+  type SetStateAction,
 } from "react";
 import {
   ChevronDown,
@@ -96,7 +98,11 @@ function Branch({
   togglePin,
   treeRef,
   onTreeKeyDown,
+  actionPath,
+  setActionPath,
 }: {
+  actionPath: string | null;
+  setActionPath: Dispatch<SetStateAction<string | null>>;
   node: FolderNode;
   busy: boolean;
   copying: boolean;
@@ -120,11 +126,52 @@ function Branch({
     node: FolderNode,
   ) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menuOpen = actionPath === node.path;
+  const setMenuOpen = (value: boolean) => {
+    if (value) setActionPath(node.path);
+    else setActionPath((current) => (current === node.path ? null : current));
+  };
   const actionsRef = useRef<HTMLFieldSetElement>(null);
+  const entryRef = useRef<HTMLDivElement>(null);
+  const closeActions = () => {
+    entryRef.current?.querySelector<HTMLButtonElement>(".tree-row")?.focus();
+    setMenuOpen(false);
+  };
   useEffect(() => {
-    if (menuOpen)
-      actionsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    if (!menuOpen) return;
+    let pointerDown = false;
+    const startPointer = () => {
+      pointerDown = true;
+    };
+    const endPointer = () => {
+      pointerDown = false;
+    };
+    const dismissOutside = (event: Event) => {
+      if (
+        !pointerDown &&
+        event.target instanceof Node &&
+        !actionsRef.current?.contains(event.target) &&
+        !entryRef.current?.contains(event.target)
+      )
+        setMenuOpen(false);
+    };
+    // Close after the click, so collapsing this panel cannot move its target
+    // between pointerdown and click. Keyboard focus changes close immediately.
+    window.addEventListener("pointerdown", startPointer);
+    window.addEventListener("pointerup", endPointer);
+    window.addEventListener("pointercancel", endPointer);
+    window.addEventListener("click", dismissOutside);
+    window.addEventListener("focusin", dismissOutside);
+    actionsRef.current
+      ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
+    return () => {
+      window.removeEventListener("pointerdown", startPointer);
+      window.removeEventListener("pointerup", endPointer);
+      window.removeEventListener("pointercancel", endPointer);
+      window.removeEventListener("click", dismissOutside);
+      window.removeEventListener("focusin", dismissOutside);
+    };
   }, [menuOpen]);
   const expanded = expandedPaths.has(node.path);
   const directory = node.kind === "directory";
@@ -162,7 +209,7 @@ function Branch({
         onDropFile(target, node.path);
       }}
     >
-      <div className="tree-entry-line">
+      <div className="tree-entry-line" ref={entryRef}>
         <button
           className={"tree-row " + (active === node.path ? "selected" : "")}
           disabled={copying && !directory}
@@ -207,13 +254,14 @@ function Branch({
             event.dataTransfer.setData("application/x-moxie-path", node.path);
             event.dataTransfer.setData("text/plain", node.path);
           }}
-          onClick={() =>
+          onClick={() => {
+            setMenuOpen(false);
             directory
               ? toggle(node.path)
               : node.kind === "file"
                 ? open(node.path)
-                : void operate({ action: "reveal", target: node.path })
-          }
+                : void operate({ action: "reveal", target: node.path });
+          }}
         >
           {directory ? (
             expanded ? (
@@ -249,7 +297,7 @@ function Branch({
           aria-label={`文件操作：${node.name}`}
           aria-expanded={menuOpen}
           disabled={busy}
-          onClick={() => setMenuOpen((value) => !value)}
+          onClick={() => setMenuOpen(!menuOpen)}
         >
           <MoreVertical size={15} />
         </button>
@@ -264,17 +312,47 @@ function Branch({
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               event.preventDefault();
-              setMenuOpen(false);
-              event.currentTarget.parentElement
-                ?.querySelector<HTMLButtonElement>(".tree-row")
-                ?.focus();
+              event.stopPropagation();
+              closeActions();
+              return;
             }
+            if (
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.shiftKey
+            )
+              return;
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+              return;
+            const buttons = Array.from(
+              event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                "button:not(:disabled)",
+              ),
+            );
+            const index = buttons.indexOf(event.target as HTMLButtonElement);
+            if (index < 0) return;
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? buttons.length - 1
+                  : (index +
+                      (event.key === "ArrowDown" ? 1 : -1) +
+                      buttons.length) %
+                    buttons.length;
+            event.preventDefault();
+            buttons[next].focus({ preventScroll: true });
+            buttons[next].scrollIntoView({
+              block: "nearest",
+              inline: "nearest",
+            });
           }}
         >
           {node.kind !== "other" && (
             <button
               onClick={() => {
-                setMenuOpen(false);
+                closeActions();
                 void operate({ action: "insert-link", target: node.path });
               }}
             >
@@ -286,7 +364,7 @@ function Branch({
             <>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "new-file", target: node.path });
                 }}
               >
@@ -295,7 +373,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "new-folder", target: node.path });
                 }}
               >
@@ -304,7 +382,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "copy", target: node.path });
                 }}
               >
@@ -313,7 +391,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "rename", target: node.path });
                 }}
               >
@@ -321,7 +399,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "move", target: node.path });
                 }}
               >
@@ -329,7 +407,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "copy-path", target: node.path });
                 }}
               >
@@ -338,7 +416,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "reveal", target: node.path });
                 }}
               >
@@ -348,7 +426,7 @@ function Branch({
               <button
                 className="tree-action-danger"
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "trash", target: node.path });
                 }}
               >
@@ -360,7 +438,7 @@ function Branch({
             <>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "copy-path", target: node.path });
                 }}
               >
@@ -369,7 +447,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "reveal", target: node.path });
                 }}
               >
@@ -381,7 +459,7 @@ function Branch({
             <>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "new-window", target: node.path });
                 }}
               >
@@ -389,7 +467,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "copy", target: node.path });
                 }}
               >
@@ -398,7 +476,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   togglePin(node.path);
                 }}
               >
@@ -410,7 +488,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "rename", target: node.path });
                 }}
               >
@@ -418,7 +496,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "move", target: node.path });
                 }}
               >
@@ -426,7 +504,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "copy-path", target: node.path });
                 }}
               >
@@ -435,7 +513,7 @@ function Branch({
               </button>
               <button
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "reveal", target: node.path });
                 }}
               >
@@ -445,7 +523,7 @@ function Branch({
               <button
                 className="tree-action-danger"
                 onClick={() => {
-                  setMenuOpen(false);
+                  closeActions();
                   void operate({ action: "trash", target: node.path });
                 }}
               >
@@ -480,6 +558,8 @@ function Branch({
                 togglePin={togglePin}
                 treeRef={treeRef}
                 onTreeKeyDown={onTreeKeyDown}
+                actionPath={actionPath}
+                setActionPath={setActionPath}
               />
             ))
           ) : (
@@ -534,10 +614,12 @@ export function FolderBrowser({
   showOtherFiles: boolean;
   hasCustomFilter?: boolean;
 }) {
+  const [actionPath, setActionPath] = useState<string | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const submittingRef = useRef(false);
+  const operationOrigin = useRef<HTMLElement | null>(null);
   const [operationError, setOperationError] = useState("");
   const normalizedName = name.trim();
   const nameError =
@@ -555,7 +637,13 @@ export function FolderBrowser({
             ? "文档名称需以 .md、.markdown 或 .txt 结尾。"
             : "";
   const closeOperation = () => {
-    if (!submittingRef.current) setOperation(null);
+    if (!submittingRef.current) {
+      setOperation(null);
+      requestAnimationFrame(() => {
+        if (operationOrigin.current?.isConnected)
+          operationOrigin.current.focus();
+      });
+    }
   };
   const treeRef = useRef<HTMLUListElement>(null);
   const [sort, setSort] = useState<SortMode>(() => {
@@ -656,6 +744,10 @@ export function FolderBrowser({
   };
   const nameInput = useRef<HTMLInputElement>(null);
   const openOperation = (action: FileAction, target?: FolderNode) => {
+    operationOrigin.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     setOperationError("");
     setName(
       action === "new-file"
@@ -704,6 +796,10 @@ export function FolderBrowser({
       const node = target ? findNode(tree.entries, target) : undefined;
       openOperation(action, node);
     } else if (action === "trash") {
+      operationOrigin.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       setOperationError("");
       setOperation({
         action,
@@ -1002,8 +1098,10 @@ export function FolderBrowser({
       )}
       <p id="folder-tree-keyboard-help" className="sr-only">
         文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home
-        和 End 跳到列表首尾。Shift+F10 打开文件操作，Tab 切换操作，Enter
-        执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
+        和 End 跳到列表首尾。Shift+F10
+        打开文件操作，上下方向键循环切换操作，Home/End 跳到首尾，Tab
+        切换操作，Enter 执行；可选择插入相对链接到正文，Escape
+        关闭操作并返回文件行。
       </p>
       <ul
         ref={treeRef}
@@ -1053,6 +1151,8 @@ export function FolderBrowser({
             togglePin={togglePin}
             treeRef={treeRef}
             onTreeKeyDown={onTreeKeyDown}
+            actionPath={actionPath}
+            setActionPath={setActionPath}
           />
         ))}
       </ul>

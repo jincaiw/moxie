@@ -1344,3 +1344,83 @@ test("文档标签键盘导航保留分组排序，组外切换显示当前标�
     page.getByRole("tabpanel", { name: "键盘文档17.md", exact: true }),
   ).toBeVisible();
 });
+
+test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件夹 章节" }).click();
+  const fileRow = page.getByRole("button", {
+    name: "打开 note.md",
+    exact: true,
+  });
+  const trigger = page.getByRole("button", { name: "文件操作：note.md" });
+  const panels = page.locator(".tree-actions");
+  await trigger.click();
+  await expect(panels).toHaveCount(1);
+  const actions = panels.getByRole("button");
+  await expect(actions.first()).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(actions.last()).toBeFocused();
+  const bounds = await actions.last().evaluate((node) => {
+    const item = node.getBoundingClientRect();
+    const panel = node.closest("fieldset")!.getBoundingClientRect();
+    return {
+      itemTop: item.top,
+      itemBottom: item.bottom,
+      panelTop: panel.top,
+      panelBottom: panel.bottom,
+      height: panel.height,
+    };
+  });
+  expect(bounds.itemTop).toBeGreaterThanOrEqual(bounds.panelTop);
+  expect(bounds.itemBottom).toBeLessThanOrEqual(bounds.panelBottom);
+  expect(bounds.height).toBeLessThanOrEqual(240);
+  await page.keyboard.press("ArrowDown");
+  await expect(actions.first()).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(actions.last()).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(actions.first()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(panels).toHaveCount(0);
+  await expect(fileRow).toBeFocused();
+  await page.keyboard.press("Shift+F10");
+  await expect(actions.first()).toBeFocused();
+  // A second pointer click must reach its original trigger even when closing
+  // the previous inline panel changes the tree layout.
+  await page.getByRole("button", { name: "文件操作：章节" }).click();
+  await expect(panels).toHaveCount(1);
+  await expect(panels).toHaveAttribute("aria-label", "章节 的文件操作");
+  await page.getByRole("button", { name: "新建文件夹", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "文件操作" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "文件夹 章节" })).toBeFocused();
+  await trigger.click();
+  await page
+    .getByRole("button", { name: "文件夹 章节" })
+    .click({ button: "right" });
+  await expect(panels).toHaveCount(1);
+  await expect(panels).toHaveAttribute("aria-label", "章节 的文件操作");
+  await fileRow.click({ button: "right" });
+  await expect(panels).toHaveCount(1);
+  await expect(panels).toHaveAttribute("aria-label", "note.md 的文件操作");
+  await fileRow.click();
+  await expect(panels).toHaveCount(0);
+  await trigger.click();
+  await page.locator(".cm-content").click();
+  await expect(panels).toHaveCount(0);
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await trigger.click();
+  await page.getByRole("tab", { name: "文件", exact: true }).focus();
+  await expect(panels).toHaveCount(0);
+  await expect(
+    page.getByRole("tab", { name: "文件", exact: true }),
+  ).toBeFocused();
+  await trigger.click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Tab");
+  await expect(panels).toHaveCount(0);
+});
