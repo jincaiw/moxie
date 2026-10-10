@@ -2092,9 +2092,16 @@ test("最近菜单实时更新、编码路径、保留固定目录并拒绝陌�
   await fs.mkdir(root);
   const file = path.join(root, "中文 %:文档.md");
   await fs.writeFile(file, "# 原文");
-  h.open(root);
-  await h.call("file:folder");
-  await h.call("folder:history", { action: "pin", path: root });
+  const chooserPath = root + "-alias";
+  await fs.symlink(
+    root,
+    chooserPath,
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  h.open(chooserPath);
+  const selected = await h.call("file:folder");
+  assert.equal(selected.path, await fs.realpath(root));
+  await h.call("folder:history", { action: "pin", path: selected.path });
   h.open(file);
   await h.call("file:open");
   const recentMenu = () =>
@@ -2110,7 +2117,7 @@ test("最近菜单实时更新、编码路径、保留固定目录并拒绝陌�
     .click();
   assert.equal(
     h.window.lastAction,
-    "folder-recent:" + encodeURIComponent(root),
+    "folder-recent:" + encodeURIComponent(selected.path),
   );
   await assert.rejects(h.foreign("file:clear-recent"), /未知窗口/);
   assert.equal((await h.call("file:clear-recent"))[0].pinned, true);
