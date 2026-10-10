@@ -318,7 +318,7 @@ async function harness(userData) {
     events = new Map();
   const windows = [],
     externalUrls = [];
-  let menuTemplate, dialogParent, clipboardContent;
+  let menuTemplate, dialogParent, clipboardContent, startup;
   const mockUpdater = new EventEmitter();
   mockUpdater.checkForUpdates = async () => {};
   mockUpdater.downloadUpdate = async () => {};
@@ -380,7 +380,12 @@ async function harness(userData) {
     app: {
       isPackaged: true,
       getPath: () => userData,
-      whenReady: () => Promise.resolve(),
+      whenReady: () => ({
+        then: (ready) => {
+          startup = Promise.resolve().then(ready);
+          return startup;
+        },
+      }),
       on: () => {},
       quit: () => {},
     },
@@ -446,7 +451,8 @@ async function harness(userData) {
     Buffer,
     console,
   });
-  await new Promise((r) => setTimeout(r, 20));
+  assert.ok(startup, "main process must register its startup callback");
+  await startup;
   const window = windows[0],
     event = {
       sender: window.webContents,
