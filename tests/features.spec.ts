@@ -1475,7 +1475,11 @@ test("桌面导出菜单列出 Pandoc 格式并限制菜单高度", async ({ pag
             return async () => [];
           if (property === "getUpdateStatus" || property === "checkForUpdates")
             return async () => ({ status: "idle" });
-          if (property === "onAction" || property === "onUpdateStatus")
+          if (
+            property === "onAction" ||
+            property === "onUpdateStatus" ||
+            property === "onOutlinePreference"
+          )
             return () => () => {};
           if (property === "dirty" || property === "closeReady")
             return () => {};
@@ -4977,6 +4981,13 @@ test("大纲右键与键盘菜单保持边界、导航和来源焦点", async ({
     .toBe(true);
   await page.keyboard.press("Escape");
   await expect(row).toBeFocused();
+  const toggle = page.locator(".outline-toggle").first();
+  const title = toggle.locator("..").locator(".outline-row");
+  await toggle.focus();
+  await page.keyboard.press("Shift+F10");
+  await page.getByRole("button", { name: "平铺大纲", exact: true }).click();
+  await expect(page.locator(".outline-toggle")).toHaveCount(0);
+  await expect(title).toBeFocused();
 });
 
 test("大纲偏好迁移、设置与菜单跨窗口同步", async ({ page }) => {

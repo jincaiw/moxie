@@ -289,7 +289,10 @@ export default function App() {
     origin: HTMLElement,
     point: { left: number; top: number },
   ) => {
-    sidebarPopupOrigin.current = origin;
+    sidebarPopupOrigin.current =
+      origin
+        .closest(".outline-entry")
+        ?.querySelector<HTMLElement>(".outline-row") || origin;
     setOutlineContextPoint(point);
     setSidebarPopup("outline");
   };
