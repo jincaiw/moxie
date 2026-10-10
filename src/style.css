@@ -3092,3 +3092,28 @@ p {
 .sidebar .tree-entry-line:has(.tree-actions-trigger[aria-expanded="true"]) {
   background: var(--selected);
 }
+
+/* Parent folder labels distinguish grouped articles without adding tab stops. */
+.file-list-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.file-list-group svg,
+.file-list-group small {
+  flex-shrink: 0;
+}
+.file-list-group span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-list-group small {
+  font-weight: 400;
+}

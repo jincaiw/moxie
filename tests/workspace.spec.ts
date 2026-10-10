@@ -1861,3 +1861,124 @@ test("侧栏宽度、文件树列表和底部菜单保持布局，搜索快捷�
   await page.reload();
   await expect(handle).toHaveAttribute("aria-valuenow", "270");
 });
+
+for (const windowsPaths of [false, true]) {
+  test(`文件列表分组标题、数量与跨组键盘导航 ${windowsPaths ? "Windows" : "POSIX"}`, async ({
+    page,
+  }, testInfo) => {
+    const root = windowsPaths ? "C:\\notes" : "/notes";
+    const separator = windowsPaths ? "\\" : "/";
+    const path = (...parts: string[]) => [root, ...parts].join(separator);
+    const tree = {
+      path: root,
+      name: "写作项目",
+      truncated: false,
+      entries: [
+        { path: path("10.md"), name: "10.md", kind: "file" },
+        { path: path("2.md"), name: "2.md", kind: "file" },
+        {
+          path: path("章节"),
+          name: "章节",
+          kind: "directory",
+          children: [
+            { path: path("章节", "1.md"), name: "1.md", kind: "file" },
+            {
+              path: path("章节", "深层"),
+              name: "深层",
+              kind: "directory",
+              children: [
+                {
+                  path: path("章节", "深层", "long.md"),
+                  name: "long.md",
+                  kind: "file",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          path: path("空目录"),
+          name: "空目录",
+          kind: "directory",
+          children: [],
+        },
+      ],
+    };
+    await page.context().addInitScript((tree) => {
+      (window as any).desktop.folder = async () => tree;
+      (window as any).desktop.refreshFolder = async () => tree;
+    }, tree);
+    await page.setViewportSize({ width: 900, height: 700 });
+    await page.goto("/");
+    await page
+      .locator(".md-input")
+      .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+    await selectSidebarMode(page, "大纲");
+    await expect(page.locator(".outline-row")).toHaveCount(34);
+    await selectSidebarMode(page, "文件");
+    await openSidebarFolder(page);
+    await page
+      .getByRole("button", { name: "切换到文件列表", exact: true })
+      .click();
+    const groups = page.locator(".file-list-group");
+    await expect(groups.locator("span")).toHaveText([
+      "写作项目",
+      "章节",
+      ["章节", "深层"].join(separator),
+    ]);
+    await expect(groups.locator("small")).toHaveText(["2", "1", "1"]);
+    await expect(groups.first()).toHaveAttribute("title", root);
+    const rows = page.locator(".folder-browser .tree-row");
+    await expect(rows).toHaveCount(4);
+    await expect(rows.locator("small")).toHaveCount(0);
+    await rows.nth(1).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(rows.nth(2)).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(rows.last()).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(rows.first()).toBeFocused();
+    await page.screenshot({
+      path: testInfo.outputPath(
+        `list-groups-${windowsPaths ? "windows" : "posix"}.png`,
+      ),
+    });
+    await page.evaluate(() => {
+      document.documentElement.dataset.theme = "dark";
+    });
+    await page.setViewportSize({ width: 760, height: 560 });
+    await page.getByRole("separator", { name: "调整侧栏宽度" }).focus();
+    await page.keyboard.press("Home");
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await expect(groups.locator("span")).toHaveText([
+      "写作项目",
+      "章节",
+      ["章节", "深层"].join(separator),
+    ]);
+    await page.screenshot({
+      path: testInfo.outputPath(
+        `list-groups-dark-${windowsPaths ? "windows" : "posix"}.png`,
+      ),
+    });
+    await expandFolderOptions(page);
+    await page.getByLabel("按文件夹分组", { exact: true }).uncheck();
+    await page.keyboard.press("Escape");
+    await expect(groups).toHaveCount(0);
+    await expect(rows).toContainText(["1.md", "2.md", "10.md", "long.md"]);
+    await page.reload();
+    await openSidebarFolder(page);
+    await expect(groups).toHaveCount(0);
+    await expandFolderOptions(page);
+    await page.getByLabel("按文件夹分组", { exact: true }).check();
+    await page.keyboard.press("Escape");
+    await expect(groups).toHaveCount(3);
+    await page
+      .getByRole("button", { name: "切换到文件树", exact: true })
+      .click();
+    await expect(groups).toHaveCount(0);
+  });
+}

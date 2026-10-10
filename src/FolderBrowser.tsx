@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useImperativeHandle,
@@ -966,6 +967,32 @@ export function FolderBrowser({
       );
     }
   };
+  const parentPath = (node: FolderNode) =>
+    node.path.slice(
+      0,
+      node.path.lastIndexOf(node.path.includes("\\") ? "\\" : "/"),
+    );
+  const displayedNodes =
+    layout.view === "list"
+      ? (() => {
+          const files = listedFiles(tree.entries);
+          if (!layout.foldersFirst) return ordered(files, pinned, sort, layout);
+          const groups = new Map<string, FolderNode[]>();
+          for (const node of files) {
+            const parent = parentPath(node);
+            groups.set(parent, [...(groups.get(parent) || []), node]);
+          }
+          return [...groups]
+            .sort(([a], [b]) => a.localeCompare(b, "zh-CN", { numeric: true }))
+            .flatMap(([, nodes]) => ordered(nodes, pinned, sort, layout));
+        })()
+      : ordered(tree.entries, pinned, sort, layout);
+  const groupCounts = new Map<string, number>();
+  if (layout.view === "list" && layout.foldersFirst)
+    for (const node of displayedNodes) {
+      const parent = parentPath(node);
+      groupCounts.set(parent, (groupCounts.get(parent) || 0) + 1);
+    }
   return (
     <section className="folder-browser" aria-label="文件夹浏览">
       <header
@@ -1035,7 +1062,9 @@ export function FolderBrowser({
               aria-label="排序快捷选项"
             >
               <button
-                aria-label="文件夹优先"
+                aria-label={
+                  layout.view === "list" ? "切换文件夹分组" : "文件夹优先"
+                }
                 aria-pressed={layout.foldersFirst}
                 title="文件夹优先 / 按文件夹分组"
                 onClick={() =>
@@ -1251,51 +1280,55 @@ export function FolderBrowser({
         aria-busy={copying}
         aria-describedby="folder-tree-keyboard-help"
       >
-        {(layout.view === "list"
-          ? (() => {
-              const files = listedFiles(tree.entries);
-              if (!layout.foldersFirst)
-                return ordered(files, pinned, sort, layout);
-              const groups = new Map<string, FolderNode[]>();
-              for (const node of files) {
-                const parent = node.path.slice(
-                  0,
-                  node.path.lastIndexOf(node.path.includes("\\") ? "\\" : "/"),
-                );
-                groups.set(parent, [...(groups.get(parent) || []), node]);
+        {displayedNodes.map((node, index) => (
+          <Fragment key={node.path}>
+            {layout.view === "list" &&
+              layout.foldersFirst &&
+              (index === 0 ||
+                parentPath(displayedNodes[index - 1]) !== parentPath(node)) && (
+                <li className="file-list-group" title={parentPath(node)}>
+                  <Folder size={13} aria-hidden="true" />
+                  <span>
+                    {parentPath(node) === tree.path
+                      ? tree.name
+                      : parentPath(node).slice(tree.path.length + 1)}
+                  </span>
+                  <small
+                    aria-label={`${groupCounts.get(parentPath(node))} 个文件`}
+                  >
+                    {groupCounts.get(parentPath(node))}
+                  </small>
+                </li>
+              )}
+
+            <Branch
+              node={node}
+              busy={busy}
+              copying={copying}
+              operating={operating}
+              depth={0}
+              active={active}
+              open={open}
+              expandedPaths={expandedPaths}
+              toggle={toggle}
+              operate={run}
+              onDropExternal={dropExternal}
+              onDropFile={dropFile}
+              pinned={pinned}
+              sort={sort}
+              layout={layout}
+              listRoot={
+                layout.view === "list" && !layout.foldersFirst
+                  ? tree.path
+                  : undefined
               }
-              return [...groups]
-                .sort(([a], [b]) =>
-                  a.localeCompare(b, "zh-CN", { numeric: true }),
-                )
-                .flatMap(([, nodes]) => ordered(nodes, pinned, sort, layout));
-            })()
-          : ordered(tree.entries, pinned, sort, layout)
-        ).map((node) => (
-          <Branch
-            key={node.path}
-            node={node}
-            busy={busy}
-            copying={copying}
-            operating={operating}
-            depth={0}
-            active={active}
-            open={open}
-            expandedPaths={expandedPaths}
-            toggle={toggle}
-            operate={run}
-            onDropExternal={dropExternal}
-            onDropFile={dropFile}
-            pinned={pinned}
-            sort={sort}
-            layout={layout}
-            listRoot={layout.view === "list" ? tree.path : undefined}
-            togglePin={togglePin}
-            treeRef={treeRef}
-            onTreeKeyDown={onTreeKeyDown}
-            actionPath={actionPath}
-            setActionPath={setActionPath}
-          />
+              togglePin={togglePin}
+              treeRef={treeRef}
+              onTreeKeyDown={onTreeKeyDown}
+              actionPath={actionPath}
+              setActionPath={setActionPath}
+            />
+          </Fragment>
         ))}
       </ul>
       {!(layout.view === "list"
