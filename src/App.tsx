@@ -766,6 +766,7 @@ export default function App() {
   >([]);
   const [projectSearchStatus, setProjectSearchStatus] = useState("");
   const [projectSearchBusy, setProjectSearchBusy] = useState(false);
+  const [projectSearchError, setProjectSearchError] = useState(false);
   const [searchScope, setSearchScope] = useState<"all" | "opened" | "folder">(
     "all",
   );
@@ -1187,14 +1188,16 @@ export default function App() {
   useEffect(() => {
     const token = ++searchGeneration.current;
     const query = workspaceQuery.trim();
+    setProjectResults([]);
+    setProjectSearchStatus("");
+    setProjectSearchError(false);
     if (
       !workspaceSearch ||
+      searchScope === "opened" ||
       !query ||
       !folderWorkspace.root ||
       !window.desktop?.searchFolder
     ) {
-      setProjectResults([]);
-      setProjectSearchStatus("");
       setProjectSearchBusy(false);
       return;
     }
@@ -1216,6 +1219,7 @@ export default function App() {
         .catch((error) => {
           if (token !== searchGeneration.current) return;
           setProjectResults([]);
+          setProjectSearchError(true);
           setProjectSearchStatus(
             error instanceof Error ? error.message : "文件夹搜索失败",
           );
@@ -1228,6 +1232,7 @@ export default function App() {
   }, [
     workspaceSearch,
     workspaceQuery,
+    searchScope,
     folderWorkspace.root,
     preferences.showHiddenFiles,
     preferences.showOtherFiles,
@@ -2618,13 +2623,20 @@ export default function App() {
                       </button>
                     ))
                   ) : (
-                    <p>
+                    <p role={projectSearchError ? "alert" : "status"}>
                       {projectSearchBusy
                         ? "正在搜索…"
-                        : projectSearchStatus || "没有找到匹配内容"}
+                        : projectSearchError
+                          ? projectSearchStatus
+                          : "没有找到匹配内容"}
                     </p>
                   )}
-                  {projectSearchStatus && <p>{projectSearchStatus}</p>}
+                  {projectSearchStatus &&
+                    (!projectSearchError || allSearchResults.length > 0) && (
+                      <p role={projectSearchError ? "alert" : "status"}>
+                        {projectSearchStatus}
+                      </p>
+                    )}
                 </div>
               )}
             </section>

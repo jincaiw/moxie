@@ -123,6 +123,129 @@ test("跨文档搜索可按文档名排序并筛选已打开文档", async ({ pa
   await expect(resultNames).toHaveText(["folder-hit.md"]);
 });
 
+test("跨文档搜索清除旧结果、隔离迟到响应并准确反馈异常", async ({ page }) => {
+  await page.addInitScript(() => {
+    const state = window as unknown as {
+      desktop: { searchFolder: (...args: unknown[]) => Promise<unknown> };
+      searchCalls: {
+        query: string;
+        resolve: (value: unknown) => void;
+        reject: (error: Error) => void;
+      }[];
+    };
+    state.searchCalls = [];
+    state.desktop.searchFolder = (_root, query) =>
+      new Promise((resolve, reject) => {
+        state.searchCalls.push({ query: String(query), resolve, reject });
+      });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "搜索项目文件夹" }).click();
+  const input = page.getByLabel("搜索文件夹与已打开文档");
+  const panel = page.locator(".workspace-search-results");
+  const resolveSearch = async (query: string, name?: string) => {
+    await page.waitForFunction(
+      (query) =>
+        (
+          window as unknown as {
+            searchCalls: { query: string }[];
+          }
+        ).searchCalls.some((call) => call.query === query),
+      query,
+    );
+    await page.evaluate(
+      ({ query, name }) => {
+        const state = window as unknown as {
+          searchCalls: {
+            query: string;
+            resolve: (value: unknown) => void;
+          }[];
+        };
+        state.searchCalls
+          .find((call) => call.query === query)!
+          .resolve({
+            results: name
+              ? [{ path: `/notes/${name}`, name, from: 0, excerpt: query }]
+              : [],
+            scanned: 1,
+            skipped: 0,
+            truncated: false,
+          });
+      },
+      { query, name },
+    );
+  };
+  await input.fill("first");
+  await resolveSearch("first", "first.md");
+  await expect(panel.locator("button strong")).toHaveText(["first.md"]);
+  await input.fill("second");
+  await expect(panel.locator("button")).toHaveCount(0);
+  await expect(panel).toHaveText("正在搜索…");
+  await page.waitForFunction(() =>
+    (
+      window as unknown as {
+        searchCalls: { query: string }[];
+      }
+    ).searchCalls.some((call) => call.query === "second"),
+  );
+  await input.fill("third");
+  await resolveSearch("third", "third.md");
+  await expect(panel.locator("button strong")).toHaveText(["third.md"]);
+  await resolveSearch("second", "stale.md");
+  await expect(panel.locator("button strong")).toHaveText(["third.md"]);
+  await input.fill("absent");
+  await resolveSearch("absent");
+  await expect(panel.locator("p")).toHaveText([
+    "没有找到匹配内容",
+    "1 篇已检索",
+  ]);
+  await input.fill("failure");
+  await page.waitForFunction(() =>
+    (
+      window as unknown as {
+        searchCalls: { query: string }[];
+      }
+    ).searchCalls.some((call) => call.query === "failure"),
+  );
+  await page.evaluate(() =>
+    (
+      window as unknown as {
+        searchCalls: { query: string; reject: (error: Error) => void }[];
+      }
+    ).searchCalls
+      .find((call) => call.query === "failure")!
+      .reject(new Error("文件夹权限不足")),
+  );
+  await expect(panel.locator("p")).toHaveText(["文件夹权限不足"]);
+  await page.locator(".md-input").setInputFiles({
+    name: "failure-note.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("failure 在已打开文档中"),
+  });
+  await expect(panel.locator("button strong")).toHaveText(["failure-note.md"]);
+  await expect(panel.getByRole("alert")).toHaveText("文件夹权限不足");
+  await page.getByLabel("范围").selectOption("opened");
+  await expect(panel.locator("button strong")).toHaveText(["failure-note.md"]);
+  await expect(panel.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator(".workspace-search-input")).not.toContainText(
+    "搜索中",
+  );
+  await input.fill("opened-only");
+  await expect(panel).toHaveText("没有找到匹配内容");
+  // 已打开范围无需请求磁盘；等待越过防抖窗口后检查调用记录。
+  await page.waitForTimeout(600);
+  expect(
+    await page.evaluate(() =>
+      (
+        window as unknown as {
+          searchCalls: { query: string }[];
+        }
+      ).searchCalls.some((call) => call.query === "opened-only"),
+    ),
+  ).toBe(false);
+});
+
 test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾输入", async ({
   page,
 }) => {
