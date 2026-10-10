@@ -575,21 +575,24 @@ function createWindow(primary = false, restoredProfile, initialFile) {
     },
   });
   state.window = window;
-  windowStates.set(window.webContents, state);
+  // BrowserWindow.webContents cannot be read after the window is destroyed.
+  const contents = window.webContents;
+  windowStates.set(contents, state);
   if (profileId && !restoredProfile) {
     windowProfiles.add(profileId);
     void saveWindowProfiles().catch((error) =>
       console.error("保存窗口会话失败", error),
     );
   }
-  window.webContents.setWindowOpenHandler(({ url }) => {
+  contents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url);
     return { action: "deny" };
   });
-  window.webContents.once("did-finish-load", () => {
-    window.webContents.send("update:status", updates.getStatus());
+  contents.once("did-finish-load", () => {
+    if (!contents.isDestroyed())
+      contents.send("update:status", updates.getStatus());
   });
-  window.webContents.on("will-navigate", (event, url) => {
+  contents.on("will-navigate", (event, url) => {
     const expected = isDev
       ? "http://127.0.0.1:5173/"
       : require("node:url").pathToFileURL(
@@ -639,7 +642,7 @@ function createWindow(primary = false, restoredProfile, initialFile) {
   });
   window.on("closed", () => {
     state.copyJob?.controller.abort();
-    windowStates.delete(window.webContents);
+    windowStates.delete(contents);
     if (
       state.profileId &&
       !state.dirty &&

@@ -2,6 +2,12 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
+## 退出异常修复（v0.16.236）
+
+- 修复窗口关闭后读取已销毁对象导致的主进程 JavaScript 错误。
+- 窗口记录清理使用创建时保存的 webContents 引用；加载通知发送前检查销毁状态。
+- 修复记录与实机验收项见 [差距报告](docs/typora-gap-audit.md) 和 [实施计划](docs/implementation-plan.md)。
+
 ## 本轮补齐（v0.16.235）
 
 - 另存为的图片迁移警告保留到最终反馈；保存期间的新编辑明确提示未保存。
