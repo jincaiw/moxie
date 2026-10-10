@@ -260,7 +260,23 @@ function setupIPC() {
     window.webContents.startDrag({ file, icon });
     return true;
   });
-  handle("file:drop-copy", async (input, { window }) => {
+  handle("file:drop-cancel", (input, state) => {
+    const job = state.copyJob;
+    if (!job || job.id !== input?.id || job.finishing) return false;
+    job.controller.abort();
+    return true;
+  });
+  handle("file:drop-copy", async (input, state) => {
+    const { window } = state;
+    if (state.copyJob) throw Error("正在处理上一批拖入项目，请稍候");
+    if (
+      input?.id !== undefined &&
+      (typeof input.id !== "string" ||
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+          input.id,
+        ))
+    )
+      throw Error("复制任务标识无效");
     if (
       !Array.isArray(input?.paths) ||
       !input.paths.length ||
@@ -282,16 +298,52 @@ function setupIPC() {
       !(await fs.stat(destination)).isDirectory()
     )
       throw Error("请选择已打开文件夹内的目标目录");
-    const confirmation = await dialog.showMessageBox(window, {
-      type: "question",
-      message: "复制拖入的文件或文件夹？",
-      detail: `目标：${destination}\n\n${input.paths.map((value) => path.basename(value)).join("\n")}\n\n保留原文件；遇到同名项目会停止，不覆盖已有内容。`,
-      buttons: ["复制", "取消"],
-      defaultId: 0,
-      cancelId: 1,
-    });
-    if (confirmation.response !== 0) return null;
-    return store.importDropped(input);
+    if (state.copyJob) throw Error("正在处理上一批拖入项目，请稍候");
+    let finishJob;
+    const job = {
+      id: input.id || randomUUID(),
+      controller: new AbortController(),
+      finishing: false,
+      phase: "confirming",
+      done: new Promise((resolve) => {
+        finishJob = resolve;
+      }),
+    };
+    state.copyJob = job;
+    try {
+      const confirmation = await dialog.showMessageBox(window, {
+        type: "question",
+        message: "复制拖入的文件或文件夹？",
+        detail: `目标：${destination}\n\n${input.paths.map((value) => path.basename(value)).join("\n")}\n\n保留原文件；遇到同名项目会停止，不覆盖已有内容。`,
+        buttons: ["复制", "取消"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (confirmation.response !== 0) return null;
+      return await store.importDropped(input, {
+        signal: job.controller.signal,
+        onProgress: (progress) => {
+          job.phase = progress.phase;
+          if (progress.phase === "finishing" || progress.phase === "cleanup")
+            job.finishing = true;
+          if (!window.isDestroyed()) {
+            try {
+              window.webContents.send("file:drop-progress", {
+                ...progress,
+                id: job.id,
+              });
+            } catch {}
+          }
+        },
+      });
+    } catch (error) {
+      if (error.code === "COPY_CANCELLED")
+        return { paths: [], cancelled: true };
+      throw error;
+    } finally {
+      if (state.copyJob === job) delete state.copyJob;
+      finishJob();
+    }
   });
   handle("file:reveal", async (input) => {
     const authorized = await store.authorizedPath(input, true);
@@ -549,6 +601,21 @@ function createWindow(primary = false, restoredProfile, initialFile) {
     }
   });
   window.on("close", (event) => {
+    const job = state.copyJob;
+    if (job && job.phase !== "finishing") {
+      event.preventDefault();
+      job.controller.abort();
+      if (!job.closeRequested) {
+        job.closeRequested = true;
+        void job.done.then(() => {
+          if (!window.isDestroyed()) {
+            if (isQuitting) app.quit();
+            else window.close();
+          }
+        });
+      }
+      return;
+    }
     if (!state.dirty || state.allowClose) return;
     event.preventDefault();
     if (state.askingClose) return;
@@ -571,6 +638,7 @@ function createWindow(primary = false, restoredProfile, initialFile) {
       });
   });
   window.on("closed", () => {
+    state.copyJob?.controller.abort();
     windowStates.delete(window.webContents);
     if (
       state.profileId &&

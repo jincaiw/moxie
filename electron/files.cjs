@@ -1063,7 +1063,7 @@ class FileStore {
       truncated: results.length >= 200 || skipped > 0,
     };
   }
-  async importDropped(input) {
+  async importDropped(input, controls) {
     if (!this.folders.has(input?.root)) throw Error("请先打开目标文件夹");
     const destination = await this.authorizedPath(
       input.directory || input.root,
@@ -1073,7 +1073,7 @@ class FileStore {
       !(await fs.stat(destination)).isDirectory()
     )
       throw Error("请选择已打开文件夹内的目标目录");
-    const paths = await copyDroppedPaths(input.paths, destination);
+    const paths = await copyDroppedPaths(input.paths, destination, controls);
     try {
       await this.folder(input.root, true, undefined, input.options);
       await this.persist();

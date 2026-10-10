@@ -3,7 +3,28 @@ const path = require("node:path");
 const { constants } = require("node:fs");
 
 // Validate the whole batch before writing; only remove entries created by us.
-async function copyDroppedPaths(paths, destination) {
+async function copyDroppedPaths(
+  paths,
+  destination,
+  { signal, onProgress } = {},
+) {
+  const checkCancelled = () => {
+    if (signal?.aborted) {
+      const error = Error("复制已取消");
+      error.code = "COPY_CANCELLED";
+      throw error;
+    }
+  };
+  let lastReport = 0,
+    lastPhase;
+  const report = (phase, completed, total, name, force = false) => {
+    const now = Date.now();
+    if (!force && phase === lastPhase && now - lastReport < 100) return;
+    lastReport = now;
+    lastPhase = phase;
+    onProgress?.({ phase, completed, total, name });
+  };
+  checkCancelled();
   if (!Array.isArray(paths) || !paths.length || paths.length > 20)
     throw Error("一次最多复制 20 个文件或文件夹");
   const plans = [],
@@ -11,9 +32,11 @@ async function copyDroppedPaths(paths, destination) {
   let count = 0,
     bytes = 0;
   const visit = async (source, target, depth) => {
+    checkCancelled();
     if (++count > 5000 || depth > 20)
       throw Error("文件夹项目过多或层级超过 20 层");
     const stat = await fs.lstat(source);
+    report("checking", count, undefined, path.basename(source));
     if (stat.isSymbolicLink())
       throw Error("不能复制符号链接，请选择实际文件或文件夹");
     if (stat.isDirectory()) {
@@ -32,6 +55,7 @@ async function copyDroppedPaths(paths, destination) {
     } else throw Error("不能复制特殊文件");
   };
   for (const value of paths) {
+    checkCancelled();
     if (
       typeof value !== "string" ||
       !path.isAbsolute(value) ||
@@ -65,14 +89,28 @@ async function copyDroppedPaths(paths, destination) {
   }
   const created = [];
   try {
+    checkCancelled();
+    report("copying", 0, plans.length, undefined, true);
     for (const entry of plans) {
+      checkCancelled();
       if (entry.directory) await fs.mkdir(entry.target);
       else
         await fs.copyFile(entry.source, entry.target, constants.COPYFILE_EXCL);
       created.push(entry);
+      report(
+        "copying",
+        created.length,
+        plans.length,
+        path.basename(entry.source),
+        created.length === plans.length,
+      );
+      checkCancelled();
     }
   } catch (error) {
     const remaining = [];
+    report("cleanup", 0, created.length, undefined, true);
+    const cleanupTotal = created.length;
+    let cleaned = 0;
     for (const entry of created.reverse()) {
       try {
         if (entry.directory) await fs.rmdir(entry.target);
@@ -80,6 +118,13 @@ async function copyDroppedPaths(paths, destination) {
       } catch (cleanupError) {
         if (cleanupError.code !== "ENOENT") remaining.push(entry.target);
       }
+      report(
+        "cleanup",
+        ++cleaned,
+        cleanupTotal,
+        path.basename(entry.target),
+        cleaned === cleanupTotal,
+      );
     }
     if (remaining.length)
       throw Error(
@@ -87,6 +132,7 @@ async function copyDroppedPaths(paths, destination) {
       );
     throw error;
   }
+  report("finishing", plans.length, plans.length, undefined, true);
   return [...names].map((name) => path.join(destination, name));
 }
 module.exports = { copyDroppedPaths };

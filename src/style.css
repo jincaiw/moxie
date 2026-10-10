@@ -2444,3 +2444,29 @@ p {
   font-size: 12px;
   line-height: 1.5;
 }
+.folder-copy-progress {
+  margin: 8px 10px;
+  padding: 8px;
+  background: var(--selected);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+.folder-copy-progress p {
+  margin: 4px 0;
+}
+.folder-copy-progress progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.folder-copy-progress button {
+  margin-top: 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.folder-copy-name {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

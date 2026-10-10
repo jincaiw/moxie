@@ -51,7 +51,7 @@ import { Dialog } from "./Dialog";
 import { headingLabel, headingTarget, usableLink } from "./links";
 import { documentStats } from "./stats";
 import type { UpdateStatus } from "./bridge";
-import type { FolderNode } from "./bridge";
+import type { FolderNode, DroppedCopyProgress } from "./bridge";
 import {
   parseFrontMatter,
   updateDocumentMetadata,
@@ -505,9 +505,48 @@ export default function App() {
       setTabGroup("全部");
   }, [tabGroup, tabGroups]);
   const [dropBusy, setDropBusy] = useState(false);
+  const [dropProgress, setDropProgress] = useState<DroppedCopyProgress | null>(
+    null,
+  );
+  const [dropCancelling, setDropCancelling] = useState(false);
+  const cancelInFlight = useRef(false);
+  const dropRequestId = useRef<string | null>(null);
   const dropInFlight = useRef(false);
   const { tree } = folderWorkspace;
   const folderBusy = folderWorkspace.busy || dropBusy;
+  useEffect(
+    () =>
+      window.desktop?.onDroppedCopyProgress?.((progress) => {
+        if (dropInFlight.current && progress.id === dropRequestId.current)
+          setDropProgress(progress);
+      }),
+    [],
+  );
+  const cancelDroppedCopy = async () => {
+    if (
+      !dropProgress ||
+      cancelInFlight.current ||
+      !window.desktop?.cancelDroppedCopy
+    )
+      return;
+    const id = dropProgress.id;
+    cancelInFlight.current = true;
+    setDropCancelling(true);
+    try {
+      if (
+        !(await window.desktop.cancelDroppedCopy(id)) &&
+        dropRequestId.current === id
+      )
+        setDropCancelling(false);
+    } catch (error) {
+      if (dropRequestId.current === id) {
+        setDropCancelling(false);
+        setMessage(error instanceof Error ? error.message : String(error));
+      }
+    } finally {
+      cancelInFlight.current = false;
+    }
+  };
   useEffect(() => {
     const failed = (event: Event) =>
       setMessage((event as CustomEvent<string>).detail);
@@ -518,6 +557,10 @@ export default function App() {
     if (dropInFlight.current || !folderWorkspace.root) return;
     const root = folderWorkspace.root;
     dropInFlight.current = true;
+    const id = crypto.randomUUID();
+    dropRequestId.current = id;
+    setDropProgress(null);
+    setDropCancelling(false);
     setDropBusy(true);
     try {
       if (!window.desktop?.copyDroppedFiles)
@@ -531,9 +574,15 @@ export default function App() {
           showOtherFiles: preferences.showOtherFiles,
           hiddenFilePatterns: preferences.hiddenFilePatterns,
         },
+        id,
       );
       if (result) {
         setDropBusy(false);
+        if (result.cancelled) {
+          setMessage("复制已取消，本次创建项目已清理，原文件已保留。");
+          void folderWorkspace.refresh();
+          return;
+        }
         const refreshed = await folderWorkspace.refresh();
         setMessage(
           `已复制 ${result.paths.length} 项到 ${directory}，原文件已保留。` +
@@ -543,12 +592,15 @@ export default function App() {
                 ? " 文件夹列表暂未更新，请刷新文件夹。"
                 : ""),
         );
-      }
+      } else setMessage("已取消复制，未写入文件。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     } finally {
       dropInFlight.current = false;
+      dropRequestId.current = null;
       setDropBusy(false);
+      setDropProgress(null);
+      setDropCancelling(false);
     }
   };
   const quickOpenItems = useMemo(() => {
@@ -1833,6 +1885,13 @@ export default function App() {
                 close={folderWorkspace.close}
                 busy={folderBusy}
                 copying={dropBusy}
+                copyProgress={dropProgress}
+                copyCancelling={dropCancelling}
+                cancelCopy={
+                  window.desktop?.cancelDroppedCopy
+                    ? () => void cancelDroppedCopy()
+                    : undefined
+                }
                 dropExternal={(files, directory) =>
                   void dropExternal(files, directory)
                 }

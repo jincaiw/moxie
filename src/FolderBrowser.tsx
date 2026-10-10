@@ -25,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { Dialog } from "./Dialog";
-import type { FolderNode, FolderTree } from "./bridge";
+import type { FolderNode, FolderTree, DroppedCopyProgress } from "./bridge";
 import {
   ordered,
   validSort,
@@ -77,6 +77,7 @@ function readLayout(): FolderLayout {
 function Branch({
   node,
   busy,
+  copying,
   depth,
   active,
   open,
@@ -95,6 +96,7 @@ function Branch({
 }: {
   node: FolderNode;
   busy: boolean;
+  copying: boolean;
   depth: number;
   active?: string;
   open: (path: string) => void;
@@ -156,6 +158,7 @@ function Branch({
       <div className="tree-entry-line">
         <button
           className={"tree-row " + (active === node.path ? "selected" : "")}
+          disabled={copying && !directory}
           title={node.path}
           style={{ paddingLeft: 10 + depth * 14 }}
           aria-expanded={directory ? expanded : undefined}
@@ -454,6 +457,7 @@ function Branch({
                 key={child.path}
                 node={child}
                 busy={busy}
+                copying={copying}
                 depth={depth + 1}
                 active={active}
                 open={open}
@@ -489,6 +493,9 @@ export function FolderBrowser({
   close,
   busy,
   copying = false,
+  copyProgress,
+  copyCancelling = false,
+  cancelCopy,
   expandedPaths,
   toggle,
   error,
@@ -506,6 +513,9 @@ export function FolderBrowser({
   close: () => void;
   busy: boolean;
   copying?: boolean;
+  copyProgress?: DroppedCopyProgress | null;
+  copyCancelling?: boolean;
+  cancelCopy?: () => void;
   expandedPaths: Set<string>;
   toggle: (path: string) => void;
   error: string;
@@ -662,7 +672,9 @@ export function FolderBrowser({
     node: FolderNode,
   ) => {
     const rows = Array.from(
-      treeRef.current?.querySelectorAll<HTMLButtonElement>(".tree-row") || [],
+      treeRef.current?.querySelectorAll<HTMLButtonElement>(
+        ".tree-row:not(:disabled)",
+      ) || [],
     );
     const index = rows.indexOf(event.currentTarget);
     const currentItem = event.currentTarget.closest("li");
@@ -869,9 +881,52 @@ export function FolderBrowser({
         Alt/Option 可拖出到系统。
       </p>
       {copying && (
-        <p className="folder-drag-help" role="status">
-          正在确认或复制拖入项目，请稍候…
-        </p>
+        <div className="folder-copy-progress">
+          <p role="status">
+            {copyCancelling
+              ? "正在取消，请等待当前文件结束并清理…"
+              : copyProgress?.phase === "checking"
+                ? "正在检查拖入项目…"
+                : copyProgress?.phase === "copying"
+                  ? "正在复制…"
+                  : copyProgress?.phase === "cleanup"
+                    ? "正在清理本次创建的项目…"
+                    : copyProgress?.phase === "finishing"
+                      ? "复制已完成，正在更新目录…"
+                      : "请在确认窗口选择复制或取消。"}
+          </p>
+          {copyProgress && (
+            <>
+              <progress
+                aria-label="拖入项目处理进度"
+                max={copyProgress.total || undefined}
+                value={copyProgress.total ? copyProgress.completed : undefined}
+              />
+              <p>
+                {copyProgress.total
+                  ? `${copyProgress.completed} / ${copyProgress.total} 项`
+                  : `已处理 ${copyProgress.completed} 项`}
+                {copyProgress.name && (
+                  <span className="folder-copy-name" title={copyProgress.name}>
+                    {copyProgress.name}
+                  </span>
+                )}
+              </p>
+            </>
+          )}
+          {cancelCopy && copyProgress && (
+            <button
+              onClick={cancelCopy}
+              disabled={
+                copyCancelling ||
+                copyProgress.phase === "cleanup" ||
+                copyProgress.phase === "finishing"
+              }
+            >
+              {copyCancelling ? "正在取消…" : "取消复制"}
+            </button>
+          )}
+        </div>
       )}
       <p id="folder-tree-keyboard-help" className="sr-only">
         文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home
@@ -909,6 +964,7 @@ export function FolderBrowser({
             key={node.path}
             node={node}
             busy={busy}
+            copying={copying}
             depth={0}
             active={active}
             open={open}

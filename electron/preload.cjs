@@ -1,9 +1,15 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
+  cancelDroppedCopy: (id) => ipcRenderer.invoke("file:drop-cancel", { id }),
+  onDroppedCopyProgress: (fn) => {
+    const listener = (_event, progress) => fn(progress);
+    ipcRenderer.on("file:drop-progress", listener);
+    return () => ipcRenderer.removeListener("file:drop-progress", listener);
+  },
   makeFileLink: (documentPath, target, label) =>
     ipcRenderer.invoke("file:make-link", { documentPath, target, label }),
   dragFileOut: (target) => ipcRenderer.invoke("file:drag-out", target),
-  copyDroppedFiles: (root, directory, files, options) => {
+  copyDroppedFiles: (root, directory, files, options, id) => {
     if (!Array.isArray(files) || files.length > 20)
       return Promise.reject(Error("一次最多拖入 20 项"));
     const paths = files.map((file) => webUtils.getPathForFile(file));
@@ -14,6 +20,7 @@ contextBridge.exposeInMainWorld("desktop", {
       directory,
       paths,
       options,
+      id,
     });
   },
   open: () => ipcRenderer.invoke("file:open"),

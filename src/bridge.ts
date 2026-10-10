@@ -26,6 +26,13 @@ export type DiskFile = {
   text: string;
   version?: string;
 };
+export type DroppedCopyProgress = {
+  id: string;
+  phase: "checking" | "copying" | "cleanup" | "finishing";
+  completed: number;
+  total?: number;
+  name?: string;
+};
 export type SaveInput = {
   path?: string;
   text: string;
@@ -57,12 +64,21 @@ declare global {
         label?: string,
       ) => Promise<string>;
       dragFileOut?: (target: string) => Promise<boolean>;
+      cancelDroppedCopy?: (id: string) => Promise<boolean>;
+      onDroppedCopyProgress?: (
+        fn: (progress: DroppedCopyProgress) => void,
+      ) => () => void;
       copyDroppedFiles?: (
         root: string,
         directory: string,
         files: File[],
         options?: FolderDisplayOptions,
-      ) => Promise<{ paths: string[]; warning?: string } | null>;
+        id?: string,
+      ) => Promise<{
+        paths: string[];
+        warning?: string;
+        cancelled?: boolean;
+      } | null>;
       open: () => Promise<DiskFile | null>;
       importDocument: () => Promise<{ name: string; text: string } | null>;
       folder: (options?: FolderDisplayOptions) => Promise<FolderTree | null>;
