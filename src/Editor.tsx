@@ -73,6 +73,7 @@ export type EditorHandle = {
   imageSize: () => { width: string; height: string } | null;
   setImageSize: (width: string, height: string) => boolean;
   forget: (id: string) => void;
+  focus: () => void;
 };
 type Props = {
   id: string;
@@ -97,6 +98,7 @@ type Props = {
     selectionAnchor?: { top: number; left: number },
   ) => void;
   onLink: (href: string) => void;
+  onContextMenu: (point: { left: number; top: number }) => void;
   onImages: (files: File[]) => Promise<string>;
   onError: (message: string) => void;
 };
@@ -651,6 +653,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
     insertRef.current = insertImages;
 
     useImperativeHandle(ref, () => ({
+      focus() {
+        view.current?.focus();
+      },
       flush() {
         flushChangeRef.current();
       },
@@ -942,6 +947,45 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   },
                 }),
                 EditorView.domEventHandlers({
+                  contextmenu(event, instance) {
+                    if (
+                      event.defaultPrevented ||
+                      (event.target as Element).closest(
+                        '[contenteditable="false"]',
+                      )
+                    )
+                      return false;
+                    event.preventDefault();
+                    const position = instance.posAtCoords({
+                      x: event.clientX,
+                      y: event.clientY,
+                    });
+                    const { from, to } = instance.state.selection.main;
+                    if (position !== null && (position < from || position > to))
+                      instance.dispatch({ selection: { anchor: position } });
+                    latest.current.onContextMenu({
+                      left: event.clientX,
+                      top: event.clientY,
+                    });
+                    return true;
+                  },
+                  keydown(event, instance) {
+                    if (
+                      event.key !== "ContextMenu" &&
+                      !(event.shiftKey && event.key === "F10")
+                    )
+                      return false;
+                    event.preventDefault();
+                    const bounds = instance.coordsAtPos(
+                      instance.state.selection.main.head,
+                    );
+                    if (bounds)
+                      latest.current.onContextMenu({
+                        left: bounds.left,
+                        top: bounds.bottom,
+                      });
+                    return true;
+                  },
                   copy(event, instance) {
                     if (latest.current.copyFormat !== "rich-text") return false;
                     const { from, to } = instance.state.selection.main;

@@ -1183,6 +1183,12 @@ test("偏好设置在其他应用窗口变更后同步外观与编辑选项", as
   await expect(page.getByLabel("外观")).toHaveValue("sepia");
   await expect(page.locator('input[type="range"]').first()).toHaveValue("22");
   await expect(page.getByLabel("自动保存到原文件")).toBeChecked();
+  const receivingFontSize = page.getByLabel("正文字号");
+  await receivingFontSize.focus();
+  await receivingFontSize.press("ArrowRight");
+  await expect(otherWindow.getByLabel("正文字号")).toHaveValue("23");
+  await receivingFontSize.press("ArrowLeft");
+  await expect(otherWindow.getByLabel("正文字号")).toHaveValue("22");
 });
 
 test("浮动格式工具栏按偏好出现并保留选区焦点", async ({ page }) => {
@@ -4495,4 +4501,56 @@ test("网页表格粘贴保留管道字符和换行，空表格及危险链接�
   expect(markdown).toContain("第一行<br>第二行");
   expect(markdown).toContain("本地链接");
   expect(markdown).not.toContain("file:");
+});
+
+test("编辑区右键格式菜单保留选区，支持键盘、撤销和视口边界", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "context.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("格式菜单选区"),
+  });
+  const content = page.locator(".cm-content");
+  await content.click();
+  await page.keyboard.press(shortcut("a"));
+  await page.keyboard.press("Shift+F10");
+  const menu = page.getByRole("menu", { name: "编辑区格式菜单" });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: /^粗体/ })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(menu).toHaveCount(0);
+  await expect(content).toContainText("*格式菜单选区*");
+  await expect(content).toBeFocused();
+  await page.keyboard.press(shortcut("z"));
+  await expect(content).toContainText("格式菜单选区");
+  await page.keyboard.press("Shift+F10");
+  await page.keyboard.press("End");
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(content).toBeFocused();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await content.evaluate((el) =>
+    el.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        clientX: 389,
+        clientY: 843,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  await expect(menu).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await menu.boundingBox();
+      return box ? box.y + box.height : Infinity;
+    })
+    .toBeLessThanOrEqual(844);
+  const box = await menu.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844);
 });

@@ -330,7 +330,11 @@ test("文件侧栏筛选支持显示隐藏文件和非 Markdown 文件", async (
     await page.evaluate(() =>
       (window as unknown as { folderOptions: unknown[] }).folderOptions.at(-1),
     ),
-  ).toEqual({ showHiddenFiles: true, showOtherFiles: true });
+  ).toEqual({
+    showHiddenFiles: true,
+    showOtherFiles: true,
+    hiddenFilePatterns: "",
+  });
 });
 
 test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({ page }) => {
@@ -904,4 +908,237 @@ test("文件侧栏可新建及重命名文档并拒绝覆盖同名目标", async
       target: "/notes/章节/note.md",
       name: "renamed.md",
     });
+});
+
+test("文件树和列表按时间排序、分组及跨窗口同步，缺失时间保持末位", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as any;
+    const tree = {
+      path: "/notes",
+      name: "项目",
+      truncated: false,
+      entries: [
+        {
+          path: "/notes/子目录",
+          name: "子目录",
+          kind: "directory",
+          modified: 300,
+          created: 1,
+          children: [
+            {
+              path: "/notes/子目录/2.md",
+              name: "2.md",
+              kind: "file",
+              modified: 200,
+              created: 30,
+            },
+          ],
+        },
+        {
+          path: "/notes/10.md",
+          name: "10.md",
+          kind: "file",
+          modified: 100,
+          created: 20,
+        },
+        { path: "/notes/无时间.md", name: "无时间.md", kind: "file" },
+      ],
+    };
+    state.desktop.folder = async () => tree;
+    state.desktop.refreshFolder = async () => tree;
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByLabel("文件显示方式").selectOption("list");
+  await page.getByLabel("按文件夹分组").uncheck();
+  await page.getByLabel("文件排序").selectOption("modified");
+  const rows = page.locator(".folder-browser .tree-row");
+  await expect(rows).toHaveText(["10.md.", "2.md子目录", "无时间.md."]);
+  await page.getByLabel("排序方向").selectOption("descending");
+  await expect(rows).toHaveText(["2.md子目录", "10.md.", "无时间.md."]);
+  await page.getByLabel("文件排序").selectOption("created");
+  await expect(rows).toHaveText(["2.md子目录", "10.md.", "无时间.md."]);
+  await page.getByLabel("文件排序").selectOption("name");
+  await page.getByLabel("排序方向").selectOption("ascending");
+  await expect(rows.first()).toContainText("2.md");
+  await page.getByLabel("文件排序").selectOption("alphabet");
+  await expect(rows.first()).toContainText("10.md");
+  const other = await page.context().newPage();
+  await other.goto("/");
+  await other.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expect(other.getByLabel("文件显示方式")).toHaveValue("list");
+  await other.getByLabel("文件显示方式").selectOption("tree");
+  await expect(page.getByLabel("文件显示方式")).toHaveValue("tree");
+});
+
+test("自定义侧栏规则随设置刷新并传递给项目搜索", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as any;
+    state.filterSearchOptions = null;
+    state.desktop.searchFolder = async (
+      _root: string,
+      _query: string,
+      options: object,
+    ) => {
+      state.filterSearchOptions = options;
+      return { results: [], scanned: 0, skipped: 0, truncated: false };
+    };
+    state.desktop.refreshFolder = async (
+      _root: string,
+      _version: string,
+      options: any,
+    ) => ({
+      path: "/notes",
+      name: "项目",
+      truncated: false,
+      entries: options?.hiddenFilePatterns
+        ? []
+        : [{ path: "/notes/new.md", name: "new.md", kind: "file" }],
+    });
+  });
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("隐藏文件规则").fill("*.bak\ndrafts/**");
+  await page.getByRole("button", { name: "完成" }).click();
+  await expect(page.locator(".folder-filter-summary")).toContainText(
+    "已应用自定义规则",
+  );
+  await expect(page.locator(".tree-empty")).toContainText("没有可显示的文件");
+  await page.getByRole("button", { name: "搜索项目文件夹" }).click();
+  await page
+    .getByRole("textbox", { name: "搜索文件夹与已打开文档" })
+    .fill("needle");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as any).filterSearchOptions?.hiddenFilePatterns,
+      ),
+    )
+    .toBe("*.bak\ndrafts/**");
+});
+
+test("文件菜单在新窗口打开前保存当前未保存内容", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const state = window as any;
+    state.newWindows = [];
+    state.desktop.openInNewWindow = async (path: string) => {
+      state.newWindows.push({ path, text: state.disk.text });
+      return true;
+    };
+  });
+  await page.keyboard.press(shortcut("o"));
+  const content = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await content.press(documentEnd);
+  await page.keyboard.insertText("新窗口前保存");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await page.getByRole("button", { name: "文件操作：new.md" }).click();
+  await page.getByRole("button", { name: "在新窗口打开", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).newWindows.length))
+    .toBe(1);
+  // A different file opens directly; the active dirty document remains untouched.
+  expect(await page.evaluate(() => (window as any).saves.length)).toBe(0);
+  await expect(content).toContainText("新窗口前保存");
+  await page.evaluate(() => {
+    const state = window as any;
+    state.desktop.refreshFolder = async () => ({
+      path: "/notes",
+      name: "项目",
+      truncated: false,
+      entries: [{ path: "/notes/note.md", name: "note.md", kind: "file" }],
+    });
+  });
+  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await page.getByRole("button", { name: "打开 note.md" }).focus();
+  await page.keyboard.press("Shift+F10");
+  await page.getByRole("button", { name: "在新窗口打开", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).newWindows.length))
+    .toBe(2);
+  expect(
+    await page.evaluate(() => (window as any).newWindows[1].text),
+  ).toContain("新窗口前保存");
+  expect(await page.evaluate(() => (window as any).saves.length)).toBe(1);
+});
+
+test("新窗口初始文档在恢复完成后打开并替换未修改的示例", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).desktop.initialFile = async () => ({
+      path: "/notes/initial.md",
+      name: "initial.md",
+      text: "新窗口初始内容",
+      version: "initial",
+    });
+  });
+  await page.goto("/");
+  await expect(page.locator(".document-title")).toContainText("initial");
+  await expect(page.locator(".cm-content")).toContainText("新窗口初始内容");
+  await expect(page.locator(".document-tabs")).toHaveCount(0);
+});
+
+test("最近文件夹支持固定清除移除，启动偏好可关闭或指定目录", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    let folders = [{ path: "/notes", name: "最近项目", pinned: false }];
+    Object.assign(window.desktop!, {
+      recentFolders: async () => folders,
+      updateFolderHistory: async ({
+        action,
+        path,
+      }: {
+        action: string;
+        path?: string;
+      }) => {
+        if (action === "pin" || action === "unpin")
+          folders = folders.map((folder) => ({
+            ...folder,
+            pinned: folder.path === path ? action === "pin" : folder.pinned,
+          }));
+        if (action === "clear")
+          folders = folders.filter((folder) => folder.pinned);
+        if (action === "remove")
+          folders = folders.filter((folder) => folder.path !== path);
+        return folders;
+      },
+      reopenFolder: async (path: string) => ({
+        path,
+        name: "最近项目",
+        entries: [],
+        truncated: false,
+      }),
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  const recent = page.getByRole("region", { name: "最近文件夹" });
+  await recent
+    .getByRole("button", { name: "固定文件夹 最近项目", exact: true })
+    .click();
+  await expect(
+    recent.getByRole("button", { name: "取消固定文件夹 最近项目" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await recent.getByRole("button", { name: "清除最近" }).click();
+  await expect(recent).toContainText("最近项目");
+  await recent.getByRole("button", { name: /最近项目 \/notes/ }).click();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toBeVisible();
+  await recent.getByRole("button", { name: "移除最近文件夹 最近项目" }).click();
+  await expect(recent).toHaveCount(0);
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("启动时打开文件夹").selectOption("none");
+  await page.reload();
+  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  await page.getByLabel("启动时打开文件夹").selectOption("default");
+  await page.getByRole("button", { name: "选择启动文件夹" }).click();
+  await page.reload();
+  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "写作项目",
+  );
 });

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FolderDisplayOptions, FolderTree } from "./bridge";
+import type { FolderDisplayOptions, FolderTree, RecentFolder } from "./bridge";
 const key = "moxie.folder.v1";
-function restored() {
-  if (!window.desktop)
+type LaunchFolder = { mode: "restore" | "none" | "default"; path: string };
+function restored(launch: LaunchFolder) {
+  if (!window.desktop || launch.mode === "none")
     return { path: null as string | null, expanded: [] as string[] };
+  if (launch.mode === "default")
+    return { path: launch.path || null, expanded: [] as string[] };
   try {
     const value = JSON.parse(localStorage.getItem(key) || "null");
     if (
@@ -20,8 +23,18 @@ function restored() {
   } catch {}
   return { path: null as string | null, expanded: [] as string[] };
 }
-export function useFolder(options: FolderDisplayOptions) {
-  const [session] = useState(restored);
+export function useFolder(
+  options: FolderDisplayOptions,
+  launch: LaunchFolder = { mode: "restore", path: "" },
+) {
+  const [session] = useState(() => restored(launch));
+  const [recent, setRecent] = useState<RecentFolder[]>([]);
+  const refreshRecent = useCallback(async () => {
+    try {
+      const result = await window.desktop?.recentFolders?.();
+      if (result && mounted.current) setRecent(result);
+    } catch {}
+  }, []);
   const [root, setRoot] = useState<string | null>(session.path);
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(session.expanded),
@@ -115,14 +128,29 @@ export function useFolder(options: FolderDisplayOptions) {
       clearInterval(timer);
       window.removeEventListener("focus", check);
     };
-  }, [root, refresh, options.showHiddenFiles, options.showOtherFiles]);
-  const open = useCallback(async () => {
+  }, [
+    root,
+    refresh,
+    options.showHiddenFiles,
+    options.showOtherFiles,
+    options.hiddenFilePatterns,
+  ]);
+  useEffect(() => {
+    void refreshRecent();
+    const timer = setInterval(() => {
+      if (!document.hidden) void refreshRecent();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [refreshRecent]);
+  const open = useCallback(async (path?: string) => {
     if (!window.desktop || inFlight.current) return false;
     const token = ++generation.current;
     inFlight.current = true;
     setBusy(true);
     try {
-      const result = await window.desktop.folder(optionsRef.current);
+      const result = path
+        ? await window.desktop.reopenFolder?.(path, optionsRef.current)
+        : await window.desktop.folder(optionsRef.current);
       if (!mounted.current || token !== generation.current || !result)
         return false;
       rootRef.current = result.path;
@@ -130,6 +158,7 @@ export function useFolder(options: FolderDisplayOptions) {
       setRoot(result.path);
       setTree(result);
       setExpanded(new Set());
+      void refreshRecent();
       setError("");
       return true;
     } catch (error) {
@@ -161,5 +190,17 @@ export function useFolder(options: FolderDisplayOptions) {
       }),
     [],
   );
-  return { tree, root, expanded, busy, error, open, refresh, close, toggle };
+  return {
+    tree,
+    root,
+    expanded,
+    busy,
+    error,
+    open,
+    refresh,
+    close,
+    toggle,
+    recent,
+    refreshRecent,
+  };
 }

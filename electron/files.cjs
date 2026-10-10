@@ -3,6 +3,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const dns = require("node:dns").promises;
 const https = require("node:https");
+const { folderFilter } = require("./folder-filter.cjs");
 
 function isPublicAddress(address, family) {
   if (family === 4) {
@@ -312,12 +313,20 @@ class FileStore {
     this.recent = [];
     this.writing = Promise.resolve();
     this.folders = new Set();
+    this.folderHistory = [];
+    this.pinnedFolders = [];
+    this.startupFolder = null;
     this.listedFiles = new Map();
     this.treeRoots = new Map();
     this.trashItem = trashItem;
     this.fileOperationHistory = [];
   }
   async remapDirectoryPaths(from, to, root) {
+    const remap = (value) =>
+      inside(from, value) ? path.join(to, path.relative(from, value)) : value;
+    if (this.startupFolder) this.startupFolder = remap(this.startupFolder);
+    this.folderHistory = this.folderHistory.map(remap);
+    this.pinnedFolders = this.pinnedFolders.map(remap);
     const files = [...this.authorized].filter((file) => inside(from, file));
     for (const folder of [...this.folders])
       if (inside(from, folder)) {
@@ -346,6 +355,14 @@ class FileStore {
     );
   }
   async removeDirectoryPaths(prefix) {
+    if (this.startupFolder && inside(prefix, this.startupFolder))
+      this.startupFolder = null;
+    this.folderHistory = this.folderHistory.filter(
+      (value) => !inside(prefix, value),
+    );
+    this.pinnedFolders = this.pinnedFolders.filter(
+      (value) => !inside(prefix, value),
+    );
     const files = [...this.authorized].filter((file) => inside(prefix, file));
     for (const folder of [...this.folders])
       if (inside(prefix, folder)) this.folders.delete(folder);
@@ -737,8 +754,23 @@ class FileStore {
       this.folders = new Set(
         (state.folders || [])
           .filter((p) => typeof p === "string" && path.isAbsolute(p))
-          .slice(-10),
+          .slice(-43),
       );
+      this.folderHistory = (
+        Array.isArray(state.folderHistory)
+          ? state.folderHistory
+          : [...this.folders].reverse()
+      )
+        .filter((value) => this.folders.has(value))
+        .slice(0, 12);
+      this.pinnedFolders = (
+        Array.isArray(state.pinnedFolders) ? state.pinnedFolders : []
+      )
+        .filter((value) => this.folders.has(value))
+        .slice(0, 20);
+      this.startupFolder = this.folders.has(state.startupFolder)
+        ? state.startupFolder
+        : null;
       this.treeRoots = new Map(
         (state.treeRoots || []).filter(
           (entry) =>
@@ -779,7 +811,20 @@ class FileStore {
         version: 1,
         authorized,
         recent: this.recent,
-        folders: [...this.folders].slice(-10),
+        folders: [
+          ...new Set(
+            [...this.folders]
+              .slice(-10)
+              .concat(
+                this.folderHistory,
+                this.pinnedFolders,
+                this.startupFolder ? [this.startupFolder] : [],
+              ),
+          ),
+        ],
+        folderHistory: this.folderHistory,
+        pinnedFolders: this.pinnedFolders,
+        startupFolder: this.startupFolder,
         treeRoots: [...this.treeRoots].filter(([file]) => saved.has(file)),
       });
       this.writing = this.writing
@@ -797,13 +842,20 @@ class FileStore {
     if (refresh && resolved !== root)
       throw Error("文件夹位置已改变，请重新选择文件夹");
     root = resolved;
-    if (!refresh) this.folders.delete(root);
+    if (!refresh) {
+      this.folders.delete(root);
+      this.folderHistory = [
+        root,
+        ...this.folderHistory.filter((value) => value !== root),
+      ].slice(0, 12);
+    }
     this.folders.add(root);
     let count = 0,
       visited = 0,
       truncated = false;
     const showHiddenFiles = displayOptions?.showHiddenFiles === true;
     const showOtherFiles = displayOptions?.showOtherFiles === true;
+    const excluded = folderFilter(displayOptions?.hiddenFilePatterns);
     const listedFiles = new Set();
     const walk = async (directory, depth) => {
       if (depth > 20) {
@@ -830,12 +882,32 @@ class FileStore {
         )
           continue;
         const file = path.join(directory, entry.name);
+        if (
+          excluded(
+            path.relative(root, file).split(path.sep).join("/"),
+            entry.name,
+          )
+        )
+          continue;
+        if (
+          !entry.isDirectory() &&
+          (!entry.isFile() ||
+            (!showOtherFiles && !/\.(md|markdown|txt)$/i.test(entry.name)))
+        )
+          continue;
+        const stat = await fs.lstat(file);
+        if (stat.isSymbolicLink()) continue;
+        const dates = {
+          modified: stat.mtimeMs,
+          created: stat.birthtimeMs > 0 ? stat.birthtimeMs : undefined,
+        };
         if (entry.isDirectory()) {
           const children = await walk(file, depth + 1);
           nodes.push({
             path: file,
             name: entry.name,
             kind: "directory",
+            ...dates,
             children,
           });
         } else if (entry.isFile()) {
@@ -843,11 +915,21 @@ class FileStore {
             count++;
             this.authorized.add(file);
             this.treeRoots.set(file, root);
-            nodes.push({ path: file, name: entry.name, kind: "file" });
+            nodes.push({
+              path: file,
+              name: entry.name,
+              kind: "file",
+              ...dates,
+            });
           } else if (showOtherFiles) {
             count++;
             listedFiles.add(file);
-            nodes.push({ path: file, name: entry.name, kind: "other" });
+            nodes.push({
+              path: file,
+              name: entry.name,
+              kind: "other",
+              ...dates,
+            });
           }
         }
       }
@@ -869,15 +951,67 @@ class FileStore {
       version,
     };
   }
-  async searchFolder({ root, query }) {
+  recentFolders() {
+    return [...new Set([...this.pinnedFolders, ...this.folderHistory])].map(
+      (value) => ({
+        path: value,
+        name: path.basename(value),
+        pinned: this.pinnedFolders.includes(value),
+      }),
+    );
+  }
+  async updateFolderHistory(input) {
+    if (!input || !["pin", "unpin", "remove", "clear"].includes(input.action))
+      throw Error("文件夹历史操作无效");
+    const target = input.path;
+    if (
+      input.action !== "clear" &&
+      (typeof target !== "string" || !this.folders.has(target))
+    )
+      throw Error("请先选择该文件夹");
+    if (input.action === "pin" && !this.pinnedFolders.includes(target)) {
+      if (this.pinnedFolders.length >= 20) throw Error("最多置顶 20 个文件夹");
+      this.pinnedFolders.push(target);
+    }
+    if (input.action === "unpin" || input.action === "remove")
+      this.pinnedFolders = this.pinnedFolders.filter(
+        (value) => value !== target,
+      );
+    if (input.action === "remove")
+      this.folderHistory = this.folderHistory.filter(
+        (value) => value !== target,
+      );
+    if (input.action === "clear") this.folderHistory = [];
+    await this.persist();
+    return this.recentFolders();
+  }
+  async setStartupFolder(root) {
+    if (typeof root !== "string" || !this.folders.has(root))
+      throw Error("请先选择该文件夹");
+    this.startupFolder = root;
+    await this.persist();
+  }
+  async reopenFolder(root, options) {
+    if (!this.folders.has(root)) throw Error("请先选择该文件夹");
+    if ((await fs.realpath(root)) !== root)
+      throw Error("文件夹位置已改变，请重新选择文件夹");
+    return this.folder(root, false, undefined, options);
+  }
+  async searchFolder({ root, query, options }) {
     if (typeof query !== "string" || !query.trim() || query.length > 200)
       throw Error("搜索内容无效");
     const normalized = query.trim().toLocaleLowerCase();
-    const tree = await this.folder(root, true);
+    const tree = await this.folder(root, true, undefined, options);
     const selectedRoot = tree?.path || root;
-    const files = [...this.authorized].filter(
-      (file) => this.treeRoots.get(file) === selectedRoot,
-    );
+    const collect = (nodes) =>
+      nodes.flatMap((node) =>
+        node.kind === "directory"
+          ? collect(node.children || [])
+          : node.kind === "file"
+            ? [node.path]
+            : [],
+      );
+    const files = collect(tree.entries);
     const results = [];
     let scanned = 0;
     let skipped = 0;
@@ -928,7 +1062,7 @@ class FileStore {
       truncated: results.length >= 200 || skipped > 0,
     };
   }
-  async openLinked(documentPath, href) {
+  async openLinked(documentPath, href, create = false) {
     if (typeof documentPath !== "string" || !path.isAbsolute(documentPath))
       throw Error("请先打开或保存当前文档");
     const entry = await this.entryPath(documentPath);
@@ -966,8 +1100,20 @@ class FileStore {
     if (!inside(root, directory) || !inside(root, realDocument))
       throw Error("文档位置已改变，请重新打开");
     const target = path.resolve(directory, relative);
-    if (!inside(root, target) || !inside(root, await fs.realpath(target)))
-      throw Error("链接必须位于已打开的文件夹内");
+    if (!inside(root, target)) throw Error("链接必须位于已打开的文件夹内");
+    try {
+      if (!inside(root, await fs.realpath(target)))
+        throw Error("链接必须位于已打开的文件夹内");
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      // Creation is offered only when an existing, canonical parent is in scope.
+      const parent = await fs.realpath(path.dirname(target));
+      if (!inside(root, parent) || parent !== path.dirname(target))
+        throw Error("链接必须位于已打开的文件夹内");
+      if (!create) return { missing: target, anchor };
+      const handle = await fs.open(target, "wx");
+      await handle.close();
+    }
     this.treeRoots.set(target, root);
     return { file: await this.read(target), anchor };
   }

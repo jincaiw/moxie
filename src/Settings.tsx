@@ -260,6 +260,50 @@ export function Settings({
         选中文本时显示浮动格式工具栏
       </label>
       <h3 className="settings-section-title">文件侧栏</h3>
+      <label>
+        启动时打开文件夹
+        <select
+          aria-label="启动时打开文件夹"
+          value={preferences.launchFolder}
+          onChange={(event) =>
+            update(
+              "launchFolder",
+              event.target.value as Preferences["launchFolder"],
+            )
+          }
+        >
+          <option value="restore">恢复上次文件夹</option>
+          <option value="none">不打开文件夹</option>
+          <option value="default">打开指定文件夹</option>
+        </select>
+        <small>下次启动生效，未保存文档仍会恢复。</small>
+      </label>
+      {preferences.launchFolder === "default" && (
+        <label>
+          启动文件夹<small>{preferences.defaultFolder || "尚未选择"}</small>
+          <button
+            aria-label="选择启动文件夹"
+            disabled={!window.desktop}
+            onClick={async () => {
+              try {
+                const folder = await window.desktop?.folder({
+                  showHiddenFiles: preferences.showHiddenFiles,
+                  showOtherFiles: preferences.showOtherFiles,
+                  hiddenFilePatterns: preferences.hiddenFilePatterns,
+                });
+                if (folder) {
+                  await window.desktop?.setStartupFolder?.(folder.path);
+                  update("defaultFolder", folder.path);
+                }
+              } catch {
+                setThemeMessage("启动文件夹无法读取，请重新选择。");
+              }
+            }}
+          >
+            选择启动文件夹
+          </button>
+        </label>
+      )}
       <label className="toggle-setting">
         <input
           type="checkbox"
@@ -277,6 +321,22 @@ export function Settings({
           onChange={(event) => update("showOtherFiles", event.target.checked)}
         />
         显示非 Markdown 文件
+      </label>
+      <label>
+        隐藏文件规则
+        <textarea
+          aria-label="隐藏文件规则"
+          aria-describedby="folder-pattern-help"
+          value={preferences.hiddenFilePatterns}
+          maxLength={2048}
+          rows={3}
+          placeholder={"*.bak\ndrafts/**"}
+          onChange={(event) => update("hiddenFilePatterns", event.target.value)}
+        />
+        <small id="folder-pattern-help">
+          每行一条，最多 40 条。* 匹配名称，** 匹配多层目录，?
+          匹配单个字符；例如 *.bak、drafts/**。只控制侧栏显示，不删除文件。
+        </small>
       </label>
       <h3 className="settings-section-title">复制</h3>
       <label>

@@ -680,3 +680,41 @@ test("引用内嵌套列表中的链接组合与代码边界在预览和导出�
   expect(html).toContain("<code>[代码链接](https://ignored.example)</code>");
   expect(html).not.toContain('<a href="https://ignored.example">');
 });
+
+test("缺失关联文档提供创建确认，取消不创建且保留源文档", async ({ page }) => {
+  await page.addInitScript(() => {
+    const state = window as any;
+    state.linkCreates = [];
+    state.desktop.initialFile = async () => ({
+      path: "/project/source.md",
+      name: "source.md",
+      text: "[新章节](missing.md)\n\n源文档保留",
+      version: "source",
+    });
+    state.desktop.openLink = async (input: any) => {
+      if (!input.create) return { missing: "/project/missing.md" };
+      state.linkCreates.push(input);
+      return {
+        file: {
+          path: "/project/missing.md",
+          name: "missing.md",
+          text: "",
+          version: "created",
+        },
+      };
+    };
+  });
+  await page.goto("/");
+  const link = page.getByRole("link", { name: "新章节" });
+  await link.click({ modifiers: [clickModifier] });
+  const dialog = page.getByRole("dialog", { name: "创建关联文档" });
+  await expect(dialog).toContainText("/project/missing.md");
+  await dialog.getByRole("button", { name: "取消", exact: true }).click();
+  expect(await page.evaluate(() => (window as any).linkCreates.length)).toBe(0);
+  await expect(page.locator(".document-title")).toContainText("source");
+  await link.click({ modifiers: [clickModifier] });
+  await dialog.getByRole("button", { name: "创建并打开" }).click();
+  await expect(page.locator(".document-title")).toContainText("missing");
+  await page.getByRole("tab", { name: /source/ }).click();
+  await expect(page.locator(".cm-content")).toContainText("源文档保留");
+});

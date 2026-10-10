@@ -1039,7 +1039,7 @@ test("版本检查识别修改、删除、重建且不会消费未处理事件",
   }
 });
 
-test("文件夹授权重启恢复，目录版本只在内容变化时更新", async () => {
+test("文件夹授权重启恢复，目录版本随内容与时间信息变化更新", async () => {
   const { FileStore } = require("../electron/files.cjs");
   const root = await fs.mkdtemp(
     path.join(os.tmpdir(), "moxie-folder-session-"),
@@ -1067,7 +1067,9 @@ test("文件夹授权重启恢复，目录版本只在内容变化时更新", as
     assert.notEqual(changed.version, tree.version);
     assert.equal(changed.entries.length, 2);
     await fs.writeFile(path.join(root, "第二章.md"), "content change");
-    assert.equal(await reopened.folder(tree.path, true, changed.version), null);
+    const edited = await reopened.folder(tree.path, true, changed.version);
+    assert.notEqual(edited.version, changed.version);
+    assert.equal(await reopened.folder(tree.path, true, edited.version), null);
     await fs.rm(path.join(root, "第二章.md"));
     assert.equal(
       (await reopened.folder(tree.path, true, changed.version)).entries.length,
@@ -1760,6 +1762,139 @@ test("文件夹显示筛选可显示隐藏项和其他文件但不授予其文�
   }
 });
 
+test("自定义文件过滤与时间信息参与刷新和搜索且不改变已有授权", async () => {
+  const { FileStore } = require("../electron/files.cjs");
+  const { folderFilter } = require("../electron/folder-filter.cjs");
+  assert.equal(
+    folderFilter("notes/**/draft?.md")("notes/deep/draft1.md", "draft1.md"),
+    true,
+  );
+  assert.equal(folderFilter("*.bak")("folder/note.md", "note.md"), false);
+  assert.equal(folderFilter("a[b].md")("a[b].md", "a[b].md"), true);
+  const root = await fs.realpath(
+    await fs.mkdtemp(path.join(os.tmpdir(), "moxie-rules-")),
+  );
+  try {
+    await fs.mkdir(path.join(root, "drafts"));
+    const note = path.join(root, "note.md"),
+      draft = path.join(root, "drafts", "note.md");
+    await fs.writeFile(note, "needle");
+    await fs.writeFile(draft, "needle hidden");
+    await fs.writeFile(path.join(root, "old.bak"), "backup");
+    const store = new FileStore();
+    await store.folder(root);
+    const tree = await store.folder(root, true, undefined, {
+      showOtherFiles: true,
+      hiddenFilePatterns: "drafts/**\n*.bak",
+    });
+    assert.deepEqual(
+      tree.entries.map((node) => node.name),
+      ["note.md"],
+    );
+    assert.ok(tree.entries[0].modified > 0);
+    assert.equal((await store.read(draft, true)).text, "needle hidden");
+    const result = await store.searchFolder({
+      root,
+      query: "needle",
+      options: { hiddenFilePatterns: "drafts/**" },
+    });
+    assert.deepEqual(
+      result.results.map((node) => node.path),
+      [note],
+    );
+    assert.equal(
+      await store.folder(root, true, tree.version, {
+        showOtherFiles: true,
+        hiddenFilePatterns: "drafts/**\n*.bak",
+      }),
+      null,
+    );
+    await fs.utimes(note, new Date(), new Date(Date.now() + 10000));
+    const refreshed = await store.folder(root, true, tree.version, {
+      showOtherFiles: true,
+      hiddenFilePatterns: "drafts/**\n*.bak",
+    });
+    assert.notEqual(refreshed.version, tree.version);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("关联文档缺失只提示，明确创建时不覆盖已有内容并隔离目录逃逸", async () => {
+  const { FileStore } = require("../electron/files.cjs");
+  const root = await fs.realpath(
+    await fs.mkdtemp(path.join(os.tmpdir(), "moxie-create-link-")),
+  );
+  const outside = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-create-link-out-"),
+  );
+  try {
+    const source = path.join(root, "source.md"),
+      target = path.join(root, "新文档.md");
+    await fs.writeFile(source, "source");
+    const store = new FileStore();
+    await store.read(source);
+    const prompt = await store.openLinked(source, "新文档.md#目标");
+    assert.equal(prompt.missing, target);
+    assert.equal(prompt.anchor, "目标");
+    await assert.rejects(fs.stat(target), { code: "ENOENT" });
+    const created = await store.openLinked(source, "新文档.md#目标", true);
+    assert.equal(created.file.text, "");
+    await fs.writeFile(target, "other writer");
+    assert.equal(
+      (await store.openLinked(source, "新文档.md", true)).file.text,
+      "other writer",
+    );
+    await fs.symlink(outside, path.join(root, "escape"), "dir");
+    for (const href of [
+      "../outside.md",
+      "escape/secret.md",
+      "javascript:evil",
+      "data.txt",
+      "missing-parent/note.md",
+    ])
+      await assert.rejects(store.openLinked(source, href, true));
+    assert.deepEqual(await fs.readdir(outside), []);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("已授权文件可在隔离窗口打开，初始文档只由该窗口读取一次", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-open-window-"));
+  try {
+    const file = path.join(root, "note.md");
+    await fs.writeFile(file, "window contents");
+    const h = await harness();
+    h.open(file);
+    const disk = await h.call("file:open");
+    await assert.rejects(
+      h.call("file:open-new-window", path.join(root, "other.md")),
+      /打开文件|授权/,
+    );
+    assert.equal(await h.call("file:open-new-window", disk.path), true);
+    const second = h.windows.at(-1);
+    assert.ok(
+      second.options.webPreferences.partition.startsWith(
+        "persist:moxie-workspace-",
+      ),
+    );
+    assert.equal(await h.call("file:initial"), null);
+    assert.equal(
+      (await h.callFor("file:initial", second)).text,
+      "window contents",
+    );
+    assert.equal(await h.callFor("file:initial", second), null);
+    await assert.rejects(
+      h.foreign("file:open-new-window", disk.path),
+      /未知窗口/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("路径复制与文件管理器显示只允许授权目录中的真实路径", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-"));
   const outside = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-reveal-out-"));
@@ -1782,5 +1917,38 @@ test("路径复制与文件管理器显示只允许授权目录中的真实路�
   } finally {
     await fs.rm(root, { recursive: true, force: true });
     await fs.rm(outside, { recursive: true, force: true });
+  }
+});
+
+test("最近文件夹固定清除与指定启动目录在历史淘汰后仍持久化", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-recent-folders-"),
+  );
+  try {
+    const state = path.join(root, "state.json"),
+      first = path.join(root, "first");
+    await fs.mkdir(first);
+    const store = new FileStore(state);
+    await store.init();
+    await store.folder(first);
+    await store.setStartupFolder(first);
+    await store.updateFolderHistory({ action: "pin", path: first });
+    await store.updateFolderHistory({ action: "clear" });
+    assert.equal(store.recentFolders()[0].pinned, true);
+    await store.updateFolderHistory({ action: "remove", path: first });
+    for (let index = 0; index < 15; index++) {
+      const folder = path.join(root, String(index));
+      await fs.mkdir(folder);
+      await store.folder(folder);
+    }
+    assert.equal(store.recentFolders().length, 12);
+    const restored = new FileStore(state);
+    await restored.init();
+    assert.equal(restored.startupFolder, first);
+    assert.equal((await restored.reopenFolder(first)).path, first);
+    await assert.rejects(restored.reopenFolder(root), /选择/);
+    await assert.rejects(restored.setStartupFolder(root), /选择/);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
   }
 });

@@ -39,7 +39,9 @@ import { Editor, type EditorHandle, type Format } from "./Editor";
 import { headings, lineBoundsAt, type DocumentFile } from "./data";
 import { download } from "./bridge";
 import { useFolder } from "./useFolder";
+import { RecentFolders } from "./RecentFolders";
 import { FolderBrowser } from "./FolderBrowser";
+import { EditorFormatMenu } from "./EditorFormatMenu";
 import { exportHTML, withoutHTMLStyles } from "./export";
 import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
@@ -193,6 +195,35 @@ export default function App() {
   const [message, setMessage] = useState("");
   const { preferences, update } = usePreferences();
   const workspace = useWorkspace(preferences.autoSave, setMessage);
+  const initialFileRequest = useRef<ReturnType<
+    NonNullable<NonNullable<Window["desktop"]>["initialFile"]>
+  > | null>(null);
+  useEffect(() => {
+    if (!workspace.recoveryReady || !window.desktop?.initialFile) return;
+    let cancelled = false;
+    initialFileRequest.current ||= window.desktop.initialFile();
+    void initialFileRequest.current
+      .then((file) => {
+        if (!cancelled && file) workspace.importFile(file, true);
+      })
+      .catch((error) => {
+        if (!cancelled)
+          setMessage(error instanceof Error ? error.message : String(error));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.recoveryReady]);
+  const [editorMenu, setEditorMenu] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const [missingLink, setMissingLink] = useState<{
+    href: string;
+    documentPath: string;
+    path: string;
+  } | null>(null);
+  const [creatingLink, setCreatingLink] = useState(false);
   const { docs, current, busy, recent } = workspace;
   const documentHeadings = useMemo(
     () =>
@@ -288,10 +319,14 @@ export default function App() {
       } & EditableDocumentMetadata)
     | null
   >(null);
-  const folderWorkspace = useFolder({
-    showHiddenFiles: preferences.showHiddenFiles,
-    showOtherFiles: preferences.showOtherFiles,
-  });
+  const folderWorkspace = useFolder(
+    {
+      showHiddenFiles: preferences.showHiddenFiles,
+      showOtherFiles: preferences.showOtherFiles,
+      hiddenFilePatterns: preferences.hiddenFilePatterns,
+    },
+    { mode: preferences.launchFolder, path: preferences.defaultFolder },
+  );
   const operateOnFolderFile = async (request: {
     action:
       | "new-file"
@@ -302,13 +337,31 @@ export default function App() {
       | "trash"
       | "undo"
       | "copy-path"
-      | "reveal";
+      | "reveal"
+      | "new-window";
     target?: string;
     directory?: string;
     name?: string;
   }) => {
     const root = folderWorkspace.root;
     if (!root || !window.desktop) return;
+    if (request.action === "new-window") {
+      if (!request.target) return;
+      try {
+        editor.current?.flush();
+        const opened = workspace.docsRef.current.find(
+          (document) => document.path === request.target,
+        );
+        if (opened?.dirty && !(await workspace.save(opened))) return;
+        if (!window.desktop.openInNewWindow)
+          throw Error("当前环境无法打开新窗口。");
+        if (await window.desktop.openInNewWindow(request.target))
+          setMessage("已在新窗口打开文档。");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
     if (request.action === "copy-path" || request.action === "reveal") {
       if (!request.target) return;
       try {
@@ -876,6 +929,14 @@ export default function App() {
           href,
           documentPath: current.path,
         });
+        if (result.missing && current.path) {
+          setMissingLink({
+            href,
+            documentPath: current.path,
+            path: result.missing,
+          });
+          return;
+        }
         if (result.file) {
           workspace.importFile(result.file);
           void workspace.refreshRecent();
@@ -931,7 +992,11 @@ export default function App() {
     setProjectSearchBusy(true);
     const timer = setTimeout(() => {
       void window
-        .desktop!.searchFolder(folderWorkspace.root!, query)
+        .desktop!.searchFolder(folderWorkspace.root!, query, {
+          showHiddenFiles: preferences.showHiddenFiles,
+          showOtherFiles: preferences.showOtherFiles,
+          hiddenFilePatterns: preferences.hiddenFilePatterns,
+        })
         .then((result) => {
           if (token !== searchGeneration.current) return;
           setProjectResults(result.results);
@@ -951,7 +1016,14 @@ export default function App() {
         });
     }, 450);
     return () => clearTimeout(timer);
-  }, [workspaceSearch, workspaceQuery, folderWorkspace.root]);
+  }, [
+    workspaceSearch,
+    workspaceQuery,
+    folderWorkspace.root,
+    preferences.showHiddenFiles,
+    preferences.showOtherFiles,
+    preferences.hiddenFilePatterns,
+  ]);
   useEffect(() => {
     if (workspaceSearch)
       requestAnimationFrame(() => workspaceSearchInput.current?.focus());
@@ -1676,6 +1748,15 @@ export default function App() {
                   : "没有匹配的标题"}
               </p>
             )}
+            {tab === "files" && (
+              <RecentFolders
+                folders={folderWorkspace.recent}
+                active={folderWorkspace.root}
+                busy={folderWorkspace.busy}
+                open={(path) => void folderWorkspace.open(path)}
+                changed={() => void folderWorkspace.refreshRecent()}
+              />
+            )}
             {tab === "files" && tree && (
               <FolderBrowser
                 tree={tree}
@@ -1690,6 +1771,7 @@ export default function App() {
                 operate={operateOnFolderFile}
                 showHiddenFiles={preferences.showHiddenFiles}
                 showOtherFiles={preferences.showOtherFiles}
+                hasCustomFilter={Boolean(preferences.hiddenFilePatterns.trim())}
               />
             )}
             {tab === "files" && folderWorkspace.root && !tree && (
@@ -2447,6 +2529,10 @@ export default function App() {
               setSelectionAnchor(anchor);
             }}
             onLink={(href) => void openLink(href)}
+            onContextMenu={(point) => {
+              setMenu(null);
+              setEditorMenu(point);
+            }}
             onImages={withImages(current)}
             onError={setMessage}
           />
@@ -2606,6 +2692,72 @@ export default function App() {
             src={`${pdfPreviewURL}#toolbar=1&view=FitH`}
             title="PDF 页面预览"
           />
+        </Dialog>
+      )}
+      {editorMenu && (
+        <EditorFormatMenu
+          point={editorMenu}
+          formats={formats}
+          shortcutLabel={shortcutLabel}
+          onClose={(restoreFocus) => {
+            setEditorMenu(null);
+            if (restoreFocus) editor.current?.focus();
+          }}
+          onFormat={(kind) => {
+            setEditorMenu(null);
+            handleAction(`format-${kind}`);
+          }}
+        />
+      )}
+      {missingLink && (
+        <Dialog
+          title="创建关联文档"
+          onClose={() => {
+            if (!creatingLink) setMissingLink(null);
+          }}
+        >
+          <header>
+            <h2>关联文档不存在</h2>
+          </header>
+          <p>是否创建空白 Markdown 文档并打开？</p>
+          <p className="linked-document-path">{missingLink.path}</p>
+          <div className="dialog-actions">
+            <button
+              disabled={creatingLink}
+              onClick={() => setMissingLink(null)}
+            >
+              取消
+            </button>
+            <button
+              className="primary-button"
+              disabled={creatingLink}
+              onClick={() => {
+                setCreatingLink(true);
+                void window
+                  .desktop!.openLink({
+                    href: missingLink.href,
+                    documentPath: missingLink.documentPath,
+                    create: true,
+                  })
+                  .then((result) => {
+                    if (result.file) {
+                      workspace.importFile(result.file);
+                      void workspace.refreshRecent();
+                      void folderWorkspace.refresh();
+                      setMissingLink(null);
+                    } else setMessage("文档未能创建，请重新打开链接。");
+                  })
+                  .catch((error) =>
+                    setMessage(
+                      error instanceof Error ? error.message : String(error),
+                    ),
+                  )
+                  .finally(() => setCreatingLink(false));
+              }}
+            >
+              {creatingLink ? "正在创建…" : "创建并打开"}
+            </button>
+          </div>
         </Dialog>
       )}
       {tableDialog && (

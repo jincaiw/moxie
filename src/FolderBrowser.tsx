@@ -25,6 +25,14 @@ import {
 } from "lucide-react";
 import { Dialog } from "./Dialog";
 import type { FolderNode, FolderTree } from "./bridge";
+import {
+  ordered,
+  validSort,
+  listedFiles,
+  defaultLayout,
+  type SortMode,
+  type FolderLayout,
+} from "./folder-order";
 
 type FileAction =
   | "new-file"
@@ -35,6 +43,7 @@ type FileAction =
   | "trash"
   | "undo"
   | "copy-path"
+  | "new-window"
   | "reveal";
 type Operation = {
   action: FileAction;
@@ -48,27 +57,19 @@ type OperationRequest = {
   name?: string;
 };
 type RunOperation = (request: OperationRequest) => Promise<void>;
-type SortMode = "name" | "type";
-
-function ordered(entries: FolderNode[], pinned: Set<string>, sort: SortMode) {
-  return [...entries].sort((a, b) => {
-    const pinOrder = Number(pinned.has(b.path)) - Number(pinned.has(a.path));
-    if (pinOrder) return pinOrder;
-    if (a.kind !== b.kind) return a.kind === "directory" ? -1 : 1;
-    if (sort === "type" && a.kind !== "directory" && b.kind !== "directory") {
-      const typeOrder = a.name
-        .split(".")
-        .pop()!
-        .localeCompare(b.name.split(".").pop()!, "zh-CN", {
-          sensitivity: "base",
-        });
-      if (typeOrder) return typeOrder;
-    }
-    return a.name.localeCompare(b.name, "zh-CN", {
-      numeric: true,
-      sensitivity: "base",
-    });
-  });
+function readLayout(): FolderLayout {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem("moxie.folder-layout.v1") || "{}",
+    );
+    return {
+      descending: saved.descending === true,
+      foldersFirst: saved.foldersFirst !== false,
+      view: saved.view === "list" ? "list" : "tree",
+    };
+  } catch {
+    return defaultLayout;
+  }
 }
 
 function Branch({
@@ -82,6 +83,8 @@ function Branch({
   onDropFile,
   pinned,
   sort,
+  layout,
+  listRoot,
   togglePin,
   treeRef,
   onTreeKeyDown,
@@ -96,6 +99,8 @@ function Branch({
   onDropFile: (target: string, directory: string) => void;
   pinned: Set<string>;
   sort: SortMode;
+  layout: FolderLayout;
+  listRoot?: string;
   togglePin: (path: string) => void;
   treeRef: RefObject<HTMLUListElement | null>;
   onTreeKeyDown: (
@@ -104,6 +109,11 @@ function Branch({
   ) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (menuOpen)
+      actionsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+  }, [menuOpen]);
   const expanded = expandedPaths.has(node.path);
   const directory = node.kind === "directory";
   return (
@@ -133,7 +143,19 @@ function Branch({
                 ? "打开 " + node.name
                 : "显示 " + node.name
           }
-          onKeyDown={(event) => onTreeKeyDown(event, node)}
+          onKeyDown={(event) => {
+            if (
+              event.key === "ContextMenu" ||
+              (event.shiftKey && event.key === "F10")
+            ) {
+              event.preventDefault();
+              setMenuOpen(true);
+            } else onTreeKeyDown(event, node);
+          }}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            setMenuOpen(true);
+          }}
           draggable={node.kind !== "other"}
           onDragStart={(event) => {
             event.dataTransfer.effectAllowed = "move";
@@ -163,7 +185,18 @@ function Branch({
           ) : (
             <File size={15} />
           )}
-          <span>{node.name}</span>
+          <span>
+            {node.name}
+            {listRoot && (
+              <small className="tree-path">
+                {node.path
+                  .slice(listRoot.length + 1)
+                  .split(/[\\/]/)
+                  .slice(0, -1)
+                  .join("/") || "."}
+              </small>
+            )}
+          </span>
         </button>
         <button
           className="tree-actions-trigger"
@@ -177,8 +210,18 @@ function Branch({
       {menuOpen && (
         <div
           className="tree-actions"
+          ref={actionsRef}
           role="group"
           aria-label={`${node.name} 的文件操作`}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setMenuOpen(false);
+              event.currentTarget.parentElement
+                ?.querySelector<HTMLButtonElement>(".tree-row")
+                ?.focus();
+            }
+          }}
         >
           {directory ? (
             <>
@@ -280,6 +323,14 @@ function Branch({
               <button
                 onClick={() => {
                   setMenuOpen(false);
+                  void operate({ action: "new-window", target: node.path });
+                }}
+              >
+                在新窗口打开
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
                   void operate({ action: "copy", target: node.path });
                 }}
               >
@@ -349,7 +400,7 @@ function Branch({
       {directory && expanded && (
         <ul>
           {node.children?.length ? (
-            ordered(node.children, pinned, sort).map((child) => (
+            ordered(node.children, pinned, sort, layout).map((child) => (
               <Branch
                 key={child.path}
                 node={child}
@@ -362,6 +413,7 @@ function Branch({
                 onDropFile={onDropFile}
                 pinned={pinned}
                 sort={sort}
+                layout={layout}
                 togglePin={togglePin}
                 treeRef={treeRef}
                 onTreeKeyDown={onTreeKeyDown}
@@ -391,6 +443,7 @@ export function FolderBrowser({
   operate,
   showHiddenFiles,
   showOtherFiles,
+  hasCustomFilter,
 }: {
   tree: FolderTree;
   active?: string;
@@ -404,19 +457,26 @@ export function FolderBrowser({
   operate: RunOperation;
   showHiddenFiles: boolean;
   showOtherFiles: boolean;
+  hasCustomFilter?: boolean;
 }) {
   const [operation, setOperation] = useState<Operation | null>(null);
   const [name, setName] = useState("");
   const treeRef = useRef<HTMLUListElement>(null);
   const [sort, setSort] = useState<SortMode>(() => {
     try {
-      return localStorage.getItem("moxie.folder-sort.v1") === "type"
-        ? "type"
-        : "name";
+      return validSort(localStorage.getItem("moxie.folder-sort.v1"));
     } catch {
       return "name";
     }
   });
+  const [layout, setLayout] = useState(readLayout);
+  const changeLayout = (changes: Partial<FolderLayout>) => {
+    const next = { ...layout, ...changes };
+    setLayout(next);
+    try {
+      localStorage.setItem("moxie.folder-layout.v1", JSON.stringify(next));
+    } catch {}
+  };
   const [pinned, setPinned] = useState<Set<string>>(() => {
     try {
       const paths = JSON.parse(
@@ -462,15 +522,21 @@ export function FolderBrowser({
     };
     const syncSortAcrossWindows = (event: StorageEvent) => {
       if (event.key !== "moxie.folder-sort.v1" && event.key !== null) return;
-      setSort(event.newValue === "type" ? "type" : "name");
+      setSort(validSort(event.newValue));
+    };
+    const syncLayout = (event: StorageEvent) => {
+      if (event.key === "moxie.folder-layout.v1" || event.key === null)
+        setLayout(readLayout());
     };
     window.addEventListener("moxie:folder-pins-changed", syncPins);
     window.addEventListener("storage", syncPinsAcrossWindows);
     window.addEventListener("storage", syncSortAcrossWindows);
+    window.addEventListener("storage", syncLayout);
     return () => {
       window.removeEventListener("moxie:folder-pins-changed", syncPins);
       window.removeEventListener("storage", syncPinsAcrossWindows);
       window.removeEventListener("storage", syncSortAcrossWindows);
+      window.removeEventListener("storage", syncLayout);
     };
   }, []);
   const togglePin = (path: string) =>
@@ -584,7 +650,7 @@ export function FolderBrowser({
             ),
         );
       }
-    } else if (event.key === "ArrowLeft" && node.kind === "file") {
+    } else if (event.key === "ArrowLeft" && node.kind !== "directory") {
       focusRow(
         currentItem?.parentElement
           ?.closest("li")
@@ -668,13 +734,56 @@ export function FolderBrowser({
           onChange={(event) => changeSort(event.target.value as SortMode)}
         >
           <option value="name">按名称</option>
+          <option value="alphabet">按字母</option>
           <option value="type">按类型</option>
+          <option value="modified">按修改时间</option>
+          <option value="created">按创建时间</option>
         </select>
       </label>
+      <div className="folder-layout-controls">
+        <label>
+          显示方式
+          <select
+            aria-label="文件显示方式"
+            value={layout.view}
+            onChange={(event) =>
+              changeLayout({ view: event.target.value as FolderLayout["view"] })
+            }
+          >
+            <option value="tree">文件树</option>
+            <option value="list">文件列表</option>
+          </select>
+        </label>
+        <label>
+          排序方向
+          <select
+            aria-label="排序方向"
+            value={layout.descending ? "descending" : "ascending"}
+            onChange={(event) =>
+              changeLayout({ descending: event.target.value === "descending" })
+            }
+          >
+            <option value="ascending">升序</option>
+            <option value="descending">降序</option>
+          </select>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            aria-label="按文件夹分组"
+            checked={layout.foldersFirst}
+            onChange={(event) =>
+              changeLayout({ foldersFirst: event.target.checked })
+            }
+          />
+          {layout.view === "tree" ? "文件夹优先" : "按文件夹分组"}
+        </label>
+      </div>
       <p className="folder-filter-summary">
         {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
         {" · "}
         {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
+        {hasCustomFilter && " · 已应用自定义规则"}
         {" · 可在偏好设置中更改"}
       </p>
       {error && (
@@ -691,7 +800,27 @@ export function FolderBrowser({
         aria-label="文件列表"
         aria-describedby="folder-tree-keyboard-help"
       >
-        {ordered(tree.entries, pinned, sort).map((node) => (
+        {(layout.view === "list"
+          ? (() => {
+              const files = listedFiles(tree.entries);
+              if (!layout.foldersFirst)
+                return ordered(files, pinned, sort, layout);
+              const groups = new Map<string, FolderNode[]>();
+              for (const node of files) {
+                const parent = node.path.slice(
+                  0,
+                  node.path.lastIndexOf(node.path.includes("\\") ? "\\" : "/"),
+                );
+                groups.set(parent, [...(groups.get(parent) || []), node]);
+              }
+              return [...groups]
+                .sort(([a], [b]) =>
+                  a.localeCompare(b, "zh-CN", { numeric: true }),
+                )
+                .flatMap(([, nodes]) => ordered(nodes, pinned, sort, layout));
+            })()
+          : ordered(tree.entries, pinned, sort, layout)
+        ).map((node) => (
           <Branch
             key={node.path}
             node={node}
@@ -704,6 +833,8 @@ export function FolderBrowser({
             onDropFile={dropFile}
             pinned={pinned}
             sort={sort}
+            layout={layout}
+            listRoot={layout.view === "list" ? tree.path : undefined}
             togglePin={togglePin}
             treeRef={treeRef}
             onTreeKeyDown={onTreeKeyDown}

@@ -228,6 +228,12 @@ function setupIPC() {
     ),
   );
   handle("folder:search", (input) => store.searchFolder(input));
+  handle("folder:startup", (root) => store.setStartupFolder(root));
+  handle("folder:recent", () => store.recentFolders());
+  handle("folder:history", (input) => store.updateFolderHistory(input));
+  handle("folder:reopen", (input) =>
+    store.reopenFolder(input.path, input.options),
+  );
   handle("file:operation", async (input, { window }) => {
     if (input?.action !== "move" || input.directory)
       return store.fileOperation(input);
@@ -259,13 +265,27 @@ function setupIPC() {
       await shell.openExternal(url.href);
       return {};
     }
-    return store.openLinked(input.documentPath, input.href);
+    return store.openLinked(
+      input.documentPath,
+      input.href,
+      input.create === true,
+    );
   });
   handle("file:inspect", (files) => store.inspect(files));
   handle("file:recent", () =>
     store.recent.map((file) => ({ path: file, name: path.basename(file) })),
   );
   handle("file:reopen", (file) => store.read(file, true));
+  handle("file:open-new-window", async (file) => {
+    const opened = await store.read(file, true);
+    const target = createWindow(false, undefined, opened);
+    return Boolean(target);
+  });
+  handle("file:initial", (_input, state) => {
+    const file = state.initialFile || null;
+    state.initialFile = null;
+    return file;
+  });
   handle("file:save", (input, { window }) =>
     store.save(
       input,
@@ -416,7 +436,7 @@ function setupIPC() {
     state.window.close();
   });
 }
-function createWindow(primary = false, restoredProfile) {
+function createWindow(primary = false, restoredProfile, initialFile) {
   if (!primary && !restoredProfile && windowProfiles.size >= 16) {
     const options = {
       type: "info",
@@ -435,6 +455,7 @@ function createWindow(primary = false, restoredProfile) {
     allowClose: false,
     askingClose: false,
     profileId,
+    initialFile,
   };
   const window = new BrowserWindow({
     width: 1280,

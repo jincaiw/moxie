@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   THEME_CSS_LIMIT,
   THEME_LIBRARY_CSS_LIMIT,
@@ -35,6 +35,9 @@ export type Preferences = {
   floatingToolbar: boolean;
   showHiddenFiles: boolean;
   showOtherFiles: boolean;
+  hiddenFilePatterns: string;
+  launchFolder: "restore" | "none" | "default";
+  defaultFolder: string;
 };
 const defaults: Preferences = {
   copyFormat: "rich-text",
@@ -59,6 +62,9 @@ const defaults: Preferences = {
   floatingToolbar: false,
   showHiddenFiles: false,
   showOtherFiles: false,
+  hiddenFilePatterns: "",
+  launchFolder: "restore",
+  defaultFolder: "",
 };
 
 function initial(): Preferences {
@@ -142,6 +148,18 @@ function initial(): Preferences {
       floatingToolbar: value.floatingToolbar === true,
       showHiddenFiles: value.showHiddenFiles === true,
       showOtherFiles: value.showOtherFiles === true,
+      hiddenFilePatterns:
+        typeof value.hiddenFilePatterns === "string"
+          ? value.hiddenFilePatterns.slice(0, 2048)
+          : "",
+      launchFolder:
+        value.launchFolder === "none" || value.launchFolder === "default"
+          ? value.launchFolder
+          : "restore",
+      defaultFolder:
+        typeof value.defaultFolder === "string"
+          ? value.defaultFolder.slice(0, 4096)
+          : "",
     };
   } catch {
     return defaults;
@@ -149,10 +167,13 @@ function initial(): Preferences {
 }
 export function usePreferences() {
   const [preferences, setPreferences] = useState(initial);
+  const receivedPreferences = useRef<string | null>(null);
   useEffect(() => {
     const syncPreferences = (event: StorageEvent) => {
       if (event.key !== "moxie.preferences.v2" && event.key !== null) return;
-      setPreferences(initial());
+      const received = initial();
+      receivedPreferences.current = JSON.stringify(received);
+      setPreferences(received);
     };
     window.addEventListener("storage", syncPreferences);
     return () => window.removeEventListener("storage", syncPreferences);
@@ -182,13 +203,17 @@ export function usePreferences() {
       : preferences.customCSS;
     try {
       const serialized = JSON.stringify(preferences);
-      if (localStorage.getItem("moxie.preferences.v2") !== serialized)
+      if (
+        serialized !== receivedPreferences.current &&
+        localStorage.getItem("moxie.preferences.v2") !== serialized
+      )
         localStorage.setItem("moxie.preferences.v2", serialized);
       if (localStorage.getItem("moxie.theme") !== preferences.theme)
         localStorage.setItem("moxie.theme", preferences.theme);
       if (localStorage.getItem("moxie.font") !== String(preferences.fontSize))
         localStorage.setItem("moxie.font", String(preferences.fontSize));
     } catch {}
+    receivedPreferences.current = null;
   }, [preferences]);
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
     setPreferences((p) => ({ ...p, [key]: value }));

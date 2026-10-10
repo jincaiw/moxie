@@ -468,7 +468,10 @@ export function useWorkspace(
     setActive(document.id);
   }, []);
   const importFile = useCallback(
-    (file: DiskFile | { name: string; text: string }) => {
+    (
+      file: DiskFile | { name: string; text: string },
+      replaceSamples = false,
+    ) => {
       const path = "path" in file ? file.path : undefined;
       const existing = path && docsRef.current.find((d) => d.path === path);
       if (existing) {
@@ -482,7 +485,14 @@ export function useWorkspace(
         diskVersion: "version" in file ? file.version : undefined,
         dirty: false,
       };
-      setDocs((list) => [...list, document]);
+      setDocs((list) =>
+        replaceSamples &&
+        list.every(
+          (item) => ["welcome", "guide"].includes(item.id) && !item.dirty,
+        )
+          ? [document]
+          : [...list, document],
+      );
       setActive(document.id);
     },
     [],

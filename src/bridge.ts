@@ -2,6 +2,8 @@ export type FolderNode = {
   path: string;
   name: string;
   kind: "directory" | "file" | "other";
+  modified?: number;
+  created?: number;
   children?: FolderNode[];
 };
 export type FolderTree = {
@@ -11,6 +13,7 @@ export type FolderTree = {
   truncated: boolean;
   version?: string;
 };
+export type RecentFolder = { path: string; name: string; pinned: boolean };
 export type FileChange = {
   version: string;
   path: string;
@@ -51,6 +54,16 @@ declare global {
       open: () => Promise<DiskFile | null>;
       importDocument: () => Promise<{ name: string; text: string } | null>;
       folder: (options?: FolderDisplayOptions) => Promise<FolderTree | null>;
+      setStartupFolder?: (root: string) => Promise<void>;
+      recentFolders?: () => Promise<RecentFolder[]>;
+      updateFolderHistory?: (input: {
+        action: "pin" | "unpin" | "remove" | "clear";
+        path?: string;
+      }) => Promise<RecentFolder[]>;
+      reopenFolder?: (
+        path: string,
+        options?: FolderDisplayOptions,
+      ) => Promise<FolderTree>;
       refreshFolder: (
         root: string,
         version?: string,
@@ -85,9 +98,12 @@ declare global {
       } | null>;
       copyPath: (path: string) => Promise<boolean>;
       revealPath: (path: string) => Promise<boolean>;
+      openInNewWindow?: (path: string) => Promise<boolean>;
+      initialFile?: () => Promise<DiskFile | null>;
       searchFolder: (
         root: string,
         query: string,
+        options?: FolderDisplayOptions,
       ) => Promise<{
         results: {
           path: string;
@@ -102,7 +118,8 @@ declare global {
       openLink: (input: {
         href: string;
         documentPath?: string;
-      }) => Promise<{ file?: DiskFile; anchor?: string }>;
+        create?: boolean;
+      }) => Promise<{ file?: DiskFile; anchor?: string; missing?: string }>;
       inspect: (
         files: { path: string; version?: string }[],
       ) => Promise<FileChange[]>;
@@ -178,6 +195,7 @@ declare global {
 export type FolderDisplayOptions = {
   showHiddenFiles: boolean;
   showOtherFiles: boolean;
+  hiddenFilePatterns?: string;
 };
 export function download(text: string, name: string, type = "text/markdown") {
   const url = URL.createObjectURL(new Blob([text], { type }));
