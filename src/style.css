@@ -2488,3 +2488,13 @@ p {
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+
+.file-operation-notice {
+  margin: 0;
+  padding: 8px 16px;
+  color: var(--text);
+  background: var(--code);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.5;
+}

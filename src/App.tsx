@@ -327,6 +327,8 @@ export default function App() {
     },
     { mode: preferences.launchFolder, path: preferences.defaultFolder },
   );
+  const [fileOperationBusy, setFileOperationBusy] = useState(false);
+  const fileOperationInFlight = useRef(false);
   const operateOnFolderFile = async (request: {
     action:
       | "new-file"
@@ -392,18 +394,56 @@ export default function App() {
           : parent + (parent.includes("\\") ? "\\" : "/");
       return child === parent || child.startsWith(prefix);
     };
-    const opened = request.target
+    if (fileOperationInFlight.current) {
+      const error = "正在执行文件操作，请完成后再试。";
+      setMessage(error);
+      return { ok: false, error };
+    }
+    editor.current?.flush();
+    if (
+      request.action === "undo" &&
+      workspace.docsRef.current.some(
+        (document) =>
+          document.dirty && document.path && isWithinPath(root, document.path),
+      )
+    ) {
+      const error = "当前文件夹有未保存的文档，请先保存，再撤销文件操作。";
+      setMessage(error);
+      return { ok: false, error };
+    }
+    fileOperationInFlight.current = true;
+    setFileOperationBusy(true);
+    const affectedTarget = ["copy", "rename", "move", "trash"].includes(
+      request.action,
+    )
+      ? request.target
+      : undefined;
+    const opened = affectedTarget
       ? workspace.docsRef.current.filter(
           (document) =>
-            document.path && isWithinPath(request.target!, document.path),
+            document.path && isWithinPath(affectedTarget, document.path),
         )
       : [];
+    const savedTexts = new Map(
+      opened.map((document) => [document.id, document.text]),
+    );
     let applied = false;
     try {
       for (const document of opened) {
         if (document.dirty && !(await workspace.save(document)))
           throw Error("文档未能保存，文件操作已取消。");
       }
+      editor.current?.flush();
+      if (
+        affectedTarget &&
+        workspace.docsRef.current.some(
+          (document) =>
+            document.path &&
+            isWithinPath(affectedTarget, document.path) &&
+            document.text !== savedTexts.get(document.id),
+        )
+      )
+        throw Error("保存期间文档发生了编辑，文件操作已取消，请保存后重试。");
       const result = await window.desktop.fileOperation({
         action: request.action as
           | "new-file"
@@ -493,6 +533,9 @@ export default function App() {
           : detail;
       setMessage(message);
       return { ok: applied, error: message };
+    } finally {
+      fileOperationInFlight.current = false;
+      setFileOperationBusy(false);
     }
   };
   const [quickOpen, setQuickOpen] = useState(false);
@@ -526,7 +569,7 @@ export default function App() {
   const latestDropId = useRef<string | null>(null);
   const dropInFlight = useRef(false);
   const { tree } = folderWorkspace;
-  const folderBusy = folderWorkspace.busy || dropBusy;
+  const folderBusy = folderWorkspace.busy || dropBusy || fileOperationBusy;
   useEffect(() => {
     const unsubscribe = window.desktop?.onDroppedCopyProgress?.((progress) => {
       if (dropInFlight.current && progress.id === dropRequestId.current)
@@ -567,6 +610,10 @@ export default function App() {
   }, []);
   const dropExternal = async (files: File[], directory: string) => {
     if (dropInFlight.current || !folderWorkspace.root) return;
+    if (fileOperationInFlight.current) {
+      setMessage("正在执行文件操作，请完成后再复制拖入项目。");
+      return;
+    }
     const root = folderWorkspace.root;
     dropInFlight.current = true;
     const id = crypto.randomUUID();
@@ -1905,6 +1952,7 @@ export default function App() {
                 close={folderWorkspace.close}
                 busy={folderBusy}
                 copying={dropBusy}
+                operating={fileOperationBusy}
                 copyProgress={dropProgress}
                 copyCancelling={dropCancelling}
                 cancelCopy={
@@ -2650,6 +2698,11 @@ export default function App() {
             <button onClick={() => saveCurrent()}>手动保存</button>
           </div>
         )}
+        {fileOperationBusy && (
+          <p className="file-operation-notice" role="status">
+            正在执行文件操作，正文暂时只读，完成后恢复编辑。
+          </p>
+        )}
         <div className="document-area">
           <Editor
             ref={editor}
@@ -2657,6 +2710,7 @@ export default function App() {
             text={current.text}
             path={current.path}
             source={source}
+            readOnly={fileOperationBusy}
             typewriter={preferences.typewriter}
             smartQuotes={preferences.smartQuotes}
             smartDashes={preferences.smartDashes}

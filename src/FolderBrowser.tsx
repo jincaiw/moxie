@@ -80,6 +80,7 @@ function Branch({
   node,
   busy,
   copying,
+  operating,
   depth,
   active,
   open,
@@ -99,6 +100,7 @@ function Branch({
   node: FolderNode;
   busy: boolean;
   copying: boolean;
+  operating: boolean;
   depth: number;
   active?: string;
   open: (path: string) => void;
@@ -131,7 +133,9 @@ function Branch({
       onDragOver={(event) => {
         if (
           directory &&
-          ((!copying && event.dataTransfer.types.includes("Files")) ||
+          ((!copying &&
+            !operating &&
+            event.dataTransfer.types.includes("Files")) ||
             (!busy &&
               event.dataTransfer.types.includes("application/x-moxie-path")))
         ) {
@@ -148,7 +152,7 @@ function Branch({
         event.preventDefault();
         event.stopPropagation();
         if (event.dataTransfer.files.length) {
-          if (!copying)
+          if (!copying && !operating)
             onDropExternal?.(Array.from(event.dataTransfer.files), node.path);
           return;
         }
@@ -461,6 +465,7 @@ function Branch({
                 node={child}
                 busy={busy}
                 copying={copying}
+                operating={operating}
                 depth={depth + 1}
                 active={active}
                 open={open}
@@ -496,6 +501,7 @@ export function FolderBrowser({
   close,
   busy,
   copying = false,
+  operating = false,
   copyProgress,
   copyCancelling = false,
   cancelCopy,
@@ -516,6 +522,7 @@ export function FolderBrowser({
   close: () => void;
   busy: boolean;
   copying?: boolean;
+  operating?: boolean;
   copyProgress?: DroppedCopyProgress | null;
   copyCancelling?: boolean;
   cancelCopy?: () => void;
@@ -776,7 +783,9 @@ export function FolderBrowser({
         title={tree.path}
         onDragOver={(event) => {
           if (
-            (!copying && event.dataTransfer.types.includes("Files")) ||
+            (!copying &&
+              !operating &&
+              event.dataTransfer.types.includes("Files")) ||
             (!busy &&
               event.dataTransfer.types.includes("application/x-moxie-path"))
           ) {
@@ -792,7 +801,7 @@ export function FolderBrowser({
           event.preventDefault();
           event.stopPropagation();
           if (event.dataTransfer.files.length) {
-            if (!copying)
+            if (!copying && !operating)
               dropExternal?.(Array.from(event.dataTransfer.files), tree.path);
             return;
           }
@@ -849,7 +858,11 @@ export function FolderBrowser({
         <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
           <RefreshCw size={13} />
         </button>
-        <button aria-label="关闭文件夹" disabled={copying} onClick={close}>
+        <button
+          aria-label="关闭文件夹"
+          disabled={copying || operating}
+          onClick={close}
+        >
           <X size={13} />
         </button>
       </header>
@@ -1007,6 +1020,7 @@ export function FolderBrowser({
             node={node}
             busy={busy}
             copying={copying}
+            operating={operating}
             depth={0}
             active={active}
             open={open}

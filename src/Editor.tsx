@@ -81,6 +81,7 @@ type Props = {
   text: string;
   path?: string;
   source: boolean;
+  readOnly?: boolean;
   typewriter?: boolean;
   smartQuotes?: boolean;
   smartDashes?: boolean;
@@ -607,6 +608,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
     const plainPaste = useRef(false);
     latest.current = props;
     const mode = useRef(new Compartment());
+    const editability = useRef(new Compartment());
     const assetMode = useRef(new Compartment());
     const themeMode = useRef(new Compartment());
     const pending = useRef(new Set<{ from: number; to: number }>());
@@ -967,6 +969,17 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   spellcheck: String(spellCheck),
                 }),
                 mode.current.of(source ? [] : [livePreview]),
+                editability.current.of([
+                  EditorState.readOnly.of(Boolean(latest.current.readOnly)),
+                  EditorView.editable.of(!latest.current.readOnly),
+                ]),
+                EditorState.transactionFilter.of((transaction) =>
+                  transaction.docChanged &&
+                  latest.current.readOnly &&
+                  !transaction.isUserEvent("input.external")
+                    ? []
+                    : transaction,
+                ),
                 assetMode.current.of(documentPath.of(path)),
                 themeMode.current.of(
                   previewTheme.of(latest.current.theme || "light"),
@@ -1251,6 +1264,18 @@ export const Editor = forwardRef<EditorHandle, Props>(
         effects: mode.current.reconfigure(source ? [] : [livePreview]),
       });
     }, [id, source]);
+    useEffect(() => {
+      view.current?.dispatch({
+        effects: editability.current.reconfigure([
+          EditorState.readOnly.of(Boolean(props.readOnly)),
+          EditorView.editable.of(!props.readOnly),
+        ]),
+      });
+      view.current?.contentDOM.setAttribute(
+        "aria-readonly",
+        String(Boolean(props.readOnly)),
+      );
+    }, [id, props.readOnly]);
     useEffect(() => {
       view.current?.dispatch({
         effects: themeMode.current.reconfigure(
