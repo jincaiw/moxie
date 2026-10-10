@@ -533,6 +533,7 @@ export default function App() {
         },
       );
       if (result) {
+        setDropBusy(false);
         const refreshed = await folderWorkspace.refresh();
         setMessage(
           `已复制 ${result.paths.length} 项到 ${directory}，原文件已保留。` +

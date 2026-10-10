@@ -795,7 +795,7 @@ export function FolderBrowser({
         <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
           <RefreshCw size={13} />
         </button>
-        <button aria-label="关闭文件夹" disabled={busy} onClick={close}>
+        <button aria-label="关闭文件夹" disabled={copying} onClick={close}>
           <X size={13} />
         </button>
       </header>
