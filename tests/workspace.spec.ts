@@ -1261,3 +1261,86 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
   );
   expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
 });
+
+test("文档标签键盘导航保留分组排序，组外切换显示当前标签", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify(
+        Array.from({ length: 18 }, (_, index) => ({
+          id: `keys-${index}`,
+          name: `键盘文档${index}.md`,
+          text: `# 正文${index}`,
+          dirty: false,
+          group: [0, 2].includes(index) ? "验收组" : undefined,
+        })),
+      ),
+    );
+    localStorage.setItem("moxie.active.v1", "keys-0");
+  });
+  await page.goto("/");
+  const tabs = page.getByRole("tablist", { name: "打开的文档" });
+  const first = tabs.getByRole("tab", { name: "键盘文档0.md", exact: true });
+  const last = tabs.getByRole("tab", { name: "键盘文档17.md", exact: true });
+  await first.focus();
+  await page.keyboard.press("End");
+  await expect(last).toBeFocused();
+  await expect(last).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("tabpanel", { name: "键盘文档17.md", exact: true }),
+  ).toContainText("正文17");
+  await expect
+    .poll(() =>
+      tabs.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const selected = element
+          .querySelector(".selected")!
+          .getBoundingClientRect();
+        return (
+          selected.left >= bounds.left - 1 && selected.right <= bounds.right + 1
+        );
+      }),
+    )
+    .toBe(true);
+  await page.keyboard.press("Tab");
+  await expect(page.getByLabel("键盘文档17.md所属分组")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    tabs.getByRole("button", { name: "关闭 键盘文档17.md", exact: true }),
+  ).toBeFocused();
+  await last.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(first).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(last).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(first).toBeFocused();
+  await page.keyboard.press("Alt+Shift+ArrowRight");
+  await expect(first).toBeFocused();
+  expect((await tabs.getByRole("tab").allTextContents()).slice(0, 2)).toEqual([
+    "键盘文档1.md",
+    "键盘文档0.md",
+  ]);
+  await page
+    .locator(".document-group-select")
+    .filter({ hasText: "验收组" })
+    .click();
+  await expect(tabs.getByRole("tab")).toHaveCount(2);
+  await first.focus();
+  await page.keyboard.press("End");
+  await expect(
+    tabs.getByRole("tab", { name: "键盘文档2.md", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(first).toBeFocused();
+  await page
+    .getByRole("group", { name: "已打开文档" })
+    .getByRole("button", { name: "键盘文档17.md", exact: true })
+    .click();
+  await expect(last).toHaveAttribute("aria-selected", "true");
+  await expect(tabs.getByRole("tab")).toHaveCount(18);
+  await expect(
+    page.getByRole("tabpanel", { name: "键盘文档17.md", exact: true }),
+  ).toBeVisible();
+});

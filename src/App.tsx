@@ -46,6 +46,7 @@ import { exportHTML, withoutHTMLStyles } from "./export";
 import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
 import { useRevealSelection } from "./useRevealSelection";
+import { navigateTabs } from "./tab-navigation";
 import { usePreferences } from "./preferences";
 import { Settings } from "./Settings";
 import { Dialog } from "./Dialog";
@@ -560,6 +561,9 @@ export default function App() {
     if (tabGroup !== "全部" && !tabGroups.includes(tabGroup))
       setTabGroup("全部");
   }, [tabGroup, tabGroups]);
+  useEffect(() => {
+    if (tabGroup !== "全部" && current.group !== tabGroup) setTabGroup("全部");
+  }, [current.id, current.group, tabGroup]);
   const [dropBusy, setDropBusy] = useState(false);
   const [dropProgress, setDropProgress] = useState<DroppedCopyProgress | null>(
     null,
@@ -1823,18 +1827,29 @@ export default function App() {
             <h1>墨写</h1>
             <p>本地 Markdown 编辑器</p>
           </div>
-          <div className="side-tabs" role="tablist" aria-label="侧栏">
+          <div
+            className="side-tabs"
+            role="tablist"
+            aria-label="侧栏"
+            onKeyDown={navigateTabs}
+          >
             <button
+              id="sidebar-files-tab"
               role="tab"
               aria-selected={tab === "files"}
+              aria-controls="sidebar-navigation-panel"
+              tabIndex={tab === "files" ? 0 : -1}
               className={tab === "files" ? "selected" : ""}
               onClick={() => setTab("files")}
             >
               文件
             </button>
             <button
+              id="sidebar-outline-tab"
               role="tab"
               aria-selected={tab === "outline"}
+              aria-controls="sidebar-navigation-panel"
+              tabIndex={tab === "outline" ? 0 : -1}
               className={tab === "outline" ? "selected" : ""}
               onClick={() => setTab("outline")}
             >
@@ -1845,196 +1860,207 @@ export default function App() {
             className="file-list"
             aria-label={tab === "files" ? "文档列表" : "文档大纲"}
           >
-            {tab === "outline" && (
-              <div className="outline-search-wrap">
-                <Search size={15} aria-hidden="true" />
-                <input
-                  aria-label="搜索大纲标题"
-                  className="outline-search"
-                  type="search"
-                  placeholder="搜索标题"
-                  value={outlineQuery}
-                  onChange={(event) => setOutlineQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape" && outlineQuery) {
-                      event.preventDefault();
-                      setOutlineQuery("");
-                    }
-                  }}
-                />
-              </div>
-            )}
-            {tab === "files" && <h2 className="sidebar-group-title">已打开</h2>}
-            {tab === "files" ? (
-              <div
-                ref={openedFiles}
-                className="opened-files"
-                role="group"
-                aria-label="已打开文档"
-              >
-                {docs.map((document) => (
-                  <div
-                    className={
-                      "file-entry " +
-                      (document.id === current.id ? "selected" : "")
-                    }
-                    key={document.id}
-                  >
-                    <button
-                      aria-label={document.name}
-                      className="file-row"
-                      title={document.path || document.name}
-                      onClick={() => workspace.setActive(document.id)}
+            <div
+              id="sidebar-navigation-panel"
+              role="tabpanel"
+              aria-labelledby={`sidebar-${tab}-tab`}
+            >
+              {tab === "outline" && (
+                <div className="outline-search-wrap">
+                  <Search size={15} aria-hidden="true" />
+                  <input
+                    aria-label="搜索大纲标题"
+                    className="outline-search"
+                    type="search"
+                    placeholder="搜索标题"
+                    value={outlineQuery}
+                    onChange={(event) => setOutlineQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape" && outlineQuery) {
+                        event.preventDefault();
+                        setOutlineQuery("");
+                      }
+                    }}
+                  />
+                </div>
+              )}
+              {tab === "files" && (
+                <h2 className="sidebar-group-title">已打开</h2>
+              )}
+              {tab === "files" ? (
+                <div
+                  ref={openedFiles}
+                  className="opened-files"
+                  role="group"
+                  aria-label="已打开文档"
+                >
+                  {docs.map((document) => (
+                    <div
+                      className={
+                        "file-entry " +
+                        (document.id === current.id ? "selected" : "")
+                      }
+                      key={document.id}
                     >
-                      <FileText size={18} />
-                      <span>{document.name}</span>
-                      {document.dirty && (
-                        <i className="dirty-dot" aria-label="未保存" />
-                      )}
-                    </button>
-                    <button
-                      className="close-file"
-                      aria-label={"关闭 " + document.name}
-                      title="关闭文档"
-                      onClick={() => requestClose(document)}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              outlineRows.map(
-                ({ heading, hasChildren, collapsed, identity }) => (
-                  <div
-                    className="outline-entry"
-                    key={heading.from}
-                    style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
-                  >
-                    {hasChildren ? (
                       <button
-                        className="outline-toggle"
-                        aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
-                        aria-expanded={!collapsed}
-                        title={`${collapsed ? "展开" : "折叠"}子标题`}
-                        onClick={() =>
-                          setCollapsedOutline((previous) => {
-                            const next = new Set(previous);
-                            if (next.has(identity)) next.delete(identity);
-                            else next.add(identity);
-                            return next;
-                          })
-                        }
+                        aria-label={document.name}
+                        className="file-row"
+                        title={document.path || document.name}
+                        onClick={() => workspace.setActive(document.id)}
                       >
-                        {collapsed ? (
-                          <ChevronRight size={14} aria-hidden="true" />
-                        ) : (
-                          <ChevronDown size={14} aria-hidden="true" />
+                        <FileText size={18} />
+                        <span>{document.name}</span>
+                        {document.dirty && (
+                          <i className="dirty-dot" aria-label="未保存" />
                         )}
                       </button>
-                    ) : (
-                      <span
-                        className="outline-toggle-spacer"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <button
-                      className={
-                        "outline-row " +
-                        (heading.from === activeHeading?.from ? "active" : "")
-                      }
-                      aria-current={
-                        heading.from === activeHeading?.from
-                          ? "location"
-                          : undefined
-                      }
-                      onClick={() => editor.current?.go(heading.from)}
+                      <button
+                        className="close-file"
+                        aria-label={"关闭 " + document.name}
+                        title="关闭文档"
+                        onClick={() => requestClose(document)}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                outlineRows.map(
+                  ({ heading, hasChildren, collapsed, identity }) => (
+                    <div
+                      className="outline-entry"
+                      key={heading.from}
+                      style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
                     >
-                      {heading.title}
-                    </button>
-                  </div>
-                ),
-              )
-            )}
-            {tab === "outline" && outlineRows.length === 0 && (
-              <p className="outline-empty" role="status">
-                {documentHeadings.length === 0
-                  ? "当前文档没有标题"
-                  : "没有匹配的标题"}
-              </p>
-            )}
-            {tab === "files" && tree && (
-              <FolderBrowser
-                tree={tree}
-                active={current.path}
-                open={(path) => void reopen(path)}
-                refresh={() => void folderWorkspace.refresh()}
-                close={folderWorkspace.close}
-                busy={folderBusy}
-                copying={dropBusy}
-                operating={fileOperationBusy}
-                copyProgress={dropProgress}
-                copyCancelling={dropCancelling}
-                cancelCopy={
-                  window.desktop?.cancelDroppedCopy
-                    ? () => void cancelDroppedCopy()
-                    : undefined
-                }
-                dropExternal={(files, directory) =>
-                  void dropExternal(files, directory)
-                }
-                expandedPaths={folderWorkspace.expanded}
-                toggle={folderWorkspace.toggle}
-                error={folderWorkspace.error}
-                operate={operateOnFolderFile}
-                showHiddenFiles={preferences.showHiddenFiles}
-                showOtherFiles={preferences.showOtherFiles}
-                hasCustomFilter={Boolean(preferences.hiddenFilePatterns.trim())}
-              />
-            )}
-            {tab === "files" && folderWorkspace.root && !tree && (
-              <section
-                className="folder-browser folder-unavailable"
-                aria-label="文件夹浏览"
-              >
-                <p className="tree-empty">
-                  {folderWorkspace.error || "正在恢复文件夹…"}
+                      {hasChildren ? (
+                        <button
+                          className="outline-toggle"
+                          aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
+                          aria-expanded={!collapsed}
+                          title={`${collapsed ? "展开" : "折叠"}子标题`}
+                          onClick={() =>
+                            setCollapsedOutline((previous) => {
+                              const next = new Set(previous);
+                              if (next.has(identity)) next.delete(identity);
+                              else next.add(identity);
+                              return next;
+                            })
+                          }
+                        >
+                          {collapsed ? (
+                            <ChevronRight size={14} aria-hidden="true" />
+                          ) : (
+                            <ChevronDown size={14} aria-hidden="true" />
+                          )}
+                        </button>
+                      ) : (
+                        <span
+                          className="outline-toggle-spacer"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <button
+                        className={
+                          "outline-row " +
+                          (heading.from === activeHeading?.from ? "active" : "")
+                        }
+                        aria-current={
+                          heading.from === activeHeading?.from
+                            ? "location"
+                            : undefined
+                        }
+                        title={heading.title}
+                        onClick={() => editor.current?.go(heading.from)}
+                      >
+                        {heading.title}
+                      </button>
+                    </div>
+                  ),
+                )
+              )}
+              {tab === "outline" && outlineRows.length === 0 && (
+                <p className="outline-empty" role="status">
+                  {documentHeadings.length === 0
+                    ? "当前文档没有标题"
+                    : "没有匹配的标题"}
                 </p>
-                <button
-                  disabled={folderBusy}
-                  onClick={() => void folderWorkspace.refresh()}
+              )}
+              {tab === "files" && tree && (
+                <FolderBrowser
+                  tree={tree}
+                  active={current.path}
+                  open={(path) => void reopen(path)}
+                  refresh={() => void folderWorkspace.refresh()}
+                  close={folderWorkspace.close}
+                  busy={folderBusy}
+                  copying={dropBusy}
+                  operating={fileOperationBusy}
+                  copyProgress={dropProgress}
+                  copyCancelling={dropCancelling}
+                  cancelCopy={
+                    window.desktop?.cancelDroppedCopy
+                      ? () => void cancelDroppedCopy()
+                      : undefined
+                  }
+                  dropExternal={(files, directory) =>
+                    void dropExternal(files, directory)
+                  }
+                  expandedPaths={folderWorkspace.expanded}
+                  toggle={folderWorkspace.toggle}
+                  error={folderWorkspace.error}
+                  operate={operateOnFolderFile}
+                  showHiddenFiles={preferences.showHiddenFiles}
+                  showOtherFiles={preferences.showOtherFiles}
+                  hasCustomFilter={Boolean(
+                    preferences.hiddenFilePatterns.trim(),
+                  )}
+                />
+              )}
+              {tab === "files" && folderWorkspace.root && !tree && (
+                <section
+                  className="folder-browser folder-unavailable"
+                  aria-label="文件夹浏览"
                 >
-                  重试读取文件夹
-                </button>
-                <button onClick={folderWorkspace.close}>关闭文件夹</button>
-              </section>
-            )}
-            {tab === "files" && (
-              <RecentFolders
-                folders={folderWorkspace.recent}
-                active={folderWorkspace.root}
-                busy={folderBusy}
-                open={(path) => void folderWorkspace.open(path)}
-                changed={() => void folderWorkspace.refreshRecent()}
-              />
-            )}
-            {tab === "files" && recent.length > 0 && (
-              <details className="recent-files">
-                <summary>
-                  <Clock size={13} />
-                  最近打开
-                </summary>
-                {recent.slice(0, 5).map((file) => (
+                  <p className="tree-empty">
+                    {folderWorkspace.error || "正在恢复文件夹…"}
+                  </p>
                   <button
-                    key={file.path}
-                    title={file.path}
-                    onClick={() => void reopen(file.path)}
+                    disabled={folderBusy}
+                    onClick={() => void folderWorkspace.refresh()}
                   >
-                    {file.name}
+                    重试读取文件夹
                   </button>
-                ))}
-              </details>
-            )}
+                  <button onClick={folderWorkspace.close}>关闭文件夹</button>
+                </section>
+              )}
+              {tab === "files" && (
+                <RecentFolders
+                  folders={folderWorkspace.recent}
+                  active={folderWorkspace.root}
+                  busy={folderBusy}
+                  open={(path) => void folderWorkspace.open(path)}
+                  changed={() => void folderWorkspace.refreshRecent()}
+                />
+              )}
+              {tab === "files" && recent.length > 0 && (
+                <details className="recent-files">
+                  <summary>
+                    <Clock size={13} />
+                    最近打开
+                  </summary>
+                  {recent.slice(0, 5).map((file) => (
+                    <button
+                      key={file.path}
+                      title={file.path}
+                      onClick={() => void reopen(file.path)}
+                    >
+                      {file.name}
+                    </button>
+                  ))}
+                </details>
+              )}
+            </div>
           </nav>
           <div className="side-actions">
             <button onClick={workspace.add}>
@@ -2585,6 +2611,7 @@ export default function App() {
               className="document-tabs"
               role="tablist"
               aria-label="打开的文档"
+              onKeyDown={navigateTabs}
             >
               {visibleDocs.map((document) => {
                 const index = docs.findIndex((item) => item.id === document.id);
@@ -2620,8 +2647,11 @@ export default function App() {
                   >
                     <button
                       className="document-tab-select"
+                      id={`document-tab-${document.id}`}
                       role="tab"
                       aria-selected={document.id === current.id}
+                      aria-controls="document-editor-panel"
+                      tabIndex={document.id === current.id ? 0 : -1}
                       aria-keyshortcuts="Alt+Shift+ArrowLeft Alt+Shift+ArrowRight"
                       title={`${document.name} · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动`}
                       onClick={() => workspace.setActive(document.id)}
@@ -2651,6 +2681,7 @@ export default function App() {
                     </button>
                     <select
                       className="document-tab-group"
+                      tabIndex={document.id === current.id ? 0 : -1}
                       aria-label={`${document.name}所属分组`}
                       title="所属分组"
                       value={document.group || ""}
@@ -2681,6 +2712,7 @@ export default function App() {
                     </select>
                     <button
                       className="document-tab-close"
+                      tabIndex={document.id === current.id ? 0 : -1}
                       aria-label={`关闭 ${document.name}`}
                       title="关闭文档"
                       onClick={() => requestClose(document)}
@@ -2733,7 +2765,14 @@ export default function App() {
             正在执行文件操作，正文暂时只读，完成后恢复编辑。
           </p>
         )}
-        <div className="document-area">
+        <div
+          className="document-area"
+          id="document-editor-panel"
+          role={docs.length > 1 ? "tabpanel" : undefined}
+          aria-labelledby={
+            docs.length > 1 ? `document-tab-${current.id}` : undefined
+          }
+        >
           <Editor
             ref={editor}
             id={current.id}

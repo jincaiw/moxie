@@ -26,6 +26,8 @@ jobs:
         run: npx playwright test tests/workspace.spec.ts -g "桌面侧栏首屏" --repeat-each=10 --workers=2 --retries=0
       - name: Repeat editor menu boundaries without retries
         run: npx playwright test tests/features.spec.ts -g "编辑区右键格式菜单|格式菜单尺寸变化" --repeat-each=10 --workers=2 --retries=0
+      - name: Repeat keyboard navigation without retries
+        run: npx playwright test -g "侧栏标签支持|文档标签键盘导航" --repeat-each=5 --workers=2 --retries=0
       - uses: actions/upload-artifact@v4
         if: always()
         name: Playwright diagnostics

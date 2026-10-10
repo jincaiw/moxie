@@ -2838,6 +2838,53 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
   await expect(page.locator(".cm-focused")).toBeVisible();
 });
 
+test("侧栏标签支持方向键切换、面板关联和完整大纲标题", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  const files = page.getByRole("tab", { name: "文件", exact: true });
+  const outline = page.getByRole("tab", { name: "大纲", exact: true });
+  await files.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(outline).toBeFocused();
+  await expect(outline).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("tabpanel", { name: "大纲", exact: true }),
+  ).toContainText("Markdown 渲染综合测试");
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  const title = page
+    .locator(".outline-row")
+    .filter({ hasText: "7. 链接、图片与自动链接" });
+  await expect(title).toHaveAttribute("title", "7. 链接、图片与自动链接");
+  await page.keyboard.press("Tab");
+  const search = page.getByRole("searchbox", { name: "搜索大纲标题" });
+  await expect(search).toBeFocused();
+  await search.fill("公式");
+  const filtered = await page.locator(".outline-row").allTextContents();
+  expect(filtered.length).toBeGreaterThan(0);
+  await outline.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(files).toBeFocused();
+  await expect(
+    page.getByRole("tabpanel", { name: "文件", exact: true }),
+  ).toBeVisible();
+  await expect(outline).toHaveAttribute("tabindex", "-1");
+  await page.keyboard.press("End");
+  await expect(outline).toBeFocused();
+  await expect(search).toHaveValue("公式");
+  await expect(page.locator(".outline-row")).toHaveText(filtered);
+  await page.keyboard.press("Home");
+  await expect(files).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(outline).toBeFocused();
+  await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
+  await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
+  await expect(outline).toHaveAttribute("aria-selected", "true");
+  await expect(search).toHaveValue("公式");
+});
+
 test("大纲可按标题搜索、清空并跳转匹配结果", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
