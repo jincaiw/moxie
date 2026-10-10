@@ -1272,7 +1272,9 @@ test("最近文件夹支持固定清除移除，启动偏好可关闭或指定�
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toBeVisible();
   await openSidebarFolderMenu(page);
   await recent.getByRole("button", { name: "移除最近文件夹 最近项目" }).click();
-  await expect(recent).toHaveCount(0);
+  await expect(recent.locator(".recent-folder-row")).toHaveCount(0);
+  await expect(recent).toContainText("暂无最近文件夹");
+  await expect(recent.locator(":scope > summary")).toBeFocused();
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("启动时打开文件夹").selectOption("none");
   await page.reload();
@@ -1982,3 +1984,178 @@ for (const windowsPaths of [false, true]) {
     await expect(groups).toHaveCount(0);
   });
 }
+
+async function recentFolderHarness(page: Page, dark = false) {
+  await page.setViewportSize({ width: 900, height: 700 });
+  if (dark)
+    await page.context().addInitScript(() => {
+      localStorage.setItem(
+        "moxie.preferences.v2",
+        JSON.stringify({ theme: "dark" }),
+      );
+    });
+  await page.context().addInitScript(() => {
+    const state = window as any;
+    state.historyItems = ["甲", "乙", "丙"].map((name) => ({
+      path: `/notes/${name}`,
+      name,
+      pinned: false,
+    }));
+    state.historyCalls = [];
+    state.historyReads = [];
+    state.deferHistoryRead = false;
+    state.desktop.recentFolders = () => {
+      const snapshot = state.historyItems.map((item: any) => ({ ...item }));
+      if (!state.deferHistoryRead) return Promise.resolve(snapshot);
+      return new Promise((resolve) =>
+        state.historyReads.push(() => resolve(snapshot)),
+      );
+    };
+    state.desktop.updateFolderHistory = (input: any) => {
+      state.historyCalls.push(input);
+      return new Promise((resolve, reject) => {
+        state.finishHistory = (error?: string) => {
+          if (error) {
+            reject(new Error(error));
+            return;
+          }
+          if (input.action === "remove")
+            state.historyItems = state.historyItems.filter(
+              (item: any) => item.path !== input.path,
+            );
+          if (input.action === "clear")
+            state.historyItems = state.historyItems.filter(
+              (item: any) => item.pinned,
+            );
+          if (input.action === "pin" || input.action === "unpin")
+            state.historyItems = state.historyItems.map((item: any) =>
+              item.path === input.path
+                ? { ...item, pinned: input.action === "pin" }
+                : item,
+            );
+          resolve(state.historyItems.map((item: any) => ({ ...item })));
+        };
+      });
+    };
+  });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  await selectSidebarMode(page, "大纲");
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  await selectSidebarMode(page, "文件");
+  await openSidebarFolderMenu(page);
+  await page.locator(".recent-folders > summary").click();
+  return page.getByRole("region", { name: "最近文件夹" });
+}
+
+test("最近文件夹异步操作防重复、隔离迟到历史并恢复删除焦点", async ({
+  page,
+}, testInfo) => {
+  const region = await recentFolderHarness(page);
+  await page.evaluate(() => {
+    (window as any).deferHistoryRead = true;
+  });
+  await page.waitForFunction(() => (window as any).historyReads.length > 0);
+  const remove = region.getByRole("button", {
+    name: "移除最近文件夹 甲",
+    exact: true,
+  });
+  await remove.focus();
+  await page.keyboard.press("Enter");
+  await expect(region).toHaveAttribute("aria-busy", "true");
+  await expect(region.getByRole("status")).toHaveText("正在更新最近文件夹…");
+  expect(
+    await region
+      .locator("button")
+      .evaluateAll((buttons) =>
+        buttons.every((button) => (button as HTMLButtonElement).disabled),
+      ),
+  ).toBe(true);
+  await remove.evaluate((button) => (button as HTMLButtonElement).click());
+  expect(await page.evaluate(() => (window as any).historyCalls)).toEqual([
+    { action: "remove", path: "/notes/甲" },
+  ]);
+  await region.getByRole("status").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("recent-pending.png") });
+  await page.evaluate(() => {
+    (window as any).deferHistoryRead = false;
+    (window as any).finishHistory();
+  });
+  await expect(region.locator(".recent-folder-open span")).toHaveText([
+    "乙",
+    "丙",
+  ]);
+  await expect(region.locator(".recent-folder-open").first()).toBeFocused();
+  await page.evaluate(() => {
+    for (const finish of (window as any).historyReads) finish();
+  });
+  await expect(region.locator(".recent-folder-open span")).toHaveText([
+    "乙",
+    "丙",
+  ]);
+  const pin = region.getByRole("button", {
+    name: "固定文件夹 乙",
+    exact: true,
+  });
+  await pin.focus();
+  await page.keyboard.press("Enter");
+  await region.locator(":scope > summary").focus();
+  await page.evaluate(() => (window as any).finishHistory());
+  await expect(
+    region.getByRole("button", { name: "取消固定文件夹 乙" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(region.locator(":scope > summary")).toBeFocused();
+  await region.getByRole("button", { name: "清除最近" }).click();
+  await page.evaluate(() => (window as any).finishHistory());
+  await expect(region.locator(".recent-folder-open span")).toHaveText(["乙"]);
+  await region.getByRole("button", { name: "移除最近文件夹 乙" }).focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => (window as any).finishHistory());
+  await expect(region.locator(".recent-folder-row")).toHaveCount(0);
+  await expect(region).toContainText("暂无最近文件夹。");
+  await expect(region.locator(":scope > summary")).toBeFocused();
+  await expect(region.getByRole("button", { name: "清除最近" })).toBeDisabled();
+});
+
+test("最近文件夹失败保留记录与入口焦点，重试和清空反馈可见", async ({
+  page,
+}, testInfo) => {
+  const region = await recentFolderHarness(page, true);
+  const pin = region.getByRole("button", {
+    name: "固定文件夹 甲",
+    exact: true,
+  });
+  await pin.focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => (window as any).finishHistory("磁盘只读"));
+  await expect(region.getByRole("alert")).toContainText("磁盘只读");
+  await expect(region.locator(".recent-folder-row")).toHaveCount(3);
+  await expect(pin).toBeEnabled();
+  await expect(pin).toBeFocused();
+  await page.setViewportSize({ width: 760, height: 560 });
+  await region.getByRole("alert").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("recent-error-dark.png") });
+  await page.keyboard.press("Enter");
+  await expect(region.getByRole("alert")).toHaveCount(0);
+  await page.evaluate(() => (window as any).finishHistory());
+  const unpin = region.getByRole("button", {
+    name: "取消固定文件夹 甲",
+    exact: true,
+  });
+  await expect(unpin).toBeFocused();
+  await expect(region.getByRole("status")).toHaveText("文件夹已固定。");
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => (window as any).finishHistory());
+  await expect(pin).toBeFocused();
+  await region.getByRole("button", { name: "清除最近" }).focus();
+  await page.keyboard.press("Enter");
+  await page.evaluate(() => (window as any).finishHistory());
+  await expect(region.locator(".recent-folder-row")).toHaveCount(0);
+  await expect(region.locator(":scope > summary")).toBeFocused();
+  await expect(region.getByRole("status")).toHaveText(
+    "已清除最近记录，固定项已保留。",
+  );
+  await page.screenshot({ path: testInfo.outputPath("recent-empty-dark.png") });
+});

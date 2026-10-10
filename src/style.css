@@ -3117,3 +3117,20 @@ p {
 .file-list-group small {
   font-weight: 400;
 }
+
+.recent-folders-status,
+.recent-folders-empty {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0;
+  color: var(--muted);
+}
+.recent-folders-status:empty {
+  display: none;
+}
+.recent-folders > p[role="alert"] {
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}

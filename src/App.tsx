@@ -2771,7 +2771,7 @@ export default function App() {
                 void folderWorkspace.open(path);
                 setTab("files");
               }}
-              changed={() => void folderWorkspace.refreshRecent()}
+              changed={folderWorkspace.applyRecent}
             />
             {recent.length > 0 && (
               <details className="recent-files">

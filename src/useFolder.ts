@@ -29,10 +29,17 @@ export function useFolder(
 ) {
   const [session] = useState(() => restored(launch));
   const [recent, setRecent] = useState<RecentFolder[]>([]);
+  const recentGeneration = useRef(0);
+  const applyRecent = useCallback((folders: RecentFolder[]) => {
+    recentGeneration.current++;
+    setRecent(folders);
+  }, []);
   const refreshRecent = useCallback(async () => {
     try {
+      const token = ++recentGeneration.current;
       const result = await window.desktop?.recentFolders?.();
-      if (result && mounted.current) setRecent(result);
+      if (result && mounted.current && token === recentGeneration.current)
+        setRecent(result);
     } catch {}
   }, []);
   const [root, setRoot] = useState<string | null>(session.path);
@@ -227,5 +234,6 @@ export function useFolder(
     toggle,
     recent,
     refreshRecent,
+    applyRecent,
   };
 }
