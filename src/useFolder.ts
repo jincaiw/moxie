@@ -144,15 +144,18 @@ export function useFolder(
     }, 3000);
     return () => clearInterval(timer);
   }, [refreshRecent]);
-  const open = useCallback(async (path?: string) => {
+  const open = useCallback(async (path?: string, fromFile = false) => {
     if (!window.desktop || inFlight.current) return false;
     const token = ++generation.current;
     inFlight.current = true;
     setBusy(true);
     try {
-      const result = path
-        ? await window.desktop.reopenFolder?.(path, optionsRef.current)
-        : await window.desktop.folder(optionsRef.current);
+      const result =
+        fromFile && path
+          ? await window.desktop.folderForFile?.(path, optionsRef.current)
+          : path
+            ? await window.desktop.reopenFolder?.(path, optionsRef.current)
+            : await window.desktop.folder(optionsRef.current);
       if (!mounted.current || token !== generation.current || !result)
         return false;
       rootRef.current = result.path;
@@ -192,7 +195,27 @@ export function useFolder(
       }),
     [],
   );
+  const reveal = useCallback((path: string) => {
+    const ancestors: string[] = [];
+    const find = (nodes: FolderTree["entries"], parents: string[]): boolean => {
+      for (const node of nodes) {
+        if (node.path === path) {
+          ancestors.push(...parents);
+          return true;
+        }
+        if (node.children && find(node.children, [...parents, node.path]))
+          return true;
+      }
+      return false;
+    };
+    find(treeRef.current?.entries || [], []);
+    setExpanded((previous) => {
+      if (ancestors.every((path) => previous.has(path))) return previous;
+      return new Set([...previous, ...ancestors]);
+    });
+  }, []);
   return {
+    reveal,
     tree,
     root,
     expanded,

@@ -1,3 +1,4 @@
+import { selectSidebarMode } from "./sidebar";
 import { test, expect } from "@playwright/test";
 import { documentEnd, shortcut, clickModifier } from "./keyboard";
 import fs from "node:fs/promises";
@@ -461,7 +462,7 @@ test("行内代码标题中的 Moxie 标记保持字面文本", async ({ page })
       "## `==literal==` 与 `$x+1$`\n\n## `代码` 与 MOXIECODESPAN0TOKEN\n\n",
     ),
   });
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   await expect(page.locator(".outline-row")).toHaveText([
     "==literal== 与 $x+1$",
     "代码 与 MOXIECODESPAN0TOKEN",

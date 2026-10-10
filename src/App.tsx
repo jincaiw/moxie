@@ -1,6 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FileText,
+  List,
+  ListTree,
+  Columns2,
+  MoreVertical,
+  LocateFixed,
   Plus,
   FolderOpen,
   PanelLeft,
@@ -40,7 +45,8 @@ import { headings, lineBoundsAt, type DocumentFile } from "./data";
 import { download } from "./bridge";
 import { useFolder } from "./useFolder";
 import { RecentFolders } from "./RecentFolders";
-import { FolderBrowser } from "./FolderBrowser";
+import { FolderBrowser, type FolderBrowserHandle } from "./FolderBrowser";
+import { SidebarResizeHandle, readSidebarWidth } from "./SidebarResizeHandle";
 import { EditorFormatMenu } from "./EditorFormatMenu";
 import { exportHTML, withoutHTMLStyles } from "./export";
 import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
@@ -236,6 +242,79 @@ export default function App() {
     [current.text],
   );
   const [outlineQuery, setOutlineQuery] = useState("");
+  const [outlineSearchOpen, setOutlineSearchOpen] = useState(false);
+  const [outlineCollapsible, setOutlineCollapsible] = useState(() => {
+    try {
+      return localStorage.getItem("moxie.outline-collapsible.v1") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const outlineNavigation = useRef<HTMLDivElement>(null);
+  const [sidebarPopup, setSidebarPopup] = useState<
+    "mode" | "actions" | "outline" | null
+  >(null);
+  const sidebarPopupOrigin = useRef<HTMLElement | null>(null);
+  const sidebarElement = useRef<HTMLElement>(null);
+  const folderBrowser = useRef<FolderBrowserHandle>(null);
+  const [folderControlsHost, setFolderControlsHost] =
+    useState<HTMLDivElement | null>(null);
+  const [folderView, setFolderView] = useState<"tree" | "list">("tree");
+  const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
+  const changeSidebarWidth = useCallback((width: number) => {
+    setSidebarWidth(width);
+    try {
+      localStorage.setItem("moxie.sidebar-width.v1", String(width));
+    } catch {}
+  }, []);
+  const dismissSidebarPopup = (restore = false) => {
+    setSidebarPopup(null);
+    if (restore)
+      requestAnimationFrame(() => sidebarPopupOrigin.current?.focus());
+  };
+  const toggleSidebarPopup = (
+    kind: "mode" | "actions" | "outline",
+    origin: HTMLElement,
+  ) => {
+    sidebarPopupOrigin.current = origin;
+    setSidebarPopup((current) => (current === kind ? null : kind));
+  };
+  useEffect(() => {
+    if (!sidebarPopup) return;
+    const outside = (event: Event) => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest(".sidebar-popover, .sidebar-popup-trigger"))
+        return;
+      setSidebarPopup(null);
+    };
+    const key = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSidebarPopup(null);
+        sidebarPopupOrigin.current?.focus();
+      }
+    };
+    const frame = requestAnimationFrame(() => {
+      const selector =
+        sidebarPopup === "mode"
+          ? '.side-tabs [aria-selected="true"]'
+          : sidebarPopup === "outline"
+            ? ".sidebar-outline-options button"
+            : "#sidebar-folder-menu .sidebar-menu-actions button";
+      sidebarElement.current
+        ?.querySelector<HTMLButtonElement>(selector)
+        ?.focus();
+    });
+    window.addEventListener("pointerdown", outside);
+    window.addEventListener("focusin", outside);
+    window.addEventListener("keydown", key);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointerdown", outside);
+      window.removeEventListener("focusin", outside);
+      window.removeEventListener("keydown", key);
+    };
+  }, [sidebarPopup]);
   const [collapsedOutline, setCollapsedOutline] = useState<Set<number>>(
     () => new Set(),
   );
@@ -254,20 +333,20 @@ export default function App() {
       ) {
         collapsedLevels.pop();
       }
-      const hidden = !query && collapsedLevels.length > 0;
+      const hidden = outlineCollapsible && !query && collapsedLevels.length > 0;
       const matches =
         !query || heading.title.toLocaleLowerCase().includes(query);
       const hasChildren =
         index + 1 < documentHeadings.length &&
         documentHeadings[index + 1].level > heading.level;
       const collapsed = collapsedOutline.has(identity);
-      if (!query && hasChildren && collapsed)
+      if (outlineCollapsible && !query && hasChildren && collapsed)
         collapsedLevels.push(heading.level);
       return hidden || !matches
         ? []
         : [{ heading, hasChildren, collapsed, identity }];
     });
-  }, [collapsedOutline, documentHeadings, outlineQuery]);
+  }, [collapsedOutline, documentHeadings, outlineQuery, outlineCollapsible]);
   const [cursor, setCursor] = useState({ position: 0, line: 1, column: 1 });
   let headingLow = 0;
   let headingHigh = documentHeadings.length;
@@ -285,7 +364,21 @@ export default function App() {
   const [source, setSource] = useState(false);
   const [sidebar, setSidebar] = useState(() => window.innerWidth > 650);
   const [focus, setFocus] = useState(false);
-  const [tab, setTab] = useState("files");
+  const [tab, setTab] = useState(() => {
+    try {
+      const saved = localStorage.getItem("moxie.sidebar-mode.v1");
+      return ["files", "outline", "opened"].includes(saved || "")
+        ? saved!
+        : "files";
+    } catch {
+      return "files";
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem("moxie.sidebar-mode.v1", tab);
+    } catch {}
+  }, [tab]);
   const [menu, setMenu] = useState<"export" | "format" | "more" | null>(null);
   const menuElement = useRef<HTMLDivElement>(null);
   const menuOpener = useRef<HTMLElement | null>(null);
@@ -329,6 +422,32 @@ export default function App() {
     },
     { mode: preferences.launchFolder, path: preferences.defaultFolder },
   );
+  const lastFolderDocument = useRef(current.path);
+  useEffect(() => {
+    if (
+      !workspace.recoveryReady ||
+      folderWorkspace.busy ||
+      lastFolderDocument.current === current.path
+    )
+      return;
+    lastFolderDocument.current = current.path;
+    if (!current.path || !window.desktop?.folderForFile) return;
+    const root = folderWorkspace.root?.replace(/[\\/]+$/, "");
+    if (
+      root &&
+      current.path.startsWith(root + (root.includes("\\") ? "\\" : "/"))
+    )
+      return;
+    void folderWorkspace.open(current.path, true);
+  }, [
+    current.path,
+    workspace.recoveryReady,
+    folderWorkspace.root,
+    folderWorkspace.busy,
+  ]);
+  useEffect(() => {
+    if (current.path) folderWorkspace.reveal(current.path);
+  }, [current.path, folderWorkspace.root, Boolean(folderWorkspace.tree)]);
   const [fileOperationBusy, setFileOperationBusy] = useState(false);
   const fileOperationInFlight = useRef(false);
   const operateOnFolderFile = async (request: {
@@ -782,6 +901,7 @@ export default function App() {
   const imageUpload = useRef<HTMLInputElement>(null);
   const toolbar = useRef<HTMLElement>(null);
   const openedFiles = useRef<HTMLDivElement>(null);
+  const sidebarNavigation = useRef<HTMLElement>(null);
   const documentTabs = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
   const documentOrder = docs.map((document) => document.id).join("\n");
@@ -789,10 +909,20 @@ export default function App() {
     .map((document) => document.id)
     .join("\n");
   useRevealSelection(
-    openedFiles,
-    current.id + "\n" + documentOrder,
+    sidebarNavigation,
+    current.id +
+      "\n" +
+      documentOrder +
+      "\n" +
+      tab +
+      "\n" +
+      [...folderWorkspace.expanded].join("\n") +
+      "\n" +
+      Boolean(tree),
     "vertical",
-    visibleSidebar && tab === "files" && workspace.recoveryReady,
+    visibleSidebar &&
+      (tab === "opened" || tab === "files") &&
+      workspace.recoveryReady,
   );
   useRevealSelection(
     documentTabs,
@@ -1600,6 +1730,12 @@ export default function App() {
     if (action === "copy-as-html") void copySelectionAsHTML();
     if (action === "copy-as-html-code") void copySelectionAsHTML(true);
     if (action === "quick-open") showQuickOpen();
+    if (action === "global-search") {
+      setSidebar(true);
+      setFocus(false);
+      setTab("files");
+      setWorkspaceSearch(true);
+    }
     if (action === "export")
       setMenu((value) => (value === "export" ? null : "export"));
     if (action === "settings") setSettings(true);
@@ -1683,7 +1819,7 @@ export default function App() {
         "/": "source",
         ",": "settings",
         w: event.shiftKey ? "" : "close-document",
-        f: event.shiftKey ? "focus" : "",
+        f: event.shiftKey ? "global-search" : "",
       };
       const action = mapped[event.key.toLowerCase()];
       if (action) {
@@ -1843,6 +1979,7 @@ export default function App() {
         (!visibleSidebar ? "sidebar-hidden " : "") +
         (focus ? "focus-mode" : "")
       }
+      style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
       onDragOver={(event) => {
         if (event.dataTransfer.types.includes("Files")) event.preventDefault();
       }}
@@ -1872,7 +2009,52 @@ export default function App() {
           </button>
         )}
       {visibleSidebar && (
-        <aside className="sidebar">
+        <aside
+          className="sidebar"
+          ref={sidebarElement}
+          onKeyDown={(event) => {
+            if (
+              event.altKey ||
+              event.ctrlKey ||
+              event.metaKey ||
+              event.shiftKey
+            )
+              return;
+            const target = event.target as HTMLElement;
+            const popup = target.closest<HTMLElement>(
+              ".sidebar-actions-popover",
+            );
+            if (!popup || target.matches("input, select, textarea")) return;
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key))
+              return;
+            const controls = Array.from(
+              popup.querySelectorAll<HTMLElement>(
+                "button:not(:disabled), summary",
+              ),
+            ).filter((element) => {
+              const closed = element.closest("details:not([open])");
+              return (
+                element.getClientRects().length > 0 &&
+                (!closed ||
+                  element === closed.querySelector(":scope > summary"))
+              );
+            });
+            const index = controls.indexOf(target);
+            if (index < 0) return;
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? controls.length - 1
+                  : (index +
+                      (event.key === "ArrowDown" ? 1 : -1) +
+                      controls.length) %
+                    controls.length;
+            event.preventDefault();
+            controls[next].focus({ preventScroll: true });
+            controls[next].scrollIntoView({ block: "nearest" });
+          }}
+        >
           <div className="window-space">
             {!window.desktop && (
               <div className="traffic" aria-hidden="true">
@@ -1882,50 +2064,218 @@ export default function App() {
               </div>
             )}
           </div>
-          <div className="brand">
-            <h1>墨写</h1>
-            <p>本地 Markdown 编辑器</p>
-          </div>
-          <div
-            className="side-tabs"
-            role="tablist"
-            aria-label="侧栏"
-            onKeyDown={navigateTabs}
-          >
+          <header className="sidebar-header">
             <button
-              id="sidebar-files-tab"
-              role="tab"
-              aria-selected={tab === "files"}
-              aria-controls="sidebar-navigation-panel"
-              tabIndex={tab === "files" ? 0 : -1}
-              className={tab === "files" ? "selected" : ""}
-              onClick={() => setTab("files")}
+              className="sidebar-popup-trigger sidebar-mode-trigger"
+              aria-label="切换侧栏导航模式"
+              aria-expanded={sidebarPopup === "mode"}
+              aria-controls="sidebar-mode-options"
+              onClick={(event) =>
+                toggleSidebarPopup("mode", event.currentTarget)
+              }
             >
-              文件
+              <List size={18} />
             </button>
+            <span id="sidebar-mode-caption">
+              {tab === "outline"
+                ? "大纲"
+                : tab === "opened"
+                  ? "已打开"
+                  : "文件"}
+            </span>
             <button
-              id="sidebar-outline-tab"
-              role="tab"
-              aria-selected={tab === "outline"}
-              aria-controls="sidebar-navigation-panel"
-              tabIndex={tab === "outline" ? 0 : -1}
-              className={tab === "outline" ? "selected" : ""}
-              onClick={() => setTab("outline")}
+              aria-label={tab === "outline" ? "搜索大纲标题" : "搜索项目文件夹"}
+              title={tab === "outline" ? "搜索大纲标题" : "搜索项目文件夹"}
+              onClick={() => {
+                dismissSidebarPopup();
+                if (tab === "outline") {
+                  setOutlineSearchOpen(true);
+                  requestAnimationFrame(() =>
+                    sidebarElement.current
+                      ?.querySelector<HTMLInputElement>(".outline-search")
+                      ?.focus(),
+                  );
+                } else setWorkspaceSearch((value) => !value);
+              }}
             >
-              大纲
+              <Search size={18} />
             </button>
-          </div>
+          </header>
+          {sidebarPopup === "mode" && (
+            <div className="sidebar-popover sidebar-mode-popover">
+              <div
+                id="sidebar-mode-options"
+                className="side-tabs"
+                role="tablist"
+                aria-label="侧栏"
+                onKeyDown={navigateTabs}
+              >
+                {(
+                  [
+                    ["files", "文件"],
+                    ["outline", "大纲"],
+                    ["opened", "已打开"],
+                  ] as const
+                ).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    id={`sidebar-${mode}-tab`}
+                    role="tab"
+                    aria-selected={tab === mode}
+                    aria-controls="sidebar-navigation-panel"
+                    tabIndex={tab === mode ? 0 : -1}
+                    className={tab === mode ? "selected" : ""}
+                    onClick={(event) => {
+                      setTab(mode);
+                      if (event.detail > 0) dismissSidebarPopup(true);
+                    }}
+                  >
+                    {mode === "files" ? (
+                      <ListTree size={16} />
+                    ) : mode === "outline" ? (
+                      <List size={16} />
+                    ) : (
+                      <Columns2 size={16} />
+                    )}
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <nav
+            ref={sidebarNavigation}
             className="file-list"
-            aria-label={tab === "files" ? "文档列表" : "文档大纲"}
+            aria-label={tab === "outline" ? "文档大纲" : "文档列表"}
           >
             <div
               id="sidebar-navigation-panel"
               role="tabpanel"
-              aria-labelledby={`sidebar-${tab}-tab`}
+              aria-labelledby="sidebar-mode-caption"
             >
+              {tab === "files" &&
+                !folderWorkspace.root &&
+                folderWorkspace.error && (
+                  <p className="tree-empty" role="alert">
+                    {folderWorkspace.error}
+                  </p>
+                )}
+              {tab === "files" &&
+                !folderWorkspace.root &&
+                folderWorkspace.busy && (
+                  <p className="tree-empty" role="status">
+                    正在读取文档所在文件夹…
+                  </p>
+                )}
+              {workspaceSearch && tab !== "outline" && (
+                <section className="workspace-search" aria-label="跨文档搜索">
+                  <div className="workspace-search-input">
+                    <Search size={16} />
+                    <input
+                      ref={workspaceSearchInput}
+                      value={workspaceQuery}
+                      onChange={(event) =>
+                        setWorkspaceQuery(event.target.value)
+                      }
+                      placeholder={
+                        folderWorkspace.root
+                          ? "搜索文件夹与已打开文档"
+                          : "搜索已打开的文档"
+                      }
+                      aria-label="搜索文件夹与已打开文档"
+                    />
+                    <span>
+                      {projectSearchBusy
+                        ? "搜索中…"
+                        : workspaceQuery.trim()
+                          ? `${allSearchResults.length}${allSearchResults.length === 200 ? "+" : ""} 条`
+                          : "输入搜索内容"}
+                    </span>
+                    <button
+                      aria-label="关闭跨文档搜索"
+                      onClick={() => setWorkspaceSearch(false)}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {workspaceQuery.trim() && (
+                    <div className="workspace-search-controls">
+                      <label>
+                        范围
+                        <select
+                          value={searchScope}
+                          onChange={(event) =>
+                            setSearchScope(
+                              event.target.value as typeof searchScope,
+                            )
+                          }
+                        >
+                          <option value="all">全部文档</option>
+                          <option value="opened">已打开</option>
+                          <option
+                            value="folder"
+                            disabled={!folderWorkspace.root}
+                          >
+                            文件夹内
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        排序
+                        <select
+                          aria-label="搜索结果排序"
+                          value={searchSort}
+                          onChange={(event) =>
+                            setSearchSort(
+                              event.target.value as typeof searchSort,
+                            )
+                          }
+                        >
+                          <option value="relevance">相关度</option>
+                          <option value="name">文件名</option>
+                          <option value="location">路径与位置</option>
+                        </select>
+                      </label>
+                    </div>
+                  )}
+                  {workspaceQuery.trim() && (
+                    <div className="workspace-search-results">
+                      {allSearchResults.length ? (
+                        allSearchResults.map((result, index) => (
+                          <button
+                            key={`${result.id || result.path}:${result.from}:${index}`}
+                            onClick={() => void openSearchResult(result)}
+                          >
+                            <strong>{result.name}</strong>
+                            <small>{result.path || "未保存文档"}</small>
+                            <span>{result.excerpt}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <p role={projectSearchError ? "alert" : "status"}>
+                          {projectSearchBusy
+                            ? "正在搜索…"
+                            : projectSearchError
+                              ? projectSearchStatus
+                              : "没有找到匹配内容"}
+                        </p>
+                      )}
+                      {projectSearchStatus &&
+                        (!projectSearchError ||
+                          allSearchResults.length > 0) && (
+                          <p role={projectSearchError ? "alert" : "status"}>
+                            {projectSearchStatus}
+                          </p>
+                        )}
+                    </div>
+                  )}
+                </section>
+              )}
               {tab === "outline" && (
-                <div className="outline-search-wrap">
+                <div
+                  className="outline-search-wrap"
+                  hidden={!outlineSearchOpen && !outlineQuery}
+                >
                   <Search size={15} aria-hidden="true" />
                   <input
                     aria-label="搜索大纲标题"
@@ -1935,18 +2285,24 @@ export default function App() {
                     value={outlineQuery}
                     onChange={(event) => setOutlineQuery(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === "Escape" && outlineQuery) {
+                      if (event.key === "Escape") {
                         event.preventDefault();
-                        setOutlineQuery("");
+                        if (outlineQuery) setOutlineQuery("");
+                        else {
+                          setOutlineSearchOpen(false);
+                          sidebarElement.current
+                            ?.querySelector<HTMLButtonElement>(
+                              ".sidebar-header button:last-child",
+                            )
+                            ?.focus();
+                        }
                       }
                     }}
                   />
                 </div>
               )}
-              {tab === "files" && (
-                <h2 className="sidebar-group-title">已打开</h2>
-              )}
-              {tab === "files" ? (
+              {tab === "opened" ||
+              (tab === "files" && !folderWorkspace.root) ? (
                 <div
                   ref={openedFiles}
                   className="opened-files"
@@ -2030,60 +2386,103 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-              ) : (
-                outlineRows.map(
-                  ({ heading, hasChildren, collapsed, identity }) => (
-                    <div
-                      className="outline-entry"
-                      key={heading.from}
-                      style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
-                    >
-                      {hasChildren ? (
-                        <button
-                          className="outline-toggle"
-                          aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
-                          aria-expanded={!collapsed}
-                          title={`${collapsed ? "展开" : "折叠"}子标题`}
-                          onClick={() =>
-                            setCollapsedOutline((previous) => {
-                              const next = new Set(previous);
-                              if (next.has(identity)) next.delete(identity);
-                              else next.add(identity);
-                              return next;
-                            })
-                          }
-                        >
-                          {collapsed ? (
-                            <ChevronRight size={14} aria-hidden="true" />
-                          ) : (
-                            <ChevronDown size={14} aria-hidden="true" />
-                          )}
-                        </button>
-                      ) : (
-                        <span
-                          className="outline-toggle-spacer"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <button
-                        className={
-                          "outline-row " +
-                          (heading.from === activeHeading?.from ? "active" : "")
-                        }
-                        aria-current={
-                          heading.from === activeHeading?.from
-                            ? "location"
-                            : undefined
-                        }
-                        title={heading.title}
-                        onClick={() => editor.current?.go(heading.from)}
+              ) : tab === "outline" ? (
+                <div
+                  ref={outlineNavigation}
+                  className="outline-navigation"
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    toggleSidebarPopup("outline", event.currentTarget);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.altKey ||
+                      event.ctrlKey ||
+                      event.metaKey ||
+                      event.shiftKey
+                    )
+                      return;
+                    const rows = Array.from(
+                      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        ".outline-row",
+                      ),
+                    );
+                    const index = rows.indexOf(
+                      event.target as HTMLButtonElement,
+                    );
+                    if (index < 0) return;
+                    const next =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? rows.length - 1
+                          : event.key === "ArrowDown"
+                            ? Math.min(rows.length - 1, index + 1)
+                            : event.key === "ArrowUp"
+                              ? Math.max(0, index - 1)
+                              : null;
+                    if (next !== null) {
+                      event.preventDefault();
+                      rows[next].focus();
+                    }
+                  }}
+                >
+                  {outlineRows.map(
+                    ({ heading, hasChildren, collapsed, identity }) => (
+                      <div
+                        className="outline-entry"
+                        key={heading.from}
+                        style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
                       >
-                        {heading.title}
-                      </button>
-                    </div>
-                  ),
-                )
-              )}
+                        {outlineCollapsible && hasChildren ? (
+                          <button
+                            className="outline-toggle"
+                            aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
+                            aria-expanded={!collapsed}
+                            title={`${collapsed ? "展开" : "折叠"}子标题`}
+                            onClick={() =>
+                              setCollapsedOutline((previous) => {
+                                const next = new Set(previous);
+                                if (next.has(identity)) next.delete(identity);
+                                else next.add(identity);
+                                return next;
+                              })
+                            }
+                          >
+                            {collapsed ? (
+                              <ChevronRight size={14} aria-hidden="true" />
+                            ) : (
+                              <ChevronDown size={14} aria-hidden="true" />
+                            )}
+                          </button>
+                        ) : (
+                          <span
+                            className="outline-toggle-spacer"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <button
+                          className={
+                            "outline-row " +
+                            (heading.from === activeHeading?.from
+                              ? "active"
+                              : "")
+                          }
+                          aria-current={
+                            heading.from === activeHeading?.from
+                              ? "location"
+                              : undefined
+                          }
+                          title={heading.title}
+                          onClick={() => editor.current?.go(heading.from)}
+                        >
+                          {heading.title}
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : null}
               {tab === "outline" && outlineRows.length === 0 && (
                 <p className="outline-empty" role="status">
                   {documentHeadings.length === 0
@@ -2093,11 +2492,17 @@ export default function App() {
               )}
               {tab === "files" && tree && (
                 <FolderBrowser
+                  ref={folderBrowser}
+                  controlsHost={folderControlsHost}
+                  onViewChange={setFolderView}
                   tree={tree}
                   active={current.path}
                   open={(path) => void reopen(path)}
                   refresh={() => void folderWorkspace.refresh()}
-                  close={folderWorkspace.close}
+                  close={() => {
+                    dismissSidebarPopup(true);
+                    folderWorkspace.close();
+                  }}
                   busy={folderBusy}
                   copying={dropBusy}
                   operating={fileOperationBusy}
@@ -2139,52 +2544,208 @@ export default function App() {
                   <button onClick={folderWorkspace.close}>关闭文件夹</button>
                 </section>
               )}
-              {tab === "files" && (
-                <RecentFolders
-                  folders={folderWorkspace.recent}
-                  active={folderWorkspace.root}
-                  busy={folderBusy}
-                  open={(path) => void folderWorkspace.open(path)}
-                  changed={() => void folderWorkspace.refreshRecent()}
-                />
-              )}
-              {tab === "files" && recent.length > 0 && (
-                <details className="recent-files">
-                  <summary>
-                    <Clock size={13} />
-                    最近打开
-                  </summary>
-                  {recent.slice(0, 5).map((file) => (
-                    <button
-                      key={file.path}
-                      title={file.path}
-                      onClick={() => void reopen(file.path)}
-                    >
-                      {file.name}
-                    </button>
-                  ))}
-                </details>
-              )}
             </div>
           </nav>
-          <div className="side-actions">
-            <button onClick={workspace.add}>
-              <Plus size={19} />
-              新建文件
+          <footer className="sidebar-footer">
+            <button
+              aria-label="新建文件"
+              title="新建文件"
+              onClick={() => {
+                dismissSidebarPopup();
+                tree && tab === "files"
+                  ? folderBrowser.current?.newFile()
+                  : workspace.add();
+              }}
+            >
+              <Plus size={18} />
             </button>
-            <button onClick={() => void open()}>
-              <FileText size={17} />
-              打开文件 <kbd>⌘O</kbd>
+            <button
+              className="sidebar-popup-trigger sidebar-folder-trigger"
+              aria-label="文件夹菜单"
+              aria-expanded={sidebarPopup === "actions"}
+              aria-controls="sidebar-folder-menu"
+              title={folderWorkspace.root || "打开文件夹"}
+              onClick={(event) =>
+                toggleSidebarPopup("actions", event.currentTarget)
+              }
+            >
+              <span>{tree?.name || "打开文件夹"}</span>
+              <MoreVertical size={16} />
             </button>
-            <button onClick={() => void importDocument()}>
-              <FileText size={17} />
-              导入文档…
+            <button
+              className="sidebar-popup-trigger"
+              aria-label={
+                tab === "outline"
+                  ? "大纲显示选项"
+                  : folderView === "tree"
+                    ? "切换到文件列表"
+                    : "切换到文件树"
+              }
+              title={
+                tab === "outline"
+                  ? "大纲显示选项"
+                  : folderView === "tree"
+                    ? "切换到文件列表"
+                    : "切换到文件树"
+              }
+              disabled={tab === "opened" || (tab === "files" && !tree)}
+              onClick={(event) => {
+                if (tab === "outline")
+                  toggleSidebarPopup("outline", event.currentTarget);
+                else folderBrowser.current?.toggleView();
+              }}
+            >
+              {tab === "outline" ? (
+                <MoreHorizontal size={18} />
+              ) : folderView === "tree" ? (
+                <List size={18} />
+              ) : (
+                <ListTree size={18} />
+              )}
             </button>
-            <button onClick={() => void folder()}>
-              <FolderOpen size={18} />
-              打开文件夹
-            </button>
+          </footer>
+          <div
+            id="sidebar-folder-menu"
+            className="sidebar-popover sidebar-actions-popover"
+            hidden={sidebarPopup !== "actions"}
+          >
+            <div className="sidebar-menu-heading">
+              操作{" "}
+              <button
+                aria-label="关闭文件夹菜单"
+                onClick={() => dismissSidebarPopup(true)}
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="sidebar-menu-actions">
+              <button
+                onClick={() => {
+                  dismissSidebarPopup();
+                  void folder();
+                }}
+              >
+                <FolderOpen size={16} />
+                打开文件夹
+              </button>
+              <button
+                onClick={() => {
+                  dismissSidebarPopup();
+                  void open();
+                }}
+              >
+                <FileText size={16} />
+                打开文件
+              </button>
+              <button
+                onClick={() => {
+                  dismissSidebarPopup();
+                  void importDocument();
+                }}
+              >
+                <FileDown size={16} />
+                导入文档…
+              </button>
+              <button
+                onClick={() => {
+                  dismissSidebarPopup();
+                  showQuickOpen();
+                }}
+              >
+                <Search size={16} />
+                快速打开
+              </button>
+            </div>
+            <div ref={setFolderControlsHost} />
+            <RecentFolders
+              folders={folderWorkspace.recent}
+              active={folderWorkspace.root}
+              busy={folderBusy}
+              open={(path) => {
+                dismissSidebarPopup();
+                void folderWorkspace.open(path);
+                setTab("files");
+              }}
+              changed={() => void folderWorkspace.refreshRecent()}
+            />
+            {recent.length > 0 && (
+              <details className="recent-files">
+                <summary>最近打开</summary>
+                {recent.slice(0, 10).map((file) => (
+                  <button
+                    key={file.path}
+                    title={file.path}
+                    onClick={() => {
+                      dismissSidebarPopup();
+                      void reopen(file.path);
+                    }}
+                  >
+                    {file.name}
+                  </button>
+                ))}
+              </details>
+            )}
           </div>
+          {sidebarPopup === "outline" && (
+            <div
+              className="sidebar-popover sidebar-actions-popover sidebar-outline-options"
+              role="group"
+              aria-label="大纲显示选项"
+            >
+              <button
+                aria-pressed={!outlineCollapsible}
+                onClick={() => {
+                  setOutlineCollapsible(false);
+                  try {
+                    localStorage.setItem(
+                      "moxie.outline-collapsible.v1",
+                      "false",
+                    );
+                  } catch {}
+                  dismissSidebarPopup(true);
+                }}
+              >
+                平铺大纲
+              </button>
+              <button
+                aria-pressed={outlineCollapsible}
+                onClick={() => {
+                  setOutlineCollapsible(true);
+                  try {
+                    localStorage.setItem(
+                      "moxie.outline-collapsible.v1",
+                      "true",
+                    );
+                  } catch {}
+                  dismissSidebarPopup(true);
+                }}
+              >
+                可折叠大纲
+              </button>
+              <button
+                onClick={() => {
+                  setOutlineQuery("");
+                  setCollapsedOutline(new Set());
+                  dismissSidebarPopup();
+                  requestAnimationFrame(() => {
+                    const row =
+                      outlineNavigation.current?.querySelector<HTMLButtonElement>(
+                        ".outline-row.active",
+                      );
+                    row?.scrollIntoView({ block: "nearest" });
+                    row?.focus({ preventScroll: true });
+                  });
+                }}
+              >
+                <LocateFixed size={16} />
+                定位当前标题
+              </button>
+            </div>
+          )}
+          <SidebarResizeHandle
+            width={sidebarWidth}
+            change={changeSidebarWidth}
+          />
         </aside>
       )}
       {visibleSidebar && (
@@ -2247,9 +2808,14 @@ export default function App() {
               <Search size={18} />
             </Tool>
             <Tool
-              label="搜索项目文件夹"
+              label="跨文档搜索"
               active={workspaceSearch}
-              onClick={() => setWorkspaceSearch((open) => !open)}
+              onClick={() => {
+                setSidebar(true);
+                setFocus(false);
+                setTab("files");
+                setWorkspaceSearch((open) => !open);
+              }}
             >
               <FolderSearch2 size={18} />
             </Tool>
@@ -2514,6 +3080,9 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
+                  setSidebar(true);
+                  setFocus(false);
+                  setTab("files");
                   setWorkspaceSearch((open) => !open);
                   setMenu(null);
                 }}
@@ -2546,100 +3115,6 @@ export default function App() {
                 <SettingsIcon size={17} /> 偏好设置
               </button>
             </div>
-          )}
-          {workspaceSearch && (
-            <section className="workspace-search" aria-label="跨文档搜索">
-              <div className="workspace-search-input">
-                <Search size={16} />
-                <input
-                  ref={workspaceSearchInput}
-                  value={workspaceQuery}
-                  onChange={(event) => setWorkspaceQuery(event.target.value)}
-                  placeholder={
-                    folderWorkspace.root
-                      ? "搜索文件夹与已打开文档"
-                      : "搜索已打开的文档"
-                  }
-                  aria-label="搜索文件夹与已打开文档"
-                />
-                <span>
-                  {projectSearchBusy
-                    ? "搜索中…"
-                    : workspaceQuery.trim()
-                      ? `${allSearchResults.length}${allSearchResults.length === 200 ? "+" : ""} 条`
-                      : "输入搜索内容"}
-                </span>
-                <button
-                  aria-label="关闭跨文档搜索"
-                  onClick={() => setWorkspaceSearch(false)}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              {workspaceQuery.trim() && (
-                <div className="workspace-search-controls">
-                  <label>
-                    范围
-                    <select
-                      value={searchScope}
-                      onChange={(event) =>
-                        setSearchScope(event.target.value as typeof searchScope)
-                      }
-                    >
-                      <option value="all">全部文档</option>
-                      <option value="opened">已打开</option>
-                      <option value="folder" disabled={!folderWorkspace.root}>
-                        文件夹内
-                      </option>
-                    </select>
-                  </label>
-                  <label>
-                    排序
-                    <select
-                      aria-label="搜索结果排序"
-                      value={searchSort}
-                      onChange={(event) =>
-                        setSearchSort(event.target.value as typeof searchSort)
-                      }
-                    >
-                      <option value="relevance">相关度</option>
-                      <option value="name">文件名</option>
-                      <option value="location">路径与位置</option>
-                    </select>
-                  </label>
-                </div>
-              )}
-              {workspaceQuery.trim() && (
-                <div className="workspace-search-results">
-                  {allSearchResults.length ? (
-                    allSearchResults.map((result, index) => (
-                      <button
-                        key={`${result.id || result.path}:${result.from}:${index}`}
-                        onClick={() => void openSearchResult(result)}
-                      >
-                        <strong>{result.name}</strong>
-                        <small>{result.path || "未保存文档"}</small>
-                        <span>{result.excerpt}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <p role={projectSearchError ? "alert" : "status"}>
-                      {projectSearchBusy
-                        ? "正在搜索…"
-                        : projectSearchError
-                          ? projectSearchStatus
-                          : "没有找到匹配内容"}
-                    </p>
-                  )}
-                  {projectSearchStatus &&
-                    (!projectSearchError || allSearchResults.length > 0) && (
-                      <p role={projectSearchError ? "alert" : "status"}>
-                        {projectSearchStatus}
-                      </p>
-                    )}
-                </div>
-              )}
-            </section>
           )}
         </header>
         {docs.length > 1 && (

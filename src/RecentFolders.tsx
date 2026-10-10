@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Folder, Pin, Trash2 } from "lucide-react";
 import type { RecentFolder } from "./bridge";
 
 export function RecentFolders({
@@ -43,6 +44,7 @@ export function RecentFolders({
             title={folder.path}
             onClick={() => open(folder.path)}
           >
+            <Folder size={15} />
             <span>{folder.name}</span>
             <small>{folder.path}</small>
           </button>
@@ -53,13 +55,13 @@ export function RecentFolders({
               void update(folder.pinned ? "unpin" : "pin", folder.path)
             }
           >
-            {folder.pinned ? "取消固定" : "固定"}
+            <Pin size={13} fill={folder.pinned ? "currentColor" : "none"} />
           </button>
           <button
             aria-label={`移除最近文件夹 ${folder.name}`}
             onClick={() => void update("remove", folder.path)}
           >
-            移除
+            <Trash2 size={13} />
           </button>
         </div>
       ))}

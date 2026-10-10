@@ -231,6 +231,9 @@ function setupIPC() {
   handle("folder:startup", (root) => store.setStartupFolder(root));
   handle("folder:recent", () => store.recentFolders());
   handle("folder:history", (input) => store.updateFolderHistory(input));
+  handle("folder:for-file", (input) =>
+    store.folderForFile(input.path, input.options),
+  );
   handle("folder:reopen", (input) =>
     store.reopenFolder(input.path, input.options),
   );
@@ -767,7 +770,8 @@ function createMenu() {
         label: "视图",
         submenu: [
           command("切换源码模式", "source", "CmdOrCtrl+/"),
-          command("专注模式", "focus", "CmdOrCtrl+Shift+F"),
+          command("跨文档搜索", "global-search", "CmdOrCtrl+Shift+F"),
+          command("专注模式", "focus"),
           { role: "togglefullscreen" },
         ],
       },

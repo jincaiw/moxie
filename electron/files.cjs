@@ -992,6 +992,16 @@ class FileStore {
     this.startupFolder = root;
     await this.persist();
   }
+  async folderForFile(file, options) {
+    if (
+      typeof file !== "string" ||
+      !path.isAbsolute(file) ||
+      !this.authorized.has(file)
+    )
+      throw Error("请先通过“打开文件”选择该文档");
+    if (!(await fs.stat(file)).isFile()) throw Error("请选择普通文件");
+    return this.folder(path.dirname(file), false, undefined, options);
+  }
   async reopenFolder(root, options) {
     if (!this.folders.has(root)) throw Error("请先选择该文件夹");
     if ((await fs.realpath(root)) !== root)

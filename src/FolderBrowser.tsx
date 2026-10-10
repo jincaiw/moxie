@@ -1,5 +1,8 @@
 import {
   useEffect,
+  useLayoutEffect,
+  useImperativeHandle,
+  type Ref,
   useRef,
   useState,
   type FormEvent,
@@ -9,6 +12,10 @@ import {
   type SetStateAction,
 } from "react";
 import {
+  ArrowDown01,
+  ArrowDownAZ,
+  CalendarDays,
+  Clock,
   ChevronDown,
   ChevronRight,
   Copy,
@@ -26,6 +33,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { Dialog } from "./Dialog";
 import type { FolderNode, FolderTree, DroppedCopyProgress } from "./bridge";
 import {
@@ -36,6 +44,11 @@ import {
   type SortMode,
   type FolderLayout,
 } from "./folder-order";
+
+export type FolderBrowserHandle = {
+  newFile: () => void;
+  toggleView: () => void;
+};
 
 type FileAction =
   | "new-file"
@@ -132,6 +145,49 @@ function Branch({
     else setActionPath((current) => (current === node.path ? null : current));
   };
   const actionsRef = useRef<HTMLFieldSetElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+  const menuPoint = useRef<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!menuOpen || !actionsRef.current) return;
+    const bounds = entryRef.current!.getBoundingClientRect();
+    const point = menuPoint.current || {
+      left: bounds.right,
+      top: bounds.bottom,
+    };
+    const place = () => {
+      if (!actionsRef.current) return;
+      const menu = actionsRef.current.getBoundingClientRect();
+      setMenuPosition({
+        left: Math.max(
+          8,
+          Math.min(point.left, window.innerWidth - menu.width - 8),
+        ),
+        top: Math.max(
+          8,
+          Math.min(point.top, window.innerHeight - menu.height - 8),
+        ),
+      });
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(actionsRef.current);
+    const close = (event: Event) => {
+      if (
+        event.type === "scroll" &&
+        event.target instanceof Node &&
+        actionsRef.current?.contains(event.target)
+      )
+        return;
+      setMenuOpen(false);
+    };
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menuOpen]);
   const entryRef = useRef<HTMLDivElement>(null);
   const closeActions = () => {
     entryRef.current?.querySelector<HTMLButtonElement>(".tree-row")?.focus();
@@ -229,11 +285,13 @@ function Branch({
               (event.shiftKey && event.key === "F10")
             ) {
               event.preventDefault();
+              menuPoint.current = null;
               setMenuOpen(true);
             } else onTreeKeyDown(event, node);
           }}
           onContextMenu={(event) => {
             event.preventDefault();
+            menuPoint.current = { left: event.clientX, top: event.clientY };
             setMenuOpen(true);
           }}
           draggable={!busy && node.kind !== "other"}
@@ -273,7 +331,7 @@ function Branch({
             <span className="tree-indent" />
           )}
           {directory ? (
-            <Folder size={15} />
+            <Folder size={15} fill="currentColor" strokeWidth={0} />
           ) : node.kind === "file" ? (
             <FileText size={15} />
           ) : (
@@ -297,7 +355,10 @@ function Branch({
           aria-label={`文件操作：${node.name}`}
           aria-expanded={menuOpen}
           disabled={busy}
-          onClick={() => setMenuOpen(!menuOpen)}
+          onClick={() => {
+            menuPoint.current = null;
+            setMenuOpen(!menuOpen);
+          }}
         >
           <MoreVertical size={15} />
         </button>
@@ -305,6 +366,7 @@ function Branch({
       {menuOpen && (
         <fieldset
           className="tree-actions"
+          style={menuPosition}
           disabled={busy}
           ref={actionsRef}
           role="group"
@@ -574,6 +636,9 @@ function Branch({
 }
 
 export function FolderBrowser({
+  ref,
+  controlsHost,
+  onViewChange,
   tree,
   active,
   open,
@@ -594,6 +659,9 @@ export function FolderBrowser({
   hasCustomFilter,
   dropExternal,
 }: {
+  ref?: Ref<FolderBrowserHandle>;
+  controlsHost?: HTMLElement | null;
+  onViewChange?: (view: "tree" | "list") => void;
   dropExternal?: (files: File[], directory: string) => void;
   tree: FolderTree;
   active?: string;
@@ -640,8 +708,15 @@ export function FolderBrowser({
     if (!submittingRef.current) {
       setOperation(null);
       requestAnimationFrame(() => {
-        if (operationOrigin.current?.isConnected)
+        if (
+          operationOrigin.current?.isConnected &&
+          operationOrigin.current.checkVisibility()
+        )
           operationOrigin.current.focus();
+        else
+          document
+            .querySelector<HTMLButtonElement>(".sidebar-folder-trigger")
+            ?.focus();
       });
     }
   };
@@ -764,6 +839,12 @@ export function FolderBrowser({
     );
     setOperation({ action, target });
   };
+  useImperativeHandle(ref, () => ({
+    newFile: () => openOperation("new-file"),
+    toggleView: () =>
+      changeLayout({ view: layout.view === "tree" ? "list" : "tree" }),
+  }));
+  useEffect(() => onViewChange?.(layout.view), [layout.view, onViewChange]);
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     if (!operation || busy || submittingRef.current || nameError) return;
@@ -815,6 +896,18 @@ export function FolderBrowser({
     event: KeyboardEvent<HTMLButtonElement>,
     node: FolderNode,
   ) => {
+    if (
+      event.key === "F2" &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      node.kind !== "other"
+    ) {
+      event.preventDefault();
+      openOperation("rename", node);
+      return;
+    }
     const rows = Array.from(
       treeRef.current?.querySelectorAll<HTMLButtonElement>(
         ".tree-row:not(:disabled)",
@@ -909,140 +1002,189 @@ export function FolderBrowser({
       >
         <Folder size={14} />
         <strong>{tree.name}</strong>
-        <div className="folder-primary-actions">
-          <button
-            aria-label="新建文档"
-            title="新建文档"
-            disabled={busy}
-            onClick={() => openOperation("new-file")}
-          >
-            <FilePlus2 size={14} />
-          </button>
-          <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
-            <RefreshCw size={13} />
-          </button>
-          <button
-            aria-label="关闭文件夹"
-            disabled={copying || operating}
-            onClick={close}
-          >
-            <X size={13} />
-          </button>
-        </div>
       </header>
-      <details className="folder-options">
-        <summary>显示与操作</summary>
-        <div className="folder-secondary-actions">
-          <button
-            aria-label="新建文件夹"
-            title="新建文件夹"
-            disabled={busy}
-            onClick={() => openOperation("new-folder")}
-          >
-            <FolderPlus size={14} />
-            新建文件夹
-          </button>
-          <button
-            aria-label="撤销文件操作"
-            title="撤销文件操作"
-            disabled={busy}
-            onClick={() => run({ action: "undo" })}
-          >
-            <RotateCcw size={14} />
-            撤销操作
-          </button>
-          <button
-            aria-label="在文件管理器中显示文件夹"
-            title="在文件管理器中显示文件夹"
-            disabled={busy}
-            onClick={() =>
-              void operate({ action: "reveal", target: tree.path })
-            }
-          >
-            <ExternalLink size={14} />
-            在系统中显示
-          </button>
-          <button
-            aria-label="复制文件夹路径"
-            title="复制文件夹路径"
-            disabled={busy}
-            onClick={() =>
-              void operate({ action: "copy-path", target: tree.path })
-            }
-          >
-            <Copy size={14} />
-            复制路径
-          </button>
-        </div>
-        <label className="folder-sort-control">
-          文件排序
-          <select
-            aria-label="文件排序"
-            value={sort}
-            onChange={(event) => changeSort(event.target.value as SortMode)}
-          >
-            <option value="name">按名称</option>
-            <option value="alphabet">按字母</option>
-            <option value="type">按类型</option>
-            <option value="modified">按修改时间</option>
-            <option value="created">按创建时间</option>
-          </select>
-        </label>
-        <div className="folder-layout-controls">
-          <label>
-            显示方式
-            <select
-              aria-label="文件显示方式"
-              value={layout.view}
-              onChange={(event) =>
-                changeLayout({
-                  view: event.target.value as FolderLayout["view"],
-                })
-              }
+      {controlsHost &&
+        createPortal(
+          <>
+            <div className="folder-primary-actions">
+              <button
+                aria-label="新建文档"
+                title="新建文档"
+                disabled={busy}
+                onClick={() => openOperation("new-file")}
+              >
+                <FilePlus2 size={14} />
+                新建文档
+              </button>
+              <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
+                <RefreshCw size={13} />
+                刷新文件夹
+              </button>
+              <button
+                aria-label="关闭文件夹"
+                disabled={copying || operating}
+                onClick={close}
+              >
+                <X size={13} />
+                关闭文件夹
+              </button>
+            </div>
+            <div
+              className="folder-sort-bar"
+              role="group"
+              aria-label="排序快捷选项"
             >
-              <option value="tree">文件树</option>
-              <option value="list">文件列表</option>
-            </select>
-          </label>
-          <label>
-            排序方向
-            <select
-              aria-label="排序方向"
-              value={layout.descending ? "descending" : "ascending"}
-              onChange={(event) =>
-                changeLayout({
-                  descending: event.target.value === "descending",
-                })
-              }
-            >
-              <option value="ascending">升序</option>
-              <option value="descending">降序</option>
-            </select>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              aria-label="按文件夹分组"
-              checked={layout.foldersFirst}
-              onChange={(event) =>
-                changeLayout({ foldersFirst: event.target.checked })
-              }
-            />
-            {layout.view === "tree" ? "文件夹优先" : "按文件夹分组"}
-          </label>
-        </div>
-        <p className="folder-filter-summary">
-          {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
-          {" · "}
-          {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
-          {hasCustomFilter && " · 已应用自定义规则"}
-          {" · 可在偏好设置中更改"}
-        </p>
-        <p className="folder-drag-help">
-          拖入正文或使用文件操作菜单插入相对链接；系统文件拖到文件夹可复制。按住
-          Alt/Option 可拖出到系统。
-        </p>
-      </details>
+              <button
+                aria-label="文件夹优先"
+                aria-pressed={layout.foldersFirst}
+                title="文件夹优先 / 按文件夹分组"
+                onClick={() =>
+                  changeLayout({ foldersFirst: !layout.foldersFirst })
+                }
+              >
+                <Folder size={15} />
+              </button>
+              {(
+                [
+                  ["name", "自然顺序", ArrowDown01],
+                  ["alphabet", "字母顺序", ArrowDownAZ],
+                  ["modified", "修改时间", Clock],
+                  ["created", "创建时间", CalendarDays],
+                ] as const
+              ).map(([mode, label, Icon]) => (
+                <button
+                  key={mode}
+                  aria-label={`按${label}排序`}
+                  aria-pressed={sort === mode}
+                  title={`按${label}排序${sort === mode ? (layout.descending ? " · 降序" : " · 升序") : ""}`}
+                  onClick={() => {
+                    if (sort === mode)
+                      changeLayout({ descending: !layout.descending });
+                    else changeSort(mode);
+                  }}
+                >
+                  <Icon size={15} />
+                </button>
+              ))}
+            </div>
+            <details className="folder-options">
+              <summary>显示与操作</summary>
+              <div className="folder-secondary-actions">
+                <button
+                  aria-label="新建文件夹"
+                  title="新建文件夹"
+                  disabled={busy}
+                  onClick={() => openOperation("new-folder")}
+                >
+                  <FolderPlus size={14} />
+                  新建文件夹
+                </button>
+                <button
+                  aria-label="撤销文件操作"
+                  title="撤销文件操作"
+                  disabled={busy}
+                  onClick={() => run({ action: "undo" })}
+                >
+                  <RotateCcw size={14} />
+                  撤销操作
+                </button>
+                <button
+                  aria-label="在文件管理器中显示文件夹"
+                  title="在文件管理器中显示文件夹"
+                  disabled={busy}
+                  onClick={() =>
+                    void operate({ action: "reveal", target: tree.path })
+                  }
+                >
+                  <ExternalLink size={14} />
+                  在系统中显示
+                </button>
+                <button
+                  aria-label="复制文件夹路径"
+                  title="复制文件夹路径"
+                  disabled={busy}
+                  onClick={() =>
+                    void operate({ action: "copy-path", target: tree.path })
+                  }
+                >
+                  <Copy size={14} />
+                  复制路径
+                </button>
+              </div>
+              <label className="folder-sort-control">
+                文件排序
+                <select
+                  aria-label="文件排序"
+                  value={sort}
+                  onChange={(event) =>
+                    changeSort(event.target.value as SortMode)
+                  }
+                >
+                  <option value="name">按名称</option>
+                  <option value="alphabet">按字母</option>
+                  <option value="type">按类型</option>
+                  <option value="modified">按修改时间</option>
+                  <option value="created">按创建时间</option>
+                </select>
+              </label>
+              <div className="folder-layout-controls">
+                <label>
+                  显示方式
+                  <select
+                    aria-label="文件显示方式"
+                    value={layout.view}
+                    onChange={(event) =>
+                      changeLayout({
+                        view: event.target.value as FolderLayout["view"],
+                      })
+                    }
+                  >
+                    <option value="tree">文件树</option>
+                    <option value="list">文件列表</option>
+                  </select>
+                </label>
+                <label>
+                  排序方向
+                  <select
+                    aria-label="排序方向"
+                    value={layout.descending ? "descending" : "ascending"}
+                    onChange={(event) =>
+                      changeLayout({
+                        descending: event.target.value === "descending",
+                      })
+                    }
+                  >
+                    <option value="ascending">升序</option>
+                    <option value="descending">降序</option>
+                  </select>
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label="按文件夹分组"
+                    checked={layout.foldersFirst}
+                    onChange={(event) =>
+                      changeLayout({ foldersFirst: event.target.checked })
+                    }
+                  />
+                  {layout.view === "tree" ? "文件夹优先" : "按文件夹分组"}
+                </label>
+              </div>
+              <p className="folder-filter-summary">
+                {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
+                {" · "}
+                {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
+                {hasCustomFilter && " · 已应用自定义规则"}
+                {" · 可在偏好设置中更改"}
+              </p>
+              <p className="folder-drag-help">
+                拖入正文或使用文件操作菜单插入相对链接；系统文件拖到文件夹可复制。按住
+                Alt/Option 可拖出到系统。
+              </p>
+            </details>
+          </>,
+          controlsHost,
+        )}
       {error && (
         <p className="tree-empty" role="status">
           {error}

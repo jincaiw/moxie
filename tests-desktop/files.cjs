@@ -1972,3 +1972,35 @@ test("最近文件夹固定清除与指定启动目录在历史淘汰后仍持�
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("仅已授权普通文档可以自动加载父目录，目录切换不扩展任意路径权限", async () => {
+  const { FileStore } = require("../electron/files.cjs");
+  const root = await fs.realpath(
+    await fs.mkdtemp(path.join(os.tmpdir(), "moxie-parent-folder-")),
+  );
+  try {
+    const selected = path.join(root, "selected.md");
+    const sibling = path.join(root, "sibling.md");
+    await fs.writeFile(selected, "# selected");
+    await fs.writeFile(sibling, "# sibling");
+    const store = new FileStore(path.join(root, "state.json"));
+    await store.init();
+    await assert.rejects(store.folderForFile(selected), /选择该文档/);
+    await assert.rejects(store.folderForFile("relative.md"), /选择该文档/);
+    assert.equal(store.folders.size, 0);
+    await store.read(selected);
+    const tree = await store.folderForFile(selected);
+    assert.equal(tree.path, root);
+    assert.deepEqual(tree.entries.map((node) => node.name).sort(), [
+      "selected.md",
+      "sibling.md",
+    ]);
+    assert.equal((await store.reopenFolder(root)).path, root);
+    store.authorized.add(root);
+    await assert.rejects(store.folderForFile(root), /普通文件/);
+    await assert.rejects(store.folderForFile(null), /选择该文档/);
+    assert.equal((await store.read(selected, true)).text, "# selected");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

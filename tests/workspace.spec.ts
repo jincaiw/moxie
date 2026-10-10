@@ -1,8 +1,15 @@
+import {
+  clickSidebarFolderAction,
+  openSidebarFolder,
+  openSidebarFolderMenu,
+  selectSidebarMode,
+} from "./sidebar";
 import { test, expect, type Page } from "@playwright/test";
 import { documentEnd, shortcut } from "./keyboard";
 import { Buffer } from "node:buffer";
 
 async function expandFolderOptions(page: Page) {
+  await openSidebarFolderMenu(page);
   if ((await page.locator(".folder-options").getAttribute("open")) === null)
     await page.locator(".folder-options > summary").click();
 }
@@ -106,7 +113,7 @@ test("跨文档搜索可按文档名排序并筛选已打开文档", async ({ pa
     mimeType: "text/markdown",
     buffer: Buffer.from("needle 在 Alpha 文档中"),
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "搜索项目文件夹" }).click();
   await page.getByLabel("搜索文件夹与已打开文档").fill("needle");
   const resultNames = page.locator(".workspace-search-results button strong");
@@ -140,7 +147,7 @@ test("跨文档搜索清除旧结果、隔离迟到响应并准确反馈异常",
       });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "搜索项目文件夹" }).click();
   const input = page.getByLabel("搜索文件夹与已打开文档");
   const panel = page.locator(".workspace-search-results");
@@ -332,7 +339,7 @@ test("超过 localStorage 容量的文档通过 IndexedDB 恢复并保留末尾�
 
 test("目录展开、按需打开、刷新和关闭目录", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await expect(
     page.getByRole("button", { name: "文件夹 章节" }),
   ).toHaveAttribute("aria-expanded", "false");
@@ -344,21 +351,21 @@ test("目录展开、按需打开、刷新和关闭目录", async ({ page }) => 
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page.getByRole("button", { name: "打开 note.md", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText("原内容");
-  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await clickSidebarFolderAction(page, "刷新文件夹");
   await expect(
     page.getByRole("button", { name: "打开 new.md", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "文件夹 章节" }),
   ).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: "关闭文件夹" }).click();
+  await clickSidebarFolderAction(page, "关闭文件夹");
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
   await expect(page.locator(".cm-content")).toContainText("原内容");
 });
 
 test("文件侧栏支持方向键浏览与目录展开折叠", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   const folder = page.getByRole("button", { name: "文件夹 章节" });
   await expect(folder).toBeVisible();
   await folder.focus();
@@ -433,7 +440,7 @@ test("文件侧栏筛选支持显示隐藏文件和非 Markdown 文件", async (
     };
   });
 
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await expect(
     page.getByRole("button", { name: "打开 note.md" }),
   ).toBeVisible();
@@ -485,9 +492,9 @@ test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({
       return true;
     };
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await expandFolderOptions(page);
-  await page.getByRole("button", { name: "复制文件夹路径" }).click();
+  await clickSidebarFolderAction(page, "复制文件夹路径");
   await expect(page.getByRole("status")).toContainText("已复制路径");
   await page.getByRole("button", { name: "在文件管理器中显示文件夹" }).click();
   await expect
@@ -528,7 +535,7 @@ test("文件侧栏支持拖放文档到文件夹执行移动", async ({ page }) 
       };
     };
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page
     .getByRole("button", { name: "打开 note.md", exact: true })
@@ -564,7 +571,7 @@ test("文档导入以未保存副本打开，不替换原文件", async ({ page 
       return { name: "converted.md", text: "# Converted\n\nImported copy\n" };
     };
   });
-  await page.getByRole("button", { name: "导入文档…", exact: true }).click();
+  await clickSidebarFolderAction(page, "导入文档…");
   await expect(page.locator(".document-title")).toContainText("converted.md");
   await expect(page.locator(".cm-content")).toContainText("Imported copy");
   await expect(page.getByRole("button", { name: /会话副本/ })).toBeVisible();
@@ -573,7 +580,7 @@ test("文档导入以未保存副本打开，不替换原文件", async ({ page 
 
 test("文件侧栏支持按类型排序并持久保存置顶文档", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page.getByRole("button", { name: "文件操作：note.md" }).click();
   await page.getByRole("button", { name: "置顶", exact: true }).click();
@@ -595,13 +602,11 @@ test("文件侧栏支持按类型排序并持久保存置顶文档", async ({ pa
 
 test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   const otherWindow = await page.context().newPage();
   await otherWindow.goto("/");
-  await otherWindow
-    .getByRole("button", { name: "打开文件夹", exact: true })
-    .click();
+  await openSidebarFolder(otherWindow);
   const otherFolder = otherWindow.getByRole("button", { name: "文件夹 章节" });
   if ((await otherFolder.getAttribute("aria-expanded")) !== "true")
     await otherFolder.click();
@@ -613,12 +618,10 @@ test("文件侧栏同步其他窗口对置顶文档的更改", async ({ page }) 
 
 test("文件侧栏同步其他窗口的排序设置", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   const otherWindow = await page.context().newPage();
   await otherWindow.goto("/");
-  await otherWindow
-    .getByRole("button", { name: "打开文件夹", exact: true })
-    .click();
+  await openSidebarFolder(otherWindow);
   await expandFolderOptions(otherWindow);
   await otherWindow.getByLabel("文件排序").selectOption("type");
   await expect(page.getByLabel("文件排序")).toHaveValue("type");
@@ -659,7 +662,7 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
       };
     };
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page.getByRole("button", { name: "文件操作：note.md" }).click();
   await page.getByRole("button", { name: "置顶", exact: true }).click();
@@ -689,7 +692,7 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
       },
     ]);
   await expandFolderOptions(page);
-  await page.getByRole("button", { name: "撤销文件操作" }).click();
+  await clickSidebarFolderAction(page, "撤销文件操作");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -726,7 +729,7 @@ test("长图导出将完整 HTML 和文档名交给桌面分页捕获", async ({
 
 test("未编辑文档自动更新，有本地修改时保留并确认载入", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await clickSidebarFolderAction(page, "打开文件");
   await page.evaluate(() => {
     const w = window as unknown as { disk: { text: string; version: string } };
     w.disk.text = "# 外部更新\n\n新的磁盘内容\n";
@@ -758,7 +761,7 @@ test("未编辑文档自动更新，有本地修改时保留并确认载入", as
 
 test("磁盘删除后保留编辑并另存为，自动保存暂停", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await clickSidebarFolderAction(page, "打开文件");
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("自动保存到原文件").check();
   await page.keyboard.press("Escape");
@@ -792,7 +795,7 @@ test("磁盘删除后保留编辑并另存为，自动保存暂停", async ({ pa
 
 test("检查结果晚于手动保存时不会回滚已保存内容", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件 ⌘O" }).click();
+  await clickSidebarFolderAction(page, "打开文件");
   await expect(page.locator(".cm-content")).toContainText("原内容");
   await page.evaluate(() => {
     const w = window as unknown as {
@@ -845,7 +848,7 @@ test("检查结果晚于手动保存时不会回滚已保存内容", async ({ pa
 
 test("重启恢复文件夹、展开状态和上次活动文档", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page.getByRole("button", { name: "打开 note.md", exact: true }).click();
   await expect
@@ -897,7 +900,7 @@ test("目录内容自动更新，关闭目录不被延迟刷新重新打开", as
       return version === w.revision ? null : tree();
     };
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
     "没有可显示的文件",
   );
@@ -910,7 +913,7 @@ test("目录内容自动更新，关闭目录不被延迟刷新重新打开", as
   await page.evaluate(() => {
     (window as unknown as { delay: boolean }).delay = true;
   });
-  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await clickSidebarFolderAction(page, "刷新文件夹");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -920,7 +923,7 @@ test("目录内容自动更新，关闭目录不被延迟刷新重新打开", as
       ),
     )
     .toBe(true);
-  await page.getByRole("button", { name: "关闭文件夹" }).click();
+  await clickSidebarFolderAction(page, "关闭文件夹");
   await page.evaluate(() =>
     (window as unknown as { pendingRefresh: () => void }).pendingRefresh(),
   );
@@ -931,7 +934,7 @@ test("目录内容自动更新，关闭目录不被延迟刷新重新打开", as
 
 test("目录恢复失败时保留文档，重试后恢复目录", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.evaluate(() => localStorage.setItem("restore-fail", "yes"));
   await page.addInitScript(() => {
     if (!localStorage.getItem("restore-fail")) return;
@@ -989,8 +992,8 @@ test("文件侧栏可新建及重命名文档并拒绝覆盖同名目标", async
       throw new Error("unexpected operation");
     };
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
-  await page.getByRole("button", { name: "新建文档", exact: true }).click();
+  await openSidebarFolder(page);
+  await clickSidebarFolderAction(page, "新建文档");
   const dialog = page.getByRole("dialog", { name: "文件操作" });
   await dialog.getByLabel("名称").fill("新建.md");
   await dialog.getByRole("button", { name: "确定", exact: true }).click();
@@ -1082,7 +1085,7 @@ test("文件树和列表按时间排序、分组及跨窗口同步，缺失时�
     state.desktop.folder = async () => tree;
     state.desktop.refreshFolder = async () => tree;
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await expandFolderOptions(page);
   await page.getByLabel("文件显示方式").selectOption("list");
   await page.getByLabel("按文件夹分组").uncheck();
@@ -1104,7 +1107,8 @@ test("文件树和列表按时间排序、分组及跨窗口同步，缺失时�
   await expect(rows.first()).toContainText("10.md");
   const other = await page.context().newPage();
   await other.goto("/");
-  await other.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(other);
+  await expandFolderOptions(other);
   await expect(other.getByLabel("文件显示方式")).toHaveValue("list");
   await expandFolderOptions(other);
   await other.getByLabel("文件显示方式").selectOption("tree");
@@ -1137,7 +1141,7 @@ test("自定义侧栏规则随设置刷新并传递给项目搜索", async ({ pa
         : [{ path: "/notes/new.md", name: "new.md", kind: "file" }],
     });
   });
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("隐藏文件规则").fill("*.bak\ndrafts/**");
   await page.getByRole("button", { name: "完成" }).click();
@@ -1172,7 +1176,7 @@ test("文件菜单在新窗口打开前保存当前未保存内容", async ({ pa
   const content = page.getByRole("textbox", { name: "Markdown 编辑区" });
   await content.press(documentEnd);
   await page.keyboard.insertText("新窗口前保存");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件操作：new.md" }).click();
   await page.getByRole("button", { name: "在新窗口打开", exact: true }).click();
   await expect
@@ -1190,7 +1194,7 @@ test("文件菜单在新窗口打开前保存当前未保存内容", async ({ pa
       entries: [{ path: "/notes/note.md", name: "note.md", kind: "file" }],
     });
   });
-  await page.getByRole("button", { name: "刷新文件夹" }).click();
+  await clickSidebarFolderAction(page, "刷新文件夹");
   await page.getByRole("button", { name: "打开 note.md" }).focus();
   await page.keyboard.press("Shift+F10");
   await page.getByRole("button", { name: "在新窗口打开", exact: true }).click();
@@ -1252,7 +1256,8 @@ test("最近文件夹支持固定清除移除，启动偏好可关闭或指定�
     });
   });
   await page.goto("/");
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "文件");
+  await openSidebarFolderMenu(page);
   await page.locator(".recent-folders > summary").click();
   const recent = page.getByRole("region", { name: "最近文件夹" });
   await recent
@@ -1263,20 +1268,21 @@ test("最近文件夹支持固定清除移除，启动偏好可关闭或指定�
   ).toHaveAttribute("aria-pressed", "true");
   await recent.getByRole("button", { name: "清除最近" }).click();
   await expect(recent).toContainText("最近项目");
-  await recent.getByRole("button", { name: /最近项目 \/notes/ }).click();
+  await recent.getByRole("button", { name: "最近项目", exact: true }).click();
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toBeVisible();
+  await openSidebarFolderMenu(page);
   await recent.getByRole("button", { name: "移除最近文件夹 最近项目" }).click();
   await expect(recent).toHaveCount(0);
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("启动时打开文件夹").selectOption("none");
   await page.reload();
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "文件");
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toHaveCount(0);
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("启动时打开文件夹").selectOption("default");
   await page.getByRole("button", { name: "选择启动文件夹" }).click();
   await page.reload();
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "文件");
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
     "写作项目",
   );
@@ -1299,33 +1305,36 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
     localStorage.setItem("moxie.active.v1", "many-17");
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   const folder = page.getByRole("region", { name: "文件夹浏览" });
   const row = folder.getByRole("button", { name: "文件夹 章节" });
   await expect(row).toBeInViewport();
   const title = folder.locator("header strong");
-  expect((await title.boundingBox())!.width).toBeGreaterThan(50);
+  expect((await title.boundingBox())!.width).toBeGreaterThan(100);
+  expect((await row.boundingBox())!.y).toBeLessThan(160);
+  const folderTop = (await row.boundingBox())!.y;
+  await expect(page.getByRole("group", { name: "已打开文档" })).toHaveCount(0);
+  await expect(page.locator(".recent-folders")).toHaveCount(0);
   await expect(page.getByLabel("文件排序")).toBeHidden();
-  const options = folder.locator("summary");
+  await openSidebarFolderMenu(page);
+  const options = page.locator(".folder-options > summary");
   await options.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("文件排序")).toBeVisible();
   await page.getByLabel("文件排序").selectOption("type");
   await options.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByLabel("文件排序")).toBeHidden();
-  await expect(row).toBeInViewport();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "文件夹菜单", exact: true }),
+  ).toBeFocused();
+  expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
   await page.setViewportSize({ width: 900, height: 700 });
   await expect(row).toBeInViewport();
-  expect((await title.boundingBox())!.width).toBeGreaterThan(100);
+  await selectSidebarMode(page, "已打开");
   const group = page.getByRole("group", { name: "已打开文档" });
-  expect(
-    await group.evaluate(
-      (element) => element.scrollHeight > element.clientHeight,
-    ),
-  ).toBe(true);
   const selectedIsVisible = () =>
-    group.evaluate((element) => {
+    page.locator(".file-list").evaluate((element) => {
       const bounds = element.getBoundingClientRect();
       const selected = element
         .querySelector(".selected")!
@@ -1334,7 +1343,6 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
         selected.top >= bounds.top - 1 && selected.bottom <= bounds.bottom + 1
       );
     });
-  const folderTop = (await row.boundingBox())!.y;
   await expect.poll(selectedIsVisible).toBe(true);
   await page.getByRole("tab", { name: "长名称文档0.md", exact: true }).click();
   await expect.poll(selectedIsVisible).toBe(true);
@@ -1344,7 +1352,6 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
     "aria-label",
     "长名称文档17.md",
   );
-  expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
   expect(
     (await page.locator(".document-tab.selected").boundingBox())!.width,
   ).toBeGreaterThanOrEqual(175);
@@ -1355,10 +1362,9 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
   await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
   await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
   await expect.poll(selectedIsVisible).toBe(true);
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
+  await selectSidebarMode(page, "已打开");
   await expect.poll(selectedIsVisible).toBe(true);
-  // Sidebar navigation also reveals the selected tab without scrolling the page.
   await group
     .getByRole("button", { name: "长名称文档15.md", exact: true })
     .click();
@@ -1376,12 +1382,7 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
       }),
     )
     .toBe(true);
-  await page.getByRole("tab", { name: "长名称文档0.md", exact: true }).click();
-  await expect.poll(selectedIsVisible).toBe(true);
-  await expect(group.locator(".selected .file-row")).toHaveAttribute(
-    "aria-label",
-    "长名称文档0.md",
-  );
+  await selectSidebarMode(page, "文件");
   expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
 });
 
@@ -1471,7 +1472,7 @@ test("文档标签键盘导航保留分组排序，组外切换显示当前标�
 test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await openSidebarFolder(page);
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   const fileRow = page.getByRole("button", {
     name: "打开 note.md",
@@ -1498,7 +1499,7 @@ test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", as
   });
   expect(bounds.itemTop).toBeGreaterThanOrEqual(bounds.panelTop);
   expect(bounds.itemBottom).toBeLessThanOrEqual(bounds.panelBottom);
-  expect(bounds.height).toBeLessThanOrEqual(240);
+  expect(bounds.height).toBeLessThanOrEqual(440);
   await page.keyboard.press("ArrowDown");
   await expect(actions.first()).toBeFocused();
   await page.keyboard.press("ArrowUp");
@@ -1511,7 +1512,7 @@ test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", as
   await page.keyboard.press("Shift+F10");
   await expect(actions.first()).toBeFocused();
   // A second pointer click must reach its original trigger even when closing
-  // the previous inline panel changes the tree layout.
+  // the previous popup closes. Tree geometry remains unchanged.
   await page.getByRole("button", { name: "文件操作：章节" }).click();
   await expect(panels).toHaveCount(1);
   await expect(panels).toHaveAttribute("aria-label", "章节 的文件操作");
@@ -1527,20 +1528,20 @@ test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", as
     .click({ button: "right" });
   await expect(panels).toHaveCount(1);
   await expect(panels).toHaveAttribute("aria-label", "章节 的文件操作");
-  await fileRow.click({ button: "right" });
+  await fileRow.click({ button: "right", position: { x: 4, y: 10 } });
   await expect(panels).toHaveCount(1);
   await expect(panels).toHaveAttribute("aria-label", "note.md 的文件操作");
-  await fileRow.click();
+  await fileRow.click({ position: { x: 2, y: 10 } });
   await expect(panels).toHaveCount(0);
   await trigger.click();
   await page.locator(".cm-content").click();
   await expect(panels).toHaveCount(0);
   await expect(page.locator(".cm-content")).toBeFocused();
   await trigger.click();
-  await page.getByRole("tab", { name: "文件", exact: true }).focus();
+  await page.getByRole("button", { name: "切换侧栏导航模式" }).focus();
   await expect(panels).toHaveCount(0);
   await expect(
-    page.getByRole("tab", { name: "文件", exact: true }),
+    page.getByRole("button", { name: "切换侧栏导航模式" }),
   ).toBeFocused();
   await trigger.click();
   await page.keyboard.press("End");
@@ -1717,4 +1718,146 @@ test("取消关闭与保存失败保留文档，确认关闭后恢复导航焦�
     page.locator('.opened-files .file-row[aria-current="true"]'),
   ).toBeFocused();
   await expect(page.locator(".document-title")).toContainText("备用.md");
+});
+
+test("打开文档自动加载父目录并展开当前文件，目录失败仍保留文档", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const state = window as any;
+    state.parentRequests = [];
+    state.nextFile = {
+      path: "/project/sub/current.md",
+      name: "current.md",
+      text: "# 当前文档",
+      version: "v1",
+    };
+    state.desktop.open = async () => state.nextFile;
+    state.desktop.inspect = async () => [];
+    const tree = {
+      path: "/project/sub",
+      name: "sub",
+      entries: [
+        { path: "/project/sub/current.md", name: "current.md", kind: "file" },
+        {
+          path: "/project/sub/child",
+          name: "child",
+          kind: "directory",
+          children: [
+            {
+              path: "/project/sub/child/deep.md",
+              name: "deep.md",
+              kind: "file",
+            },
+          ],
+        },
+      ],
+      truncated: false,
+    };
+    state.desktop.refreshFolder = async () => tree;
+    state.desktop.folderForFile = async (path: string) => {
+      state.parentRequests.push(path);
+      if (path.startsWith("/another")) throw new Error("无法访问父目录");
+      return tree;
+    };
+  });
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toBeVisible();
+  await page.keyboard.press(shortcut("o"));
+  await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
+    "sub",
+  );
+  await expect(
+    page.getByRole("button", { name: "打开 current.md", exact: true }),
+  ).toBeInViewport();
+  await expect(
+    page.getByRole("textbox", { name: "Markdown 编辑区" }),
+  ).toContainText("当前文档");
+  await page.evaluate(() => {
+    (window as any).nextFile = {
+      path: "/project/sub/child/deep.md",
+      name: "deep.md",
+      text: "# 子目录文档",
+      version: "v1",
+    };
+  });
+  await page.keyboard.press(shortcut("o"));
+  await expect(
+    page.getByRole("button", { name: "文件夹 child", exact: true }),
+  ).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("button", { name: "打开 deep.md", exact: true }),
+  ).toBeInViewport();
+  await page.evaluate(() => {
+    (window as any).nextFile = {
+      path: "/another/second.md",
+      name: "second.md",
+      text: "# 目录失败也保留",
+      version: "v1",
+    };
+  });
+  await page.keyboard.press(shortcut("o"));
+  await expect(page.locator(".folder-browser")).toContainText("无法访问父目录");
+  await expect(
+    page.getByRole("textbox", { name: "Markdown 编辑区" }),
+  ).toContainText("目录失败也保留");
+  expect(await page.evaluate(() => (window as any).parentRequests)).toEqual([
+    "/project/sub/current.md",
+    "/another/second.md",
+  ]);
+});
+
+test("侧栏宽度、文件树列表和底部菜单保持布局，搜索快捷键进入侧栏", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await openSidebarFolder(page);
+  const handle = page.getByRole("separator", { name: "调整侧栏宽度" });
+  await expect(handle).toHaveAttribute("aria-valuenow", "260");
+  await handle.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(handle).toHaveAttribute("aria-valuenow", "270");
+  const sidebarBounds = await page.locator(".sidebar").boundingBox();
+  expect(sidebarBounds!.width).toBe(270);
+  const before = await page.locator(".folder-browser header").boundingBox();
+  await openSidebarFolderMenu(page);
+  await expect(
+    page.getByRole("button", { name: "打开文件夹", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(page.locator(".folder-options > summary")).toBeFocused();
+  await page.keyboard.press("Enter");
+  await page
+    .getByRole("button", { name: "按修改时间排序", exact: true })
+    .click();
+  await expect(page.getByLabel("文件排序", { exact: true })).toHaveValue(
+    "modified",
+  );
+  expect((await page.locator(".folder-browser header").boundingBox())!.y).toBe(
+    before!.y,
+  );
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "文件夹菜单", exact: true }),
+  ).toBeFocused();
+  await page.getByRole("button", { name: "切换到文件列表" }).click();
+  await expect(
+    page.getByRole("button", { name: "打开 note.md", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "文件夹 章节" })).toHaveCount(
+    0,
+  );
+  await page.getByRole("button", { name: "切换到文件树" }).click();
+  await expect(page.getByRole("button", { name: "文件夹 章节" })).toBeVisible();
+  await page.keyboard.press(shortcut("Shift+f"));
+  await expect(page.locator(".sidebar .workspace-search")).toBeVisible();
+  await expect(page.getByLabel("搜索文件夹与已打开文档")).toBeFocused();
+  expect(
+    await page
+      .locator(".sidebar")
+      .evaluate((node) => node.clientWidth >= node.scrollWidth),
+  ).toBe(true);
+  await page.reload();
+  await expect(handle).toHaveAttribute("aria-valuenow", "270");
 });

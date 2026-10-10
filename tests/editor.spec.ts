@@ -1,3 +1,4 @@
+import { selectSidebarMode } from "./sidebar";
 import { test, expect } from "@playwright/test";
 import { documentEnd, shortcut } from "./keyboard";
 import fs from "node:fs/promises";
@@ -9,7 +10,7 @@ test("首屏、表格、大纲、模式切换和主题无运行错误", async ({
   await expect(page).toHaveTitle("墨写 · Markdown 编辑器");
   await expect(page.locator(".md-h1")).toContainText("欢迎使用墨写");
   await expect(page.locator(".render-block table")).toBeVisible();
-  await page.getByRole("tab", { name: "大纲" }).click();
+  await selectSidebarMode(page, "大纲");
   await expect(
     page.getByRole("button", { name: "从这里开始", exact: true }),
   ).toBeVisible();
@@ -17,7 +18,7 @@ test("首屏、表格、大纲、模式切换和主题无运行错误", async ({
   await expect(page.locator(".cm-content")).toContainText("# 欢迎使用墨写");
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
   await expect(page.locator(".render-block table")).toBeVisible();
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "文件");
   await page.getByRole("button", { name: "写作指南.md", exact: true }).click();
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await page.getByRole("button", { name: "欢迎使用.md", exact: true }).click();
@@ -118,7 +119,7 @@ test("表格点击后可编辑原文，回到其他段落后恢复排版", async
   await expect(page.locator(".cm-content")).toContainText(
     "| 保存文档 | Cmd + S |",
   );
-  await page.getByRole("tab", { name: "大纲" }).click();
+  await selectSidebarMode(page, "大纲");
   await page.getByRole("button", { name: "从这里开始", exact: true }).click();
   await expect(page.locator(".render-block table")).toBeVisible();
 });

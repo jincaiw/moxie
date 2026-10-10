@@ -88,6 +88,10 @@ declare global {
         action: "pin" | "unpin" | "remove" | "clear";
         path?: string;
       }) => Promise<RecentFolder[]>;
+      folderForFile?: (
+        path: string,
+        options?: FolderDisplayOptions,
+      ) => Promise<FolderTree>;
       reopenFolder?: (
         path: string,
         options?: FolderDisplayOptions,

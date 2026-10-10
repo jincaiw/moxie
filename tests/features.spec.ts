@@ -1,3 +1,4 @@
+import { selectSidebarMode } from "./sidebar";
 import { test, expect } from "@playwright/test";
 import {
   documentStart,
@@ -2826,7 +2827,7 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
   await expect(
     page.locator(".md-h2").filter({ hasText: "标题二" }),
   ).toHaveCount(1);
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   await expect(page.locator(".outline-row")).toHaveText([
     "标题一",
     "标题二",
@@ -2844,9 +2845,12 @@ test("侧栏标签支持方向键切换、面板关联和完整大纲标题", as
   await page
     .locator(".md-input")
     .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  const trigger = page.getByRole("button", { name: "切换侧栏导航模式" });
+  await trigger.click();
   const files = page.getByRole("tab", { name: "文件", exact: true });
   const outline = page.getByRole("tab", { name: "大纲", exact: true });
-  await files.focus();
+  const opened = page.getByRole("tab", { name: "已打开", exact: true });
+  await expect(files).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(outline).toBeFocused();
   await expect(outline).toHaveAttribute("aria-selected", "true");
@@ -2854,34 +2858,33 @@ test("侧栏标签支持方向键切换、面板关联和完整大纲标题", as
     page.getByRole("tabpanel", { name: "大纲", exact: true }),
   ).toContainText("Markdown 渲染综合测试");
   await expect(page.locator(".outline-row")).toHaveCount(34);
-  const title = page
-    .locator(".outline-row")
-    .filter({ hasText: "7. 链接、图片与自动链接" });
-  await expect(title).toHaveAttribute("title", "7. 链接、图片与自动链接");
-  await page.keyboard.press("Tab");
+  await expect(
+    page.locator(".outline-row").filter({ hasText: "7. 链接、图片与自动链接" }),
+  ).toHaveAttribute("title", "7. 链接、图片与自动链接");
+  await page.keyboard.press("ArrowRight");
+  await expect(opened).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(files).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(opened).toBeFocused();
+  await page.keyboard.press("ArrowLeft");
+  await expect(outline).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
   const search = page.getByRole("searchbox", { name: "搜索大纲标题" });
+  await expect(search).toBeHidden();
+  await page.getByRole("button", { name: "搜索大纲标题", exact: true }).click();
   await expect(search).toBeFocused();
   await search.fill("公式");
   const filtered = await page.locator(".outline-row").allTextContents();
   expect(filtered.length).toBeGreaterThan(0);
-  await outline.focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(files).toBeFocused();
-  await expect(
-    page.getByRole("tabpanel", { name: "文件", exact: true }),
-  ).toBeVisible();
-  await expect(outline).toHaveAttribute("tabindex", "-1");
-  await page.keyboard.press("End");
-  await expect(outline).toBeFocused();
+  await selectSidebarMode(page, "文件");
+  await selectSidebarMode(page, "大纲");
   await expect(search).toHaveValue("公式");
   await expect(page.locator(".outline-row")).toHaveText(filtered);
-  await page.keyboard.press("Home");
-  await expect(files).toBeFocused();
-  await page.keyboard.press("ArrowLeft");
-  await expect(outline).toBeFocused();
   await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
   await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
-  await expect(outline).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("大纲");
   await expect(search).toHaveValue("公式");
 });
 
@@ -2894,7 +2897,7 @@ test("大纲可按标题搜索、清空并跳转匹配结果", async ({ page }) 
       "# 项目总览\n\n## 写作体验\n\n### 快捷键\n\n## 文档管理\n\n## PDF 导出\n",
     ),
   });
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   const rows = page.locator(".outline-row");
   await expect(rows).toHaveCount(5);
   const collapse = page.getByRole("button", { name: "折叠 项目总览" });
@@ -2926,7 +2929,7 @@ test("编辑标题前的正文后仍保留对应大纲折叠状态", async ({ pa
     mimeType: "text/markdown",
     buffer: Buffer.from("# 根标题\n\n## 子标题\n\n## 其他章节\n"),
   });
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   const rows = page.locator(".outline-row");
   await page.getByRole("button", { name: "折叠 根标题" }).click();
   await expect(rows).toHaveText(["根标题"]);
@@ -2952,7 +2955,7 @@ test("在重复标题前插入同名标题后仍折叠原章节", async ({ page 
       "# 根标题\n\n## 相同标题\n\n### 第一章节内容\n\n## 相同标题\n\n### 原折叠章节内容\n",
     ),
   });
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   const rows = page.locator(".outline-row");
   await page.getByRole("button", { name: "折叠 相同标题" }).nth(1).click();
   await expect(rows).toHaveText([
@@ -3004,7 +3007,7 @@ test("Markdown 标题大纲忽略内联 HTML 隐藏文字", async ({ page }) => 
       '# 可见<span hidden>隐藏属性</span><span aria-hidden="true">辅助隐藏</span><span style="display:none">display 隐藏</span><span style="visibility:hidden">visibility 隐藏</span><span style="content-visibility:hidden">content 隐藏</span><details><summary>折叠区域</summary>details 隐藏</details><dialog>dialog 隐藏</dialog><span popover>popover 隐藏</span>标题\n',
     ),
   });
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   await expect(page.locator(".outline-row")).toHaveText(["可见标题"]);
 });
 
@@ -4736,7 +4739,7 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   await page.keyboard.press("Enter");
   await expect(page.locator(".md-front-matter")).toHaveCount(4);
   await expect(page.locator(".md-front-matter.md-heading")).toHaveCount(0);
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   await expect(page.locator(".outline-row")).toHaveCount(34);
   await page.getByRole("button", { name: "6. 表格", exact: true }).click();
   await expect(page.locator(".editable-table").first()).toBeVisible();
@@ -4818,9 +4821,9 @@ test("文档属性摘要安全显示，展开编辑可撤销，源码模式保�
   await expect(editor).toContainText("# 编辑注释");
   await page.keyboard.press(shortcut("z"));
   await page.keyboard.press(shortcut("z"));
-  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await selectSidebarMode(page, "大纲");
   await page.getByRole("button", { name: "正文", exact: true }).click();
-  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await selectSidebarMode(page, "文件");
   await expect(summary).toBeVisible();
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(summary).toHaveCount(0);
@@ -4899,4 +4902,38 @@ test("图片链接显示真实图片，普通单击仍可编辑原文", async ({
   await expect(page.locator(".cm-content")).toContainText(
     "[![封面](data:image/png;base64,",
   );
+});
+
+test("大纲平铺与折叠可持久切换，当前标题可从过滤状态定位", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  await selectSidebarMode(page, "大纲");
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  const first = page.locator(".outline-row").first();
+  await first.click();
+  await page
+    .getByRole("button", { name: "折叠 Markdown 渲染综合测试", exact: true })
+    .click();
+  await expect(page.locator(".outline-row")).toHaveCount(33);
+  await page.getByRole("button", { name: "大纲显示选项", exact: true }).click();
+  await page.getByRole("button", { name: "平铺大纲", exact: true }).click();
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  await expect(page.locator(".outline-toggle")).toHaveCount(0);
+  await page.getByRole("searchbox", { name: "搜索大纲标题" }).fill("公式");
+  await page.getByRole("button", { name: "大纲显示选项", exact: true }).click();
+  await page.getByRole("button", { name: "定位当前标题", exact: true }).click();
+  await expect(
+    page.getByRole("searchbox", { name: "搜索大纲标题" }),
+  ).toHaveValue("");
+  await expect(page.locator(".outline-row.active")).toBeFocused();
+  await page.reload();
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("大纲");
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  await expect(page.locator(".outline-toggle")).toHaveCount(0);
+  await page.getByRole("button", { name: "大纲显示选项", exact: true }).click();
+  await page.getByRole("button", { name: "可折叠大纲", exact: true }).click();
+  await expect(page.locator(".outline-toggle").first()).toBeVisible();
 });
