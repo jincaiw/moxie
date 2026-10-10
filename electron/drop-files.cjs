@@ -96,7 +96,9 @@ async function copyDroppedPaths(
       if (entry.directory) await fs.mkdir(entry.target);
       else
         await fs.copyFile(entry.source, entry.target, constants.COPYFILE_EXCL);
-      created.push(entry);
+      const saved = { ...entry };
+      created.push(saved);
+      saved.metadata = await fs.lstat(entry.target);
       report(
         "copying",
         created.length,
@@ -113,10 +115,25 @@ async function copyDroppedPaths(
     let cleaned = 0;
     for (const entry of created.reverse()) {
       try {
+        const current = await fs.lstat(entry.target);
+        const saved = entry.metadata;
+        if (
+          !saved ||
+          current.isSymbolicLink() ||
+          current.dev !== saved.dev ||
+          current.ino !== saved.ino ||
+          current.isDirectory() !== entry.directory ||
+          (!entry.directory &&
+            (current.size !== saved.size ||
+              current.mtimeMs !== saved.mtimeMs ||
+              current.ctimeMs !== saved.ctimeMs))
+        )
+          throw Error("项目已改变或无法确认，保留后续修改，未自动清理");
         if (entry.directory) await fs.rmdir(entry.target);
         else await fs.unlink(entry.target);
       } catch (cleanupError) {
-        if (cleanupError.code !== "ENOENT") remaining.push(entry.target);
+        if (cleanupError.code !== "ENOENT")
+          remaining.push(`${entry.target}（${cleanupError.message}）`);
       }
       report(
         "cleanup",
@@ -128,7 +145,7 @@ async function copyDroppedPaths(
     }
     if (remaining.length)
       throw Error(
-        `${error.message}\n本次创建的以下项目未能清理，请检查：\n${remaining.slice(0, 10).join("\n")}`,
+        `${error.message}\n本次创建的以下 ${remaining.length} 项未能清理，请检查（最多显示 10 项）：\n${remaining.slice(0, 10).join("\n")}`,
       );
     throw error;
   }

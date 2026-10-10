@@ -128,10 +128,10 @@ function Branch({
     <li
       onDragOver={(event) => {
         if (
-          !busy &&
           directory &&
-          (event.dataTransfer.types.includes("application/x-moxie-path") ||
-            event.dataTransfer.types.includes("Files"))
+          ((!copying && event.dataTransfer.types.includes("Files")) ||
+            (!busy &&
+              event.dataTransfer.types.includes("application/x-moxie-path")))
         ) {
           event.preventDefault();
           event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
@@ -145,11 +145,12 @@ function Branch({
         if (!directory) return;
         event.preventDefault();
         event.stopPropagation();
-        if (busy) return;
         if (event.dataTransfer.files.length) {
-          onDropExternal?.(Array.from(event.dataTransfer.files), node.path);
+          if (!copying)
+            onDropExternal?.(Array.from(event.dataTransfer.files), node.path);
           return;
         }
+        if (busy) return;
         const target = event.dataTransfer.getData("application/x-moxie-path");
         if (!target || target === node.path) return;
         onDropFile(target, node.path);
@@ -735,9 +736,9 @@ export function FolderBrowser({
         title={tree.path}
         onDragOver={(event) => {
           if (
-            !busy &&
-            (event.dataTransfer.types.includes("application/x-moxie-path") ||
-              event.dataTransfer.types.includes("Files"))
+            (!copying && event.dataTransfer.types.includes("Files")) ||
+            (!busy &&
+              event.dataTransfer.types.includes("application/x-moxie-path"))
           ) {
             event.preventDefault();
             event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
@@ -750,11 +751,12 @@ export function FolderBrowser({
         onDrop={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          if (busy) return;
           if (event.dataTransfer.files.length) {
-            dropExternal?.(Array.from(event.dataTransfer.files), tree.path);
+            if (!copying)
+              dropExternal?.(Array.from(event.dataTransfer.files), tree.path);
             return;
           }
+          if (busy) return;
           const target = event.dataTransfer.getData("application/x-moxie-path");
           if (!target || target === tree.path) return;
           dropFile(target, tree.path);

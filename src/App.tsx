@@ -511,6 +511,7 @@ export default function App() {
   const [dropCancelling, setDropCancelling] = useState(false);
   const cancelInFlight = useRef(false);
   const dropRequestId = useRef<string | null>(null);
+  const latestDropId = useRef<string | null>(null);
   const dropInFlight = useRef(false);
   const { tree } = folderWorkspace;
   const folderBusy = folderWorkspace.busy || dropBusy;
@@ -558,6 +559,7 @@ export default function App() {
     dropInFlight.current = true;
     const id = crypto.randomUUID();
     dropRequestId.current = id;
+    latestDropId.current = id;
     setDropProgress(null);
     setDropCancelling(false);
     setDropBusy(true);
@@ -582,15 +584,22 @@ export default function App() {
           void folderWorkspace.refresh();
           return;
         }
-        const refreshed = await folderWorkspace.refresh();
-        setMessage(
+        const completedMessage =
           `已复制 ${result.paths.length} 项到 ${directory}，原文件已保留。` +
-            (result.warning
-              ? ` ${result.warning}`
-              : refreshed === false
-                ? " 文件夹列表暂未更新，请刷新文件夹。"
-                : ""),
-        );
+          (result.warning ? ` ${result.warning}` : "");
+        setMessage(completedMessage);
+        void folderWorkspace.refresh().then((refreshed) => {
+          if (
+            refreshed === false &&
+            !result.warning &&
+            latestDropId.current === id
+          )
+            setMessage((previous) =>
+              previous === completedMessage
+                ? completedMessage + " 文件夹列表暂未更新，请刷新文件夹。"
+                : previous,
+            );
+        });
       } else setMessage("已取消复制，未写入文件。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
