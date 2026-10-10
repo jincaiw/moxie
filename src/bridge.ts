@@ -51,6 +51,14 @@ export type UpdateStatus = {
 declare global {
   interface Window {
     desktop?: {
+      makeFileLink?: (documentPath: string, target: string) => Promise<string>;
+      dragFileOut?: (target: string) => Promise<boolean>;
+      copyDroppedFiles?: (
+        root: string,
+        directory: string,
+        files: File[],
+        options?: FolderDisplayOptions,
+      ) => Promise<{ paths: string[]; warning?: string } | null>;
       open: () => Promise<DiskFile | null>;
       importDocument: () => Promise<{ name: string; text: string } | null>;
       folder: (options?: FolderDisplayOptions) => Promise<FolderTree | null>;
@@ -119,7 +127,13 @@ declare global {
         href: string;
         documentPath?: string;
         create?: boolean;
-      }) => Promise<{ file?: DiskFile; anchor?: string; missing?: string }>;
+      }) => Promise<{
+        file?: DiskFile;
+        anchor?: string;
+        missing?: string;
+        folder?: string;
+        reveal?: string;
+      }>;
       inspect: (
         files: { path: string; version?: string }[],
       ) => Promise<FileChange[]>;

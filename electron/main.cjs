@@ -250,6 +250,49 @@ function setupIPC() {
     clipboard.writeText(authorized);
     return true;
   });
+  handle("file:make-link", (input) =>
+    store.makeLink(input.documentPath, input.target),
+  );
+  handle("file:drag-out", async (input, { window }) => {
+    const file = await store.authorizedPath(input);
+    const icon = await app.getFileIcon(file);
+    if (window.isDestroyed()) return false;
+    window.webContents.startDrag({ file, icon });
+    return true;
+  });
+  handle("file:drop-copy", async (input, { window }) => {
+    if (
+      !Array.isArray(input?.paths) ||
+      !input.paths.length ||
+      input.paths.length > 20 ||
+      input.paths.some(
+        (value) => typeof value !== "string" || !path.isAbsolute(value),
+      )
+    )
+      throw Error("拖入的文件无效，一次最多 20 项");
+    if (!store.folders.has(input.root)) throw Error("请先打开目标文件夹");
+    const destination = await store.authorizedPath(
+      input.directory || input.root,
+    );
+    const relative = path.relative(input.root, destination);
+    if (
+      relative === ".." ||
+      relative.startsWith(".." + path.sep) ||
+      path.isAbsolute(relative) ||
+      !(await fs.stat(destination)).isDirectory()
+    )
+      throw Error("请选择已打开文件夹内的目标目录");
+    const confirmation = await dialog.showMessageBox(window, {
+      type: "question",
+      message: "复制拖入的文件或文件夹？",
+      detail: `目标：${destination}\n\n${input.paths.map((value) => path.basename(value)).join("\n")}\n\n保留原文件；遇到同名项目会停止，不覆盖已有内容。`,
+      buttons: ["复制", "取消"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+    if (confirmation.response !== 0) return null;
+    return store.importDropped(input);
+  });
   handle("file:reveal", async (input) => {
     const authorized = await store.authorizedPath(input, true);
     shell.showItemInFolder(authorized);
@@ -265,11 +308,14 @@ function setupIPC() {
       await shell.openExternal(url.href);
       return {};
     }
-    return store.openLinked(
+    const result = await store.openLinked(
       input.documentPath,
       input.href,
       input.create === true,
     );
+    if (result.folder) await store.folder(result.folder);
+    if (result.reveal) shell.showItemInFolder(result.reveal);
+    return result;
   });
   handle("file:inspect", (files) => store.inspect(files));
   handle("file:recent", () =>

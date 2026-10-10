@@ -1,5 +1,21 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
+  makeFileLink: (documentPath, target) =>
+    ipcRenderer.invoke("file:make-link", { documentPath, target }),
+  dragFileOut: (target) => ipcRenderer.invoke("file:drag-out", target),
+  copyDroppedFiles: (root, directory, files, options) => {
+    if (!Array.isArray(files) || files.length > 20)
+      return Promise.reject(Error("一次最多拖入 20 项"));
+    const paths = files.map((file) => webUtils.getPathForFile(file));
+    if (paths.some((value) => !value))
+      return Promise.reject(Error("请从系统文件管理器拖入实际文件或文件夹"));
+    return ipcRenderer.invoke("file:drop-copy", {
+      root,
+      directory,
+      paths,
+      options,
+    });
+  },
   open: () => ipcRenderer.invoke("file:open"),
   importDocument: () => ipcRenderer.invoke("file:import"),
   folder: (options) => ipcRenderer.invoke("file:folder", options),

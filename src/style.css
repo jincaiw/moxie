@@ -2434,3 +2434,10 @@ p {
 .recent-folders button {
   font-size: 11px;
 }
+
+.folder-drag-help {
+  margin: 6px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

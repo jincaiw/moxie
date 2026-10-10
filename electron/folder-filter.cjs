@@ -1,14 +1,15 @@
 // Bounded wildcard matching avoids executing user-supplied regular expressions.
 function match(pattern, value) {
-  const tokens = pattern.match(/\*\*|\*|\?|[^*?]/g) || [];
-  let previous = new Uint8Array(value.length + 1);
+  const tokens = pattern.match(/\*\*|\*|\?|[^*?]/gu) || [];
+  const characters = Array.from(value);
+  let previous = new Uint8Array(characters.length + 1);
   previous[0] = 1;
   for (const token of tokens) {
-    const next = new Uint8Array(value.length + 1);
+    const next = new Uint8Array(characters.length + 1);
     const star = token === "*" || token === "**";
     if (star) next[0] = previous[0];
-    for (let i = 1; i <= value.length; i++) {
-      const character = value[i - 1];
+    for (let i = 1; i <= characters.length; i++) {
+      const character = characters[i - 1];
       next[i] = star
         ? Number(
             Boolean(
@@ -25,7 +26,7 @@ function match(pattern, value) {
     }
     previous = next;
   }
-  return Boolean(previous[value.length]);
+  return Boolean(previous[characters.length]);
 }
 function folderFilter(input) {
   const rules = (typeof input === "string" ? input.slice(0, 2048) : "")

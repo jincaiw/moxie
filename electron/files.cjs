@@ -4,6 +4,7 @@ const crypto = require("node:crypto");
 const dns = require("node:dns").promises;
 const https = require("node:https");
 const { folderFilter } = require("./folder-filter.cjs");
+const { copyDroppedPaths } = require("./drop-files.cjs");
 
 function isPublicAddress(address, family) {
   if (family === 4) {
@@ -1062,6 +1063,54 @@ class FileStore {
       truncated: results.length >= 200 || skipped > 0,
     };
   }
+  async importDropped(input) {
+    if (!this.folders.has(input?.root)) throw Error("请先打开目标文件夹");
+    const destination = await this.authorizedPath(
+      input.directory || input.root,
+    );
+    if (
+      !inside(input.root, destination) ||
+      !(await fs.stat(destination)).isDirectory()
+    )
+      throw Error("请选择已打开文件夹内的目标目录");
+    const paths = await copyDroppedPaths(input.paths, destination);
+    try {
+      await this.folder(input.root, true, undefined, input.options);
+      await this.persist();
+    } catch {
+      return {
+        paths,
+        warning: "文件已复制，但文件夹列表或会话未能更新，请刷新文件夹。",
+      };
+    }
+    return { paths };
+  }
+  async makeLink(documentPath, target) {
+    if (typeof documentPath !== "string" || !this.authorized.has(documentPath))
+      throw Error("请先打开或保存当前文档，再插入链接");
+    const { directory, root } = await this.resourceRoot(documentPath);
+    const real = await this.authorizedPath(target);
+    if (!inside(root, real))
+      throw Error("目标必须位于当前文档已打开的文件夹内");
+    const isDirectory = (await fs.stat(real)).isDirectory();
+    if (!isDirectory && !/\.(md|markdown|txt)$/i.test(real))
+      throw Error("请选择 Markdown、TXT 文件或文件夹");
+    const relative =
+      path.relative(directory, real).split(path.sep).join("/") || ".";
+    const href =
+      relative
+        .split("/")
+        .map((segment) =>
+          encodeURIComponent(segment).replace(
+            /[!'()*]/g,
+            (character) =>
+              "%" + character.charCodeAt(0).toString(16).toUpperCase(),
+          ),
+        )
+        .join("/") + (isDirectory ? "/" : "");
+    const name = path.basename(real).replace(/[\\[\]]/g, "\\$&");
+    return `[${name}](<${href}>)`;
+  }
   async openLinked(documentPath, href, create = false) {
     if (typeof documentPath !== "string" || !path.isAbsolute(documentPath))
       throw Error("请先打开或保存当前文档");
@@ -1087,9 +1136,9 @@ class FileStore {
       !relative ||
       path.isAbsolute(relative) ||
       relative.includes("\0") ||
-      !/\.(md|markdown)$/i.test(relative)
+      (!relative.endsWith("/") && !/\.(md|markdown|txt)$/i.test(relative))
     )
-      throw Error("仅支持相对路径的 Markdown 文档链接");
+      throw Error("仅支持相对路径的 Markdown、TXT 文档或文件夹链接");
     const directory = await fs.realpath(path.dirname(documentPath));
     const realDocument = await fs.realpath(documentPath);
     const root =
@@ -1106,6 +1155,8 @@ class FileStore {
         throw Error("链接必须位于已打开的文件夹内");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
+      if (!/\.(md|markdown)$/i.test(relative))
+        throw Error("关联文件或文件夹不存在，请在侧栏创建或重新选择");
       // Creation is offered only when an existing, canonical parent is in scope.
       const parent = await fs.realpath(path.dirname(target));
       if (!inside(root, parent) || parent !== path.dirname(target))
@@ -1114,6 +1165,8 @@ class FileStore {
       const handle = await fs.open(target, "wx");
       await handle.close();
     }
+    if ((await fs.stat(target)).isDirectory()) return { folder: target };
+    if (/\.txt$/i.test(target)) return { reveal: target };
     this.treeRoots.set(target, root);
     return { file: await this.read(target), anchor };
   }

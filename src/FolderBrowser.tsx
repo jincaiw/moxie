@@ -81,6 +81,7 @@ function Branch({
   toggle,
   operate,
   onDropFile,
+  onDropExternal,
   pinned,
   sort,
   layout,
@@ -97,6 +98,7 @@ function Branch({
   toggle: (path: string) => void;
   operate: RunOperation;
   onDropFile: (target: string, directory: string) => void;
+  onDropExternal?: (files: File[], directory: string) => void;
   pinned: Set<string>;
   sort: SortMode;
   layout: FolderLayout;
@@ -119,14 +121,25 @@ function Branch({
   return (
     <li
       onDragOver={(event) => {
-        if (directory && event.dataTransfer.types.includes("text/plain"))
+        if (
+          directory &&
+          (event.dataTransfer.types.includes("text/plain") ||
+            event.dataTransfer.types.includes("Files"))
+        )
           event.preventDefault();
       }}
       onDrop={(event) => {
         if (!directory) return;
+        if (event.dataTransfer.files.length) {
+          event.preventDefault();
+          event.stopPropagation();
+          onDropExternal?.(Array.from(event.dataTransfer.files), node.path);
+          return;
+        }
         const target = event.dataTransfer.getData("text/plain");
         if (!target || target === node.path) return;
         event.preventDefault();
+        event.stopPropagation();
         onDropFile(target, node.path);
       }}
     >
@@ -158,7 +171,22 @@ function Branch({
           }}
           draggable={node.kind !== "other"}
           onDragStart={(event) => {
-            event.dataTransfer.effectAllowed = "move";
+            if (event.altKey && window.desktop?.dragFileOut) {
+              event.preventDefault();
+              void window.desktop
+                .dragFileOut(node.path)
+                .catch((error) =>
+                  window.dispatchEvent(
+                    new CustomEvent("moxie:drag-error", {
+                      detail:
+                        error instanceof Error ? error.message : String(error),
+                    }),
+                  ),
+                );
+              return;
+            }
+            event.dataTransfer.effectAllowed = "copyMove";
+            event.dataTransfer.setData("application/x-moxie-path", node.path);
             event.dataTransfer.setData("text/plain", node.path);
           }}
           onClick={() =>
@@ -410,6 +438,7 @@ function Branch({
                 expandedPaths={expandedPaths}
                 toggle={toggle}
                 operate={operate}
+                onDropExternal={onDropExternal}
                 onDropFile={onDropFile}
                 pinned={pinned}
                 sort={sort}
@@ -444,7 +473,9 @@ export function FolderBrowser({
   showHiddenFiles,
   showOtherFiles,
   hasCustomFilter,
+  dropExternal,
 }: {
+  dropExternal?: (files: File[], directory: string) => void;
   tree: FolderTree;
   active?: string;
   open: (path: string) => void;
@@ -665,10 +696,19 @@ export function FolderBrowser({
       <header
         title={tree.path}
         onDragOver={(event) => {
-          if (event.dataTransfer.types.includes("text/plain"))
+          if (
+            event.dataTransfer.types.includes("text/plain") ||
+            event.dataTransfer.types.includes("Files")
+          )
             event.preventDefault();
         }}
         onDrop={(event) => {
+          if (event.dataTransfer.files.length) {
+            event.preventDefault();
+            event.stopPropagation();
+            dropExternal?.(Array.from(event.dataTransfer.files), tree.path);
+            return;
+          }
           const target = event.dataTransfer.getData("text/plain");
           if (!target || target === tree.path) return;
           event.preventDefault();
@@ -791,6 +831,10 @@ export function FolderBrowser({
           {error}
         </p>
       )}
+      <p className="folder-drag-help">
+        拖入正文插入链接；系统文件拖到文件夹可复制。按住 Alt/Option
+        可拖出到系统。
+      </p>
       <p id="folder-tree-keyboard-help" className="sr-only">
         文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home
         和 End 跳到列表首尾。
@@ -830,6 +874,7 @@ export function FolderBrowser({
             expandedPaths={expandedPaths}
             toggle={toggle}
             operate={run}
+            onDropExternal={dropExternal}
             onDropFile={dropFile}
             pinned={pinned}
             sort={sort}
@@ -841,7 +886,13 @@ export function FolderBrowser({
           />
         ))}
       </ul>
-      {!tree.entries.length && <p className="tree-empty">没有可显示的文件</p>}
+      {!(layout.view === "list"
+        ? listedFiles(tree.entries).length
+        : tree.entries.length) && (
+        <p className="tree-empty" role="status">
+          没有可显示的文件
+        </p>
+      )}
       {tree.truncated && (
         <p className="tree-empty">列表已达上限，请打开较小的文件夹。</p>
       )}

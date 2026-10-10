@@ -100,6 +100,7 @@ type Props = {
   onLink: (href: string) => void;
   onContextMenu: (point: { left: number; top: number }) => void;
   onImages: (files: File[]) => Promise<string>;
+  onFileLink: (target: string) => Promise<string>;
   onError: (message: string) => void;
 };
 
@@ -649,6 +650,33 @@ export const Editor = forwardRef<EditorHandle, Props>(
         pending.current.delete(point);
       }
     };
+    const insertFileLink = async (target: string) => {
+      const instance = view.current;
+      if (!instance) return;
+      const point = {
+        from: instance.state.selection.main.from,
+        to: instance.state.selection.main.to,
+      };
+      pending.current.add(point);
+      try {
+        const insert = await latest.current.onFileLink(target);
+        if (view.current !== instance) return;
+        instance.dispatch({
+          changes: { from: point.from, to: point.to, insert },
+          selection: { anchor: point.from + insert.length },
+          annotations: Transaction.userEvent.of("input.link"),
+        });
+        instance.focus();
+      } catch (error) {
+        latest.current.onError(
+          error instanceof Error ? error.message : String(error),
+        );
+      } finally {
+        pending.current.delete(point);
+      }
+    };
+    const fileLinkRef = useRef(insertFileLink);
+    fileLinkRef.current = insertFileLink;
     const insertRef = useRef(insertImages);
     insertRef.current = insertImages;
 
@@ -1032,6 +1060,15 @@ export const Editor = forwardRef<EditorHandle, Props>(
                     return true;
                   },
                   dragover(event) {
+                    if (
+                      event.dataTransfer?.types.includes(
+                        "application/x-moxie-path",
+                      )
+                    ) {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "copy";
+                      return true;
+                    }
                     if (event.dataTransfer?.types.includes("Files")) {
                       event.preventDefault();
                       return true;
@@ -1039,6 +1076,21 @@ export const Editor = forwardRef<EditorHandle, Props>(
                     return false;
                   },
                   drop(event, instance) {
+                    const target = event.dataTransfer?.getData(
+                      "application/x-moxie-path",
+                    );
+                    if (target) {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const pos = instance.posAtCoords({
+                        x: event.clientX,
+                        y: event.clientY,
+                      });
+                      if (pos !== null)
+                        instance.dispatch({ selection: { anchor: pos } });
+                      void fileLinkRef.current(target);
+                      return true;
+                    }
                     const files = Array.from(
                       event.dataTransfer?.files || [],
                     ).filter((file) => imageTypes.has(file.type));

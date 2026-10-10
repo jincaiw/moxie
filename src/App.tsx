@@ -495,7 +495,46 @@ export default function App() {
     if (tabGroup !== "全部" && !tabGroups.includes(tabGroup))
       setTabGroup("全部");
   }, [tabGroup, tabGroups]);
-  const { tree, busy: folderBusy } = folderWorkspace;
+  const [dropBusy, setDropBusy] = useState(false);
+  const dropInFlight = useRef(false);
+  const { tree } = folderWorkspace;
+  const folderBusy = folderWorkspace.busy || dropBusy;
+  useEffect(() => {
+    const failed = (event: Event) =>
+      setMessage((event as CustomEvent<string>).detail);
+    window.addEventListener("moxie:drag-error", failed);
+    return () => window.removeEventListener("moxie:drag-error", failed);
+  }, []);
+  const dropExternal = async (files: File[], directory: string) => {
+    if (dropInFlight.current || !folderWorkspace.root) return;
+    dropInFlight.current = true;
+    setDropBusy(true);
+    try {
+      if (!window.desktop?.copyDroppedFiles)
+        throw Error("请在桌面版从系统文件管理器拖入文件。");
+      const result = await window.desktop.copyDroppedFiles(
+        folderWorkspace.root,
+        directory,
+        files,
+        {
+          showHiddenFiles: preferences.showHiddenFiles,
+          showOtherFiles: preferences.showOtherFiles,
+          hiddenFilePatterns: preferences.hiddenFilePatterns,
+        },
+      );
+      if (result) {
+        await folderWorkspace.refresh();
+        setMessage(
+          result.warning || `已复制 ${result.paths.length} 项，原文件已保留。`,
+        );
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      dropInFlight.current = false;
+      setDropBusy(false);
+    }
+  };
   const quickOpenItems = useMemo(() => {
     const items = new Map<string, QuickOpenItem>();
     recent.forEach((file, index) => {
@@ -937,6 +976,7 @@ export default function App() {
           });
           return;
         }
+        if (result.folder) await folderWorkspace.open(result.folder);
         if (result.file) {
           workspace.importFile(result.file);
           void workspace.refreshRecent();
@@ -1765,6 +1805,9 @@ export default function App() {
                 refresh={() => void folderWorkspace.refresh()}
                 close={folderWorkspace.close}
                 busy={folderBusy}
+                dropExternal={(files, directory) =>
+                  void dropExternal(files, directory)
+                }
                 expandedPaths={folderWorkspace.expanded}
                 toggle={folderWorkspace.toggle}
                 error={folderWorkspace.error}
@@ -2532,6 +2575,22 @@ export default function App() {
             onContextMenu={(point) => {
               setMenu(null);
               setEditorMenu(point);
+            }}
+            onFileLink={async (target) => {
+              if (!window.desktop?.makeFileLink)
+                throw Error("请在桌面版拖入侧栏链接。");
+              editor.current?.flush();
+              const document = workspace.docsRef.current.find(
+                (item) => item.id === current.id,
+              );
+              if (!document) throw Error("当前文档已关闭。");
+              if (!document.path && !(await workspace.save(document)))
+                throw Error("请先保存当前文档，再插入相对链接。");
+              const saved = workspace.docsRef.current.find(
+                (item) => item.id === document.id,
+              );
+              if (!saved?.path) throw Error("请先保存当前文档。");
+              return window.desktop.makeFileLink(saved.path, target);
             }}
             onImages={withImages(current)}
             onError={setMessage}
