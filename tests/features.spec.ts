@@ -4586,6 +4586,9 @@ test("格式菜单尺寸变化后保持视口边界、焦点和编辑选区", as
   const menu = page.getByRole("menu", { name: "编辑区格式菜单" });
   const italic = menu.getByRole("menuitem", { name: /^斜体/ });
   await expect(menu).toBeVisible();
+  // A delayed notification for the viewport used to open the menu is harmless.
+  await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+  await expect(menu).toBeVisible();
   await page.keyboard.press("ArrowDown");
   await expect(italic).toBeFocused();
   // Simulate font/line metric changes after the initial positioning pass.

@@ -52,6 +52,7 @@ export function EditorFormatMenu({
     return () => observer.disconnect();
   }, [point]);
   useEffect(() => {
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
     const outside = (event: PointerEvent) => {
       if (!menu.current?.contains(event.target as Node)) close.current(false);
     };
@@ -62,12 +63,20 @@ export function EditorFormatMenu({
       )
         close.current(false);
     };
+    const resize = () => {
+      // A queued resize may arrive after a menu was opened in the new viewport.
+      if (
+        window.innerWidth !== viewport.width ||
+        window.innerHeight !== viewport.height
+      )
+        close.current(false);
+    };
     window.addEventListener("pointerdown", outside);
-    window.addEventListener("resize", dismiss);
+    window.addEventListener("resize", resize);
     window.addEventListener("scroll", dismiss, true);
     return () => {
       window.removeEventListener("pointerdown", outside);
-      window.removeEventListener("resize", dismiss);
+      window.removeEventListener("resize", resize);
       window.removeEventListener("scroll", dismiss, true);
     };
   }, []);
