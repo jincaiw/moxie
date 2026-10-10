@@ -338,6 +338,7 @@ export default function App() {
       | "undo"
       | "copy-path"
       | "reveal"
+      | "insert-link"
       | "new-window";
     target?: string;
     directory?: string;
@@ -345,6 +346,14 @@ export default function App() {
   }) => {
     const root = folderWorkspace.root;
     if (!root || !window.desktop) return;
+    if (dropInFlight.current) {
+      setMessage("正在处理拖入项目，请完成复制后再操作文件。");
+      return;
+    }
+    if (request.action === "insert-link") {
+      if (request.target) await editor.current?.fileLink(request.target);
+      return;
+    }
     if (request.action === "new-window") {
       if (!request.target) return;
       try {
@@ -507,13 +516,14 @@ export default function App() {
   }, []);
   const dropExternal = async (files: File[], directory: string) => {
     if (dropInFlight.current || !folderWorkspace.root) return;
+    const root = folderWorkspace.root;
     dropInFlight.current = true;
     setDropBusy(true);
     try {
       if (!window.desktop?.copyDroppedFiles)
         throw Error("请在桌面版从系统文件管理器拖入文件。");
       const result = await window.desktop.copyDroppedFiles(
-        folderWorkspace.root,
+        root,
         directory,
         files,
         {
@@ -523,9 +533,14 @@ export default function App() {
         },
       );
       if (result) {
-        await folderWorkspace.refresh();
+        const refreshed = await folderWorkspace.refresh();
         setMessage(
-          result.warning || `已复制 ${result.paths.length} 项，原文件已保留。`,
+          `已复制 ${result.paths.length} 项到 ${directory}，原文件已保留。` +
+            (result.warning
+              ? ` ${result.warning}`
+              : refreshed === false
+                ? " 文件夹列表暂未更新，请刷新文件夹。"
+                : ""),
         );
       }
     } catch (error) {
@@ -924,6 +939,10 @@ export default function App() {
     }
   };
   const folder = async () => {
+    if (dropInFlight.current) {
+      setMessage("正在处理拖入项目，请完成复制后再切换文件夹。");
+      return;
+    }
     try {
       if (!window.desktop) {
         setMessage("浏览器预览可打开 Markdown 文件；文件夹管理请使用桌面版。");
@@ -1792,7 +1811,7 @@ export default function App() {
               <RecentFolders
                 folders={folderWorkspace.recent}
                 active={folderWorkspace.root}
-                busy={folderWorkspace.busy}
+                busy={folderBusy}
                 open={(path) => void folderWorkspace.open(path)}
                 changed={() => void folderWorkspace.refreshRecent()}
               />
@@ -1805,6 +1824,7 @@ export default function App() {
                 refresh={() => void folderWorkspace.refresh()}
                 close={folderWorkspace.close}
                 busy={folderBusy}
+                copying={dropBusy}
                 dropExternal={(files, directory) =>
                   void dropExternal(files, directory)
                 }

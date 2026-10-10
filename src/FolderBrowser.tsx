@@ -16,6 +16,7 @@ import {
   FileText,
   Folder,
   FolderPlus,
+  Link,
   MoreVertical,
   RefreshCw,
   RotateCcw,
@@ -44,6 +45,7 @@ type FileAction =
   | "undo"
   | "copy-path"
   | "new-window"
+  | "insert-link"
   | "reveal";
 type Operation = {
   action: FileAction;
@@ -74,6 +76,7 @@ function readLayout(): FolderLayout {
 
 function Branch({
   node,
+  busy,
   depth,
   active,
   open,
@@ -91,6 +94,7 @@ function Branch({
   onTreeKeyDown,
 }: {
   node: FolderNode;
+  busy: boolean;
   depth: number;
   active?: string;
   open: (path: string) => void;
@@ -111,7 +115,7 @@ function Branch({
   ) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const actionsRef = useRef<HTMLDivElement>(null);
+  const actionsRef = useRef<HTMLFieldSetElement>(null);
   useEffect(() => {
     if (menuOpen)
       actionsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -122,8 +126,9 @@ function Branch({
     <li
       onDragOver={(event) => {
         if (
+          !busy &&
           directory &&
-          (event.dataTransfer.types.includes("text/plain") ||
+          (event.dataTransfer.types.includes("application/x-moxie-path") ||
             event.dataTransfer.types.includes("Files"))
         ) {
           event.preventDefault();
@@ -136,16 +141,15 @@ function Branch({
       }}
       onDrop={(event) => {
         if (!directory) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (busy) return;
         if (event.dataTransfer.files.length) {
-          event.preventDefault();
-          event.stopPropagation();
           onDropExternal?.(Array.from(event.dataTransfer.files), node.path);
           return;
         }
-        const target = event.dataTransfer.getData("text/plain");
+        const target = event.dataTransfer.getData("application/x-moxie-path");
         if (!target || target === node.path) return;
-        event.preventDefault();
-        event.stopPropagation();
         onDropFile(target, node.path);
       }}
     >
@@ -175,7 +179,7 @@ function Branch({
             event.preventDefault();
             setMenuOpen(true);
           }}
-          draggable={node.kind !== "other"}
+          draggable={!busy && node.kind !== "other"}
           onDragStart={(event) => {
             if (event.altKey && window.desktop?.dragFileOut) {
               event.preventDefault();
@@ -234,14 +238,16 @@ function Branch({
           className="tree-actions-trigger"
           aria-label={`文件操作：${node.name}`}
           aria-expanded={menuOpen}
+          disabled={busy}
           onClick={() => setMenuOpen((value) => !value)}
         >
           <MoreVertical size={15} />
         </button>
       </div>
       {menuOpen && (
-        <div
+        <fieldset
           className="tree-actions"
+          disabled={busy}
           ref={actionsRef}
           role="group"
           aria-label={`${node.name} 的文件操作`}
@@ -255,6 +261,17 @@ function Branch({
             }
           }}
         >
+          {node.kind !== "other" && (
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                void operate({ action: "insert-link", target: node.path });
+              }}
+            >
+              <Link size={14} />
+              插入相对链接到正文
+            </button>
+          )}
           {directory ? (
             <>
               <button
@@ -427,7 +444,7 @@ function Branch({
               </button>
             </>
           )}
-        </div>
+        </fieldset>
       )}
       {directory && expanded && (
         <ul>
@@ -436,6 +453,7 @@ function Branch({
               <Branch
                 key={child.path}
                 node={child}
+                busy={busy}
                 depth={depth + 1}
                 active={active}
                 open={open}
@@ -470,6 +488,7 @@ export function FolderBrowser({
   refresh,
   close,
   busy,
+  copying = false,
   expandedPaths,
   toggle,
   error,
@@ -486,6 +505,7 @@ export function FolderBrowser({
   refresh: () => void;
   close: () => void;
   busy: boolean;
+  copying?: boolean;
   expandedPaths: Set<string>;
   toggle: (path: string) => void;
   error: string;
@@ -612,7 +632,7 @@ export function FolderBrowser({
   };
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
-    if (!operation) return;
+    if (!operation || busy) return;
     void operate({
       action: operation.action,
       target: operation.target?.path || tree.path,
@@ -622,6 +642,7 @@ export function FolderBrowser({
     setOperation(null);
   };
   const run: RunOperation = async ({ action, target, directory }) => {
+    if (busy) return;
     if (["new-file", "new-folder", "copy", "rename"].includes(action)) {
       const node = target ? findNode(tree.entries, target) : undefined;
       openOperation(action, node);
@@ -633,6 +654,7 @@ export function FolderBrowser({
     } else await operate({ action, target, directory });
   };
   const dropFile = (target: string, directory: string) => {
+    if (busy || target === directory) return;
     void operate({ action: "move", target, directory });
   };
   const onTreeKeyDown = (
@@ -701,8 +723,9 @@ export function FolderBrowser({
         title={tree.path}
         onDragOver={(event) => {
           if (
-            event.dataTransfer.types.includes("text/plain") ||
-            event.dataTransfer.types.includes("Files")
+            !busy &&
+            (event.dataTransfer.types.includes("application/x-moxie-path") ||
+              event.dataTransfer.types.includes("Files"))
           ) {
             event.preventDefault();
             event.dataTransfer.dropEffect = event.dataTransfer.types.includes(
@@ -713,15 +736,15 @@ export function FolderBrowser({
           }
         }}
         onDrop={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (busy) return;
           if (event.dataTransfer.files.length) {
-            event.preventDefault();
-            event.stopPropagation();
             dropExternal?.(Array.from(event.dataTransfer.files), tree.path);
             return;
           }
-          const target = event.dataTransfer.getData("text/plain");
+          const target = event.dataTransfer.getData("application/x-moxie-path");
           if (!target || target === tree.path) return;
-          event.preventDefault();
           dropFile(target, tree.path);
         }}
       >
@@ -772,7 +795,7 @@ export function FolderBrowser({
         <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
           <RefreshCw size={13} />
         </button>
-        <button aria-label="关闭文件夹" onClick={close}>
+        <button aria-label="关闭文件夹" disabled={busy} onClick={close}>
           <X size={13} />
         </button>
       </header>
@@ -842,16 +865,23 @@ export function FolderBrowser({
         </p>
       )}
       <p className="folder-drag-help">
-        拖入正文插入链接；系统文件拖到文件夹可复制。按住 Alt/Option
-        可拖出到系统。
+        拖入正文或使用文件操作菜单插入相对链接；系统文件拖到文件夹可复制。按住
+        Alt/Option 可拖出到系统。
       </p>
+      {copying && (
+        <p className="folder-drag-help" role="status">
+          正在确认或复制拖入项目，请稍候…
+        </p>
+      )}
       <p id="folder-tree-keyboard-help" className="sr-only">
         文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home
-        和 End 跳到列表首尾。
+        和 End 跳到列表首尾。Shift+F10 打开文件操作，Tab 切换操作，Enter
+        执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
       </p>
       <ul
         ref={treeRef}
         aria-label="文件列表"
+        aria-busy={copying}
         aria-describedby="folder-tree-keyboard-help"
       >
         {(layout.view === "list"
@@ -878,6 +908,7 @@ export function FolderBrowser({
           <Branch
             key={node.path}
             node={node}
+            busy={busy}
             depth={0}
             active={active}
             open={open}
@@ -951,6 +982,7 @@ export function FolderBrowser({
           <div className="dialog-actions">
             <button onClick={() => setOperation(null)}>取消</button>
             <button
+              disabled={busy}
               className={
                 operation.action === "trash"
                   ? "danger-button"

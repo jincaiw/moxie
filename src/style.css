@@ -2234,6 +2234,9 @@ p {
   background: var(--selected);
 }
 .tree-actions {
+  min-width: 0;
+  margin: 0;
+  border: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -2248,7 +2251,7 @@ p {
   font-size: 11px;
   color: var(--muted);
 }
-.tree-actions button:hover {
+.tree-actions button:hover:not(:disabled) {
   background: var(--selected);
   color: var(--text);
 }

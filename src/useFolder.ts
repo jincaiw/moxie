@@ -99,11 +99,13 @@ export function useFolder(
         return;
       if (result) setTree(result);
       setError("");
+      return true;
     } catch {
       if (mounted.current && token === generation.current)
         setError(
           "文件夹暂时无法读取。当前文档已保留，可重试或重新选择文件夹。",
         );
+      return false;
     } finally {
       inFlight.current = false;
       if (mounted.current && token === generation.current) {

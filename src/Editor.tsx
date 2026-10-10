@@ -70,6 +70,7 @@ export type EditorHandle = {
   redo: () => void;
   format: (kind: Format, tableSize?: { rows: number; columns: number }) => void;
   images: (files: File[]) => Promise<void>;
+  fileLink: (target: string) => Promise<void>;
   imageSize: () => { width: string; height: string } | null;
   setImageSize: (width: string, height: string) => boolean;
   forget: (id: string) => void;
@@ -681,6 +682,9 @@ export const Editor = forwardRef<EditorHandle, Props>(
     insertRef.current = insertImages;
 
     useImperativeHandle(ref, () => ({
+      fileLink(target) {
+        return fileLinkRef.current(target);
+      },
       focus() {
         view.current?.focus();
       },
