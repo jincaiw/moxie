@@ -1237,9 +1237,53 @@ export default function App() {
     if (workspaceSearch)
       requestAnimationFrame(() => workspaceSearchInput.current?.focus());
   }, [workspaceSearch]);
+  const closeOrigin = useRef<HTMLElement | null>(null);
+  const closeRegion = useRef<"sidebar" | "tabs" | "editor">("editor");
+  const pendingCloseFocus = useRef(false);
+  const restoreCloseFocus = () => {
+    const origin = closeOrigin.current;
+    if (origin?.isConnected) {
+      origin.focus();
+      return true;
+    }
+    const replacement =
+      closeRegion.current === "sidebar"
+        ? openedFiles.current?.querySelector<HTMLButtonElement>(
+            ".file-entry.selected .file-row",
+          )
+        : closeRegion.current === "tabs"
+          ? documentTabs.current?.querySelector<HTMLButtonElement>(
+              '.document-tab-select[aria-selected="true"]',
+            )
+          : null;
+    if (
+      !replacement &&
+      closeRegion.current === "tabs" &&
+      docs.length > 1 &&
+      documentTabs.current
+    )
+      return false;
+    if (replacement) replacement.focus();
+    else editor.current?.focus();
+    return true;
+  };
+  useEffect(() => {
+    if (!pendingCloseFocus.current || closing !== null) return;
+    const frame = requestAnimationFrame(() => {
+      if (restoreCloseFocus()) pendingCloseFocus.current = false;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [docs, current.id, closing, tabGroup]);
+  const cancelClose = () => {
+    pendingCloseFocus.current = true;
+    setClosing(null);
+  };
   const remove = (id: string) => {
+    pendingCloseFocus.current = true;
     workspace.remove(id);
-    requestAnimationFrame(() => editor.current?.forget(id));
+    requestAnimationFrame(() => {
+      editor.current?.forget(id);
+    });
   };
   const saveCurrent = (saveAs = false) => {
     editor.current?.flush();
@@ -1249,6 +1293,16 @@ export default function App() {
     void workspace.save(latest, saveAs);
   };
   const requestClose = (document: DocumentFile = current) => {
+    closeOrigin.current =
+      window.document.activeElement instanceof HTMLElement &&
+      window.document.activeElement !== window.document.body
+        ? window.document.activeElement
+        : null;
+    closeRegion.current = closeOrigin.current?.closest(".opened-files")
+      ? "sidebar"
+      : closeOrigin.current?.closest(".document-tabs")
+        ? "tabs"
+        : "editor";
     if (document.id === current.id) editor.current?.flush();
     const latest =
       workspace.docsRef.current.find((item) => item.id === document.id) ||
@@ -1893,7 +1947,48 @@ export default function App() {
                   className="opened-files"
                   role="group"
                   aria-label="已打开文档"
+                  aria-describedby="opened-documents-keyboard-help"
+                  onKeyDown={(event) => {
+                    if (
+                      event.altKey ||
+                      event.ctrlKey ||
+                      event.metaKey ||
+                      event.shiftKey
+                    )
+                      return;
+                    if (
+                      !["ArrowDown", "ArrowUp", "Home", "End"].includes(
+                        event.key,
+                      )
+                    )
+                      return;
+                    const rows = Array.from(
+                      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        ".file-row",
+                      ),
+                    );
+                    const index = rows.indexOf(
+                      event.target as HTMLButtonElement,
+                    );
+                    if (index < 0) return;
+                    const next =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? rows.length - 1
+                          : (index +
+                              (event.key === "ArrowDown" ? 1 : -1) +
+                              rows.length) %
+                            rows.length;
+                    event.preventDefault();
+                    rows[next].focus({ preventScroll: true });
+                    rows[next].click();
+                  }}
                 >
+                  <p id="opened-documents-keyboard-help" className="sr-only">
+                    上下方向键切换文档，Home 和 End 定位首尾；Tab
+                    进入当前文档的关闭按钮。
+                  </p>
                   {docs.map((document) => (
                     <div
                       className={
@@ -1906,6 +2001,10 @@ export default function App() {
                         aria-label={document.name}
                         className="file-row"
                         title={document.path || document.name}
+                        aria-current={
+                          document.id === current.id ? "true" : undefined
+                        }
+                        tabIndex={document.id === current.id ? 0 : -1}
                         onClick={() => workspace.setActive(document.id)}
                       >
                         <FileText size={18} />
@@ -1916,6 +2015,7 @@ export default function App() {
                       </button>
                       <button
                         className="close-file"
+                        tabIndex={document.id === current.id ? 0 : -1}
                         aria-label={"关闭 " + document.name}
                         title="关闭文档"
                         onClick={() => requestClose(document)}
@@ -3556,10 +3656,10 @@ export default function App() {
         </Dialog>
       )}
       {closingDocument && (
-        <Dialog title="关闭文档" onClose={() => setClosing(null)}>
+        <Dialog title="关闭文档" onClose={cancelClose}>
           <header>
             <h2>保存修改？</h2>
-            <Tool label="取消关闭" onClick={() => setClosing(null)}>
+            <Tool label="取消关闭" onClick={cancelClose}>
               <X size={18} />
             </Tool>
           </header>
@@ -3568,7 +3668,7 @@ export default function App() {
             ”还有未保存的修改。保存后关闭，或放弃这些修改。
           </p>
           <div className="dialog-actions">
-            <button onClick={() => setClosing(null)}>取消</button>
+            <button onClick={cancelClose}>取消</button>
             <button
               onClick={() => {
                 remove(closingDocument.id);

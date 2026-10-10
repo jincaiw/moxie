@@ -1424,3 +1424,167 @@ test("文件操作面板单列显示、互斥关闭且支持键盘与滚动", as
   await page.keyboard.press("Tab");
   await expect(panels).toHaveCount(0);
 });
+
+test("已打开列表方向键与关闭操作保持当前焦点", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify(
+        Array.from({ length: 18 }, (_, i) => ({
+          id: `list-${i}`,
+          name: `列表文档${i}.md`,
+          text: `# 文档${i}`,
+          dirty: false,
+        })),
+      ),
+    );
+    localStorage.setItem("moxie.active.v1", "list-0");
+  });
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  const rows = page.locator(".opened-files .file-row");
+  await rows.first().focus();
+  await page.keyboard.press("End");
+  await expect(rows.last()).toBeFocused();
+  await expect(rows.last()).toHaveAttribute("aria-current", "true");
+  await expect(page.locator(".document-title")).toContainText("列表文档17.md");
+  expect(
+    await rows.last().evaluate((node) => {
+      const item = node.getBoundingClientRect(),
+        list = node.closest(".opened-files")!.getBoundingClientRect();
+      return item.top >= list.top && item.bottom <= list.bottom;
+    }),
+  ).toBe(true);
+  await page.keyboard.press("ArrowDown");
+  await expect(rows.first()).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(rows.last()).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(rows.first()).toBeFocused();
+  expect(
+    await page.locator('.opened-files .file-row[tabindex="0"]').count(),
+  ).toBe(1);
+  await page.keyboard.press("Tab");
+  await expect(
+    page.locator(".opened-files .file-entry.selected .close-file"),
+  ).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(rows).toHaveCount(17);
+  await expect(
+    page.locator('.opened-files .file-row[aria-current="true"]'),
+  ).toBeFocused();
+  await expect(page.locator(".document-title")).toContainText("列表文档1.md");
+  // Closing an inactive document by mouse retains the current document.
+  await page.locator(".opened-files .close-file").last().click();
+  await expect(rows).toHaveCount(16);
+  await expect(
+    page.locator('.opened-files .file-row[aria-current="true"]'),
+  ).toBeFocused();
+  await expect(page.locator(".document-title")).toContainText("列表文档1.md");
+  const tabClose = page.locator(".document-tab.selected .document-tab-close");
+  await tabClose.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.locator('.document-tab-select[aria-selected="true"]'),
+  ).toBeFocused();
+  // Remove the remaining tabs; when the tab strip disappears, continue writing.
+  while ((await rows.count()) > 1) {
+    const count = await rows.count();
+    await tabClose.focus();
+    await page.keyboard.press("Enter");
+    await expect(rows).toHaveCount(count - 1);
+  }
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await page.keyboard.press(shortcut("w"));
+  await expect(page.locator(".document-title")).toContainText("未命名.md");
+  await expect(page.locator(".cm-content")).toBeFocused();
+  await page.keyboard.insertText("关闭后继续写作");
+  await expect(page.locator(".cm-content")).toContainText("关闭后继续写作");
+});
+
+test("取消关闭与保存失败保留文档，确认关闭后恢复导航焦点", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify([
+        {
+          id: "dirty-a",
+          name: "草稿.md",
+          text: "# 原稿\n\n保留修改",
+          dirty: true,
+          path: "/notes/草稿.md",
+          diskText: "# 原稿",
+          diskVersion: "v1",
+          group: "写作",
+        },
+        { id: "dirty-b", name: "后续.md", text: "# 后续", dirty: false },
+        { id: "dirty-c", name: "备用.md", text: "# 备用", dirty: false },
+      ]),
+    );
+    localStorage.setItem("moxie.active.v1", "dirty-a");
+    const state = window as any;
+    state.desktop.inspect = async () => [];
+    state.saveAllowed = false;
+    state.desktop.save = async (input: any) => {
+      if (state.saveFailure) throw new Error("权限不足，保存失败");
+      return state.saveAllowed
+        ? {
+            path: input.path,
+            name: "草稿.md",
+            text: input.text,
+            version: "saved",
+          }
+        : null;
+    };
+  });
+  await page.goto("/");
+  await page.locator(".document-group-select").click();
+  const close = page.locator(".document-tab.selected .document-tab-close");
+  await close.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "关闭文档" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(close).toBeFocused();
+  await expect(page.locator(".cm-content")).toContainText("保留修改");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "取消", exact: true }).click();
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog).toBeVisible();
+  await expect(page.locator(".cm-content")).toContainText("保留修改");
+  await page.evaluate(() => {
+    (window as any).saveFailure = true;
+  });
+  await page.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(page.locator(".toast")).toContainText("权限不足，保存失败");
+  await expect(dialog).toBeVisible();
+  await expect(page.locator(".cm-content")).toContainText("保留修改");
+  await page.evaluate(() => {
+    (window as any).saveFailure = false;
+    (window as any).saveAllowed = true;
+  });
+  await page.getByRole("button", { name: "保存并关闭", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".file-row")).toHaveCount(2);
+  await expect(
+    page.locator('.document-tab-select[aria-selected="true"]'),
+  ).toBeFocused();
+  await expect(page.locator(".document-title")).toContainText("后续.md");
+  await expect(page.locator(".document-group-select")).toHaveCount(0);
+  await page.locator(".cm-content").click();
+  await page.keyboard.insertText("新的修改");
+  const sidebarClose = page.locator(
+    ".opened-files .file-entry.selected .close-file",
+  );
+  await sidebarClose.click();
+  await page.getByRole("button", { name: "取消关闭", exact: true }).click();
+  await expect(sidebarClose).toBeFocused();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "放弃修改", exact: true }).click();
+  await expect(
+    page.locator('.opened-files .file-row[aria-current="true"]'),
+  ).toBeFocused();
+  await expect(page.locator(".document-title")).toContainText("备用.md");
+});
