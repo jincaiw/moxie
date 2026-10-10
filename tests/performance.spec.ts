@@ -136,8 +136,9 @@ for (const sizeMB of sizes) {
 
     await page.locator(".cm-content").press(documentEnd);
     const typingStarted = performance.now();
-    await page.locator(".cm-content").pressSequentially("x", { delay: 0 });
-    await expect(page.locator(".cm-content")).toContainText("x");
+    // The payload already ends in x; use a new marker to verify the edit rendered.
+    await page.locator(".cm-content").pressSequentially("Z", { delay: 0 });
+    await expect(page.locator(".cm-content")).toContainText("Z");
     const typed = performance.now();
 
     const report = {

@@ -20,6 +20,15 @@ type FootnoteState = {
   references: Map<number, number>;
 };
 
+function replaceUnavailableImage(image: HTMLImageElement) {
+  const fallback = document.createElement("span");
+  fallback.className = "export-image-fallback";
+  fallback.textContent = `图片不可用：${image.alt || "未提供替代文本"}`;
+  fallback.setAttribute("role", "img");
+  fallback.setAttribute("aria-label", fallback.textContent);
+  image.replaceWith(fallback);
+}
+
 function normalizeFootnote(label: string) {
   return label.trim().replace(/\s+/g, " ").toLowerCase();
 }
@@ -836,7 +845,13 @@ export async function exportHTML(
     Array.from(svgContainer.querySelectorAll("img")).map(async (image) => {
       const src = image.getAttribute("src") || "";
       if (!/^data:image\/svg\+xml;base64,/i.test(src)) return;
-      const safeSrc = await resolveImage(src, documentPath);
+      let safeSrc: string;
+      try {
+        safeSrc = await resolveImage(src, documentPath);
+      } catch {
+        replaceUnavailableImage(image);
+        return;
+      }
       let placeholder: string;
       do {
         placeholder = `https://moxie.invalid/sanitized-svg-${svgPlaceholder++}`;
@@ -904,11 +919,16 @@ export async function exportHTML(
   await Promise.all(
     Array.from(content.querySelectorAll("img")).map(async (image) => {
       const src = image.getAttribute("src") || "";
-      image.src = await resolveImage(src, documentPath);
+      try {
+        image.src = await resolveImage(src, documentPath);
+      } catch {
+        replaceUnavailableImage(image);
+      }
     }),
   );
   const styles = `:root{--bg:${palette.bg};--text:${palette.text};--muted:${palette.muted};--border:${palette.border};--code:${palette.code};--accent:${palette.accent}}
 body{font:17px/1.8 -apple-system,BlinkMacSystemFont,sans-serif;max-width:760px;margin:50px auto;padding:0 28px;color:var(--text);background:var(--bg)}
+.export-image-fallback{display:inline-block;max-width:100%;padding:8px;border:1px dashed var(--border);color:var(--muted);overflow-wrap:anywhere}
 table{border-collapse:collapse;width:100%}
 td,th{border:1px solid var(--border);padding:8px;text-align:left;overflow-wrap:anywhere}
 pre{padding:20px;background:var(--code);white-space:pre-wrap;overflow-wrap:anywhere}

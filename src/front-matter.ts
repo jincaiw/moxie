@@ -6,15 +6,14 @@ export type FrontMatter = {
   metadata: Record<string, unknown>;
 };
 
-export function parseFrontMatter(source: string): FrontMatter | null {
-  const normalized = source.replace(/\r\n?/g, "\n").replace(/^\uFEFF/, "");
-  const lines = normalized.split("\n");
-  if (lines[0] !== "---") return null;
-  const closing = lines.findIndex(
-    (line, index) => index > 0 && (line === "---" || line === "..."),
-  );
-  if (closing < 0) return null;
-  const rawMetadata = lines.slice(1, closing).join("\n");
+function readFrontMatter(source: string) {
+  if (!/^(?:\uFEFF)?---(?:\r\n?|\n)/.test(source)) return null;
+  const match =
+    /^(?:\uFEFF)?---(?:\r\n?|\n)([\s\S]*?)(?:\r\n?|\n)(?:---|\.\.\.)(?:(?:\r\n?|\n)|$)/.exec(
+      source,
+    );
+  if (!match) return null;
+  const rawMetadata = match[1].replace(/\r\n?/g, "\n");
   if (new TextEncoder().encode(rawMetadata).byteLength > 64 * 1024) return null;
   try {
     const value = loadYAML(rawMetadata, { schema: JSON_SCHEMA });
@@ -26,7 +25,7 @@ export function parseFrontMatter(source: string): FrontMatter | null {
     )
       return null;
     return {
-      body: lines.slice(closing + 1).join("\n"),
+      end: match[0].length,
       metadata: value as Record<string, unknown>,
     };
   } catch {
@@ -34,14 +33,19 @@ export function parseFrontMatter(source: string): FrontMatter | null {
   }
 }
 
+export function parseFrontMatter(source: string): FrontMatter | null {
+  const header = readFrontMatter(source);
+  return header
+    ? {
+        body: source.slice(header.end).replace(/\r\n?/g, "\n"),
+        metadata: header.metadata,
+      }
+    : null;
+}
+
 /** End offset in the original source, preserving BOM and line endings. */
 export function frontMatterEnd(source: string): number {
-  if (!parseFrontMatter(source)) return 0;
-  return (
-    /^(?:\uFEFF)?---(?:\r\n?|\n)[\s\S]*?(?:\r\n?|\n)(?:---|\.\.\.)(?:(?:\r\n?|\n)|$)/.exec(
-      source,
-    )?.[0].length || 0
-  );
+  return readFrontMatter(source)?.end || 0;
 }
 
 export type EditableDocumentMetadata = {

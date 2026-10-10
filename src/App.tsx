@@ -45,6 +45,7 @@ import { EditorFormatMenu } from "./EditorFormatMenu";
 import { exportHTML, withoutHTMLStyles } from "./export";
 import { downloadRemoteImages, manageLocalImages, withImages } from "./assets";
 import { useWorkspace } from "./useWorkspace";
+import { useRevealSelection } from "./useRevealSelection";
 import { usePreferences } from "./preferences";
 import { Settings } from "./Settings";
 import { Dialog } from "./Dialog";
@@ -782,39 +783,18 @@ export default function App() {
   const visibleDocumentOrder = visibleDocs
     .map((document) => document.id)
     .join("\n");
-  useEffect(() => {
-    if (!visibleSidebar || tab !== "files") return;
-    const list = openedFiles.current;
-    const selected = list?.querySelector<HTMLElement>(".selected");
-    if (!list || !selected) return;
-    const reveal = () => {
-      const bounds = list.getBoundingClientRect();
-      const row = selected.getBoundingClientRect();
-      if (row.top < bounds.top) list.scrollTop += row.top - bounds.top;
-      else if (row.bottom > bounds.bottom)
-        list.scrollTop += row.bottom - bounds.bottom;
-    };
-    reveal();
-    const observer = new ResizeObserver(reveal);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [current.id, documentOrder, visibleSidebar, tab, workspace.recoveryReady]);
-  useEffect(() => {
-    const list = documentTabs.current;
-    const selected = list?.querySelector<HTMLElement>(".selected");
-    if (!list || !selected) return;
-    const reveal = () => {
-      const bounds = list.getBoundingClientRect();
-      const item = selected.getBoundingClientRect();
-      if (item.left < bounds.left) list.scrollLeft += item.left - bounds.left;
-      else if (item.right > bounds.right)
-        list.scrollLeft += item.right - bounds.right;
-    };
-    reveal();
-    const observer = new ResizeObserver(reveal);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [current.id, visibleDocumentOrder, workspace.recoveryReady]);
+  useRevealSelection(
+    openedFiles,
+    current.id + "\n" + documentOrder,
+    "vertical",
+    visibleSidebar && tab === "files" && workspace.recoveryReady,
+  );
+  useRevealSelection(
+    documentTabs,
+    current.id + "\n" + visibleDocumentOrder,
+    "horizontal",
+    workspace.recoveryReady,
+  );
   const autoError = workspace.autoErrors[current.id];
   const editImageSize = () => {
     const size = editor.current?.imageSize();

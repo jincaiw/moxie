@@ -57,7 +57,16 @@ async function exportDocumentAsSVG({
     );
     const dimensions = await view.webContents.executeJavaScript(`(async () => {
       await document.fonts.ready;
-      await Promise.all(Array.from(document.images, image => image.decode()));
+      await Promise.all(Array.from(document.images, async image => {
+        try {
+          await image.decode();
+        } catch {
+          const fallback = document.createElement('span');
+          fallback.textContent = '图片不可用：' + (image.alt || '未提供替代文本');
+          fallback.style.cssText = 'display:inline-block;max-width:100%;padding:8px;border:1px dashed currentColor;overflow-wrap:anywhere';
+          image.replaceWith(fallback);
+        }
+      }));
       return {
         width: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
         height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)

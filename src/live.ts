@@ -13,7 +13,7 @@ import {
 } from "@codemirror/view";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { marked } from "marked";
-import { frontMatterEnd } from "./front-matter";
+import { frontMatterEnd, parseFrontMatter } from "./front-matter";
 import { nestedGfmAutolink } from "./gfm-autolink";
 import DOMPurify from "dompurify";
 import { renderInlineHTMLMarkdown } from "./export";
@@ -349,6 +349,54 @@ function renderInlineHTMLPreview(
     .catch(() => {});
 }
 
+class FrontMatterWidget extends WidgetType {
+  constructor(
+    readonly source: string,
+    readonly editFrom: number,
+  ) {
+    super();
+  }
+  eq(other: FrontMatterWidget) {
+    return this.source === other.source && this.editFrom === other.editFrom;
+  }
+  toDOM(view: EditorView) {
+    const metadata = parseFrontMatter(this.source)!.metadata;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "md-metadata-summary";
+    button.setAttribute("aria-label", "展开文档属性源码");
+    button.title = "点击直接编辑 YAML；离开属性区域后自动收起";
+    const label = document.createElement("strong");
+    label.textContent = "文档属性";
+    const description = document.createElement("span");
+    description.className = "md-metadata-description";
+    description.textContent =
+      [metadata.title, metadata.author]
+        .filter(
+          (value) => typeof value === "string" || typeof value === "number",
+        )
+        .map(String)
+        .join(" · ") || "YAML";
+    description.title = description.textContent;
+    const count = document.createElement("small");
+    count.textContent = `${Object.keys(metadata).length} 项 · 展开源码`;
+    button.append(label, description, count);
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      view.dispatch({ selection: { anchor: this.editFrom } });
+      view.focus();
+    });
+    const block = document.createElement("div");
+    block.className = "md-metadata-preview";
+    block.append(button);
+    return block;
+  }
+  ignoreEvent() {
+    return true;
+  }
+}
+
 class RenderWidget extends WidgetType {
   constructor(
     readonly text: string,
@@ -679,24 +727,38 @@ function build(
   const metadataEnd = frontMatterEnd(source);
   if (metadataEnd) {
     codeRanges.push({ from: 0, to: metadataEnd });
-    for (
-      let number = 1;
-      number <= state.doc.lineAt(metadataEnd).number;
-      number++
-    ) {
-      const line = state.doc.line(number);
-      if (line.from >= metadataEnd) break;
-      if (
-        regions.some(
-          (region) => line.from >= region.from && line.from <= region.to,
+    const closing = state.doc.lineAt(metadataEnd - 1).to;
+    if (!active(0, closing)) {
+      add(
+        0,
+        closing,
+        Decoration.replace({
+          widget: new FrontMatterWidget(
+            source.slice(0, metadataEnd),
+            state.doc.line(2).from,
+          ),
+          block: true,
+        }),
+      );
+    } else
+      for (
+        let number = 1;
+        number <= state.doc.lineAt(metadataEnd).number;
+        number++
+      ) {
+        const line = state.doc.line(number);
+        if (line.from >= metadataEnd) break;
+        if (
+          regions.some(
+            (region) => line.from >= region.from && line.from <= region.to,
+          )
         )
-      )
-        add(
-          line.from,
-          line.from,
-          Decoration.line({ class: "md-front-matter" }),
-        );
-    }
+          add(
+            line.from,
+            line.from,
+            Decoration.line({ class: "md-front-matter" }),
+          );
+      }
   }
   for (const visible of regions) {
     const tree = ensureSyntaxTree(state, visible.to, 12) || syntaxTree(state);

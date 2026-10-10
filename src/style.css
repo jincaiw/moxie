@@ -2603,6 +2603,42 @@ p {
   max-height: min(16vh, 132px);
   overflow-y: auto;
   overscroll-behavior: contain;
+  overflow-anchor: none;
+}
+
+.md-metadata-preview {
+  margin: 8px 0 20px;
+}
+.md-metadata-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--panel);
+  text-align: left;
+  font-size: 13px;
+}
+.md-metadata-summary strong {
+  flex-shrink: 0;
+  color: var(--text);
+  font-size: inherit;
+  font-weight: 550;
+}
+.md-metadata-description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md-metadata-summary small {
+  flex-shrink: 0;
+  font-size: 11px;
 }
 .rendered-link .linked-image-preview {
   display: inline-block;

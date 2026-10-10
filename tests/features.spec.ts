@@ -1320,6 +1320,7 @@ test("智能标点按上下文转换并保留 YAML、代码与数学原文", asy
   await page.keyboard.type("$$");
   await page.keyboard.press("Enter");
   await page.keyboard.type('"after math"');
+  await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(editor).toContainText('title: "yaml"');
   await expect(editor).toContainText("“Hello” – ‘world’");
   await expect(editor).toContainText('"code" --');
@@ -2884,9 +2885,10 @@ test("编辑标题前的正文后仍保留对应大纲折叠状态", async ({ pa
   await expect(rows).toHaveText(["根标题"]);
 
   await page.getByRole("button", { name: "源码", exact: true }).click();
-  await page
-    .locator(".cm-content")
-    .fill("前言\n\n# 根标题\n\n## 子标题\n\n## 其他章节\n");
+  await page.locator(".cm-content").press(documentStart);
+  await page.keyboard.type("前言");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
   await expect(rows).toHaveText(["根标题"]);
   await expect(
@@ -4607,6 +4609,12 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   await expect(page.locator(".document-title")).toContainText(
     "MARKDOWN_RENDERING_TEST.md",
   );
+  const metadataSummary = page.getByRole("button", {
+    name: "展开文档属性源码",
+  });
+  await expect(metadataSummary).toContainText("Markdown 渲染综合测试");
+  await metadataSummary.focus();
+  await page.keyboard.press("Enter");
   await expect(page.locator(".md-front-matter")).toHaveCount(4);
   await expect(page.locator(".md-front-matter.md-heading")).toHaveCount(0);
   await page.getByRole("tab", { name: "大纲", exact: true }).click();
@@ -4667,6 +4675,82 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   });
   expect(content).toBe(sample);
   expect(errors).toEqual([]);
+});
+
+test("文档属性摘要安全显示，展开编辑可撤销，源码模式保留完整属性", async ({
+  page,
+}) => {
+  const source =
+    "---\ntitle: '<img src=x onerror=alert(1)>'\nauthor: 作者\ncustom:\n  keep: true\n---\n\n# 正文\n\n阅读内容";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "属性.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const summary = page.getByRole("button", { name: "展开文档属性源码" });
+  await expect(summary).toContainText("<img src=x onerror=alert(1)> · 作者");
+  await expect(summary).toContainText("3 项");
+  await expect(summary.locator("img")).toHaveCount(0);
+  await summary.click();
+  await expect(summary).toHaveCount(0);
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await page.keyboard.type("# 编辑注释\n");
+  await expect(editor).toContainText("# 编辑注释");
+  await page.keyboard.press(shortcut("z"));
+  await page.keyboard.press(shortcut("z"));
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await page.getByRole("button", { name: "正文", exact: true }).click();
+  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await expect(summary).toBeVisible();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(summary).toHaveCount(0);
+  const content = await page.evaluate(async () => {
+    // @ts-expect-error Vite resolves the browser module.
+    const { EditorView } =
+      await import("/node_modules/@codemirror/view/dist/index.js");
+    return EditorView.findFromDOM(
+      document.querySelector(".cm-editor"),
+    ).state.doc.toString();
+  });
+  expect(content).toBe(source);
+});
+
+test("完整样本缺失图片不会中止导出，保留替代文本和图表", async ({ page }) => {
+  const sample = await fs.readFile(
+    "tests/fixtures/MARKDOWN_RENDERING_TEST.md",
+    "utf8",
+  );
+  await page.goto("/");
+  const html = await page.evaluate(async (source) => {
+    const module = await new Function("return import('/src/export.ts')")();
+    return module.exportHTML(
+      source,
+      "MARKDOWN_RENDERING_TEST.md",
+      "/notes/sample.md",
+    );
+  }, sample);
+  const result = await page.evaluate((source) => {
+    const document = new DOMParser().parseFromString(source, "text/html");
+    return {
+      missing: Array.from(
+        document.querySelectorAll(".export-image-fallback"),
+        (element) => element.textContent,
+      ),
+      headings: document.querySelectorAll("h1,h2,h3,h4,h5,h6").length,
+      mermaid: document.querySelectorAll("svg").length,
+      title: document.title,
+      rawMetadata: document.body.textContent.includes("tags: ["),
+    };
+  }, html);
+  expect(result.missing).toEqual([
+    "图片不可用：图片加载失败时显示的替代文本",
+    "图片不可用：可点击图片的替代文本",
+  ]);
+  expect(result.headings).toBe(34);
+  expect(result.mermaid).toBeGreaterThanOrEqual(3);
+  expect(result.title).toBe("Markdown 渲染综合测试");
+  expect(result.rawMetadata).toBe(false);
 });
 
 test("图片链接显示真实图片，普通单击仍可编辑原文", async ({ page }) => {

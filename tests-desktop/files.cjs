@@ -171,16 +171,35 @@ test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品"
   let dimensionsRead = false;
   let captures = 0;
   let destroyed = false;
+  let unavailableImageText = "";
   class MockWindow {
     constructor(options) {
       assert.equal(options.show, false);
       this.webContents = {
         setWindowOpenHandler: () => undefined,
         session: { webRequest: { onBeforeRequest: () => undefined } },
-        executeJavaScript: async () => {
+        executeJavaScript: async (script) => {
           if (!dimensionsRead) {
             dimensionsRead = true;
-            return { width: 2, height: 3000 };
+            return vm.runInNewContext(script, {
+              document: {
+                fonts: { ready: Promise.resolve() },
+                images: [
+                  {
+                    alt: "<缺失封面>",
+                    decode: async () => {
+                      throw Error("图片无法解码");
+                    },
+                    replaceWith: (element) => {
+                      unavailableImageText = element.textContent;
+                    },
+                  },
+                ],
+                createElement: () => ({ style: {} }),
+                documentElement: { scrollWidth: 2, scrollHeight: 3000 },
+                body: { scrollWidth: 2, scrollHeight: 3000 },
+              },
+            });
           }
         },
         capturePage: async (_rect) => {
@@ -210,6 +229,7 @@ test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品"
     assert.equal(result, output);
     assert.equal(captures, 2);
     assert.equal(destroyed, true);
+    assert.equal(unavailableImageText, "图片不可用：<缺失封面>");
     const svg = await fs.readFile(output, "utf8");
     assert.match(svg, /width="2" height="3000"/);
     assert.equal((svg.match(/<image /g) || []).length, 2);
