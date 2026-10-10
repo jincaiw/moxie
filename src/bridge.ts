@@ -51,7 +51,11 @@ export type UpdateStatus = {
 declare global {
   interface Window {
     desktop?: {
-      makeFileLink?: (documentPath: string, target: string) => Promise<string>;
+      makeFileLink?: (
+        documentPath: string,
+        target: string,
+        label?: string,
+      ) => Promise<string>;
       dragFileOut?: (target: string) => Promise<boolean>;
       copyDroppedFiles?: (
         root: string,

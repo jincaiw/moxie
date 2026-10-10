@@ -251,7 +251,7 @@ function setupIPC() {
     return true;
   });
   handle("file:make-link", (input) =>
-    store.makeLink(input.documentPath, input.target),
+    store.makeLink(input.documentPath, input.target, input.label),
   );
   handle("file:drag-out", async (input, { window }) => {
     const file = await store.authorizedPath(input);

@@ -996,7 +996,14 @@ export default function App() {
           });
           return;
         }
-        if (result.folder) await folderWorkspace.open(result.folder);
+        if (result.folder) {
+          if (dropInFlight.current)
+            throw Error("正在处理拖入项目，请稍后打开关联文件夹。");
+          if (!(await folderWorkspace.open(result.folder)))
+            throw Error("关联文件夹未能打开，请重试。");
+          setTab("files");
+          setSidebar(true);
+        }
         if (result.file) {
           workspace.importFile(result.file);
           void workspace.refreshRecent();
@@ -1005,7 +1012,7 @@ export default function App() {
           setPendingAnchor({ path: result.file.path, anchor: result.anchor });
       } else if (/^(https?:|mailto:)/i.test(href)) {
         window.open(href, "_blank", "noopener,noreferrer");
-      } else setMessage("请在桌面版打开关联 Markdown 文档。");
+      } else setMessage("请在桌面版打开关联 Markdown/TXT 文档或文件夹。");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
     }
@@ -2597,7 +2604,7 @@ export default function App() {
               setMenu(null);
               setEditorMenu(point);
             }}
-            onFileLink={async (target) => {
+            onFileLink={async (target, label) => {
               if (!window.desktop?.makeFileLink)
                 throw Error("请在桌面版拖入侧栏链接。");
               editor.current?.flush();
@@ -2611,7 +2618,7 @@ export default function App() {
                 (item) => item.id === document.id,
               );
               if (!saved?.path) throw Error("请先保存当前文档。");
-              return window.desktop.makeFileLink(saved.path, target);
+              return window.desktop.makeFileLink(saved.path, target, label);
             }}
             onImages={withImages(current)}
             onError={setMessage}

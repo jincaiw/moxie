@@ -101,7 +101,7 @@ type Props = {
   onLink: (href: string) => void;
   onContextMenu: (point: { left: number; top: number }) => void;
   onImages: (files: File[]) => Promise<string>;
-  onFileLink: (target: string) => Promise<string>;
+  onFileLink: (target: string, label?: string) => Promise<string>;
   onError: (message: string) => void;
 };
 
@@ -660,7 +660,11 @@ export const Editor = forwardRef<EditorHandle, Props>(
       };
       pending.current.add(point);
       try {
-        const insert = await latest.current.onFileLink(target);
+        const label = instance.state.sliceDoc(point.from, point.to);
+        const insert = await latest.current.onFileLink(
+          target,
+          label || undefined,
+        );
         if (view.current !== instance) return;
         instance.dispatch({
           changes: { from: point.from, to: point.to, insert },

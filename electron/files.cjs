@@ -1085,7 +1085,12 @@ class FileStore {
     }
     return { paths };
   }
-  async makeLink(documentPath, target) {
+  async makeLink(documentPath, target, label) {
+    if (
+      label !== undefined &&
+      (typeof label !== "string" || label.length > 8192)
+    )
+      throw Error("链接名称无效或超过 8192 字符");
     if (typeof documentPath !== "string" || !this.authorized.has(documentPath))
       throw Error("请先打开或保存当前文档，再插入链接");
     const { directory, root } = await this.resourceRoot(documentPath);
@@ -1108,7 +1113,9 @@ class FileStore {
           ),
         )
         .join("/") + (isDirectory ? "/" : "");
-    const name = path.basename(real).replace(/[\\[\]]/g, "\\$&");
+    const name = (label?.trim() ? label : path.basename(real))
+      .replace(/[\r\n]+/g, " ")
+      .replace(/[\\[\]`*_<>!~$^]/g, "\\$&");
     return `[${name}](<${href}>)`;
   }
   async openLinked(documentPath, href, create = false) {
@@ -1132,12 +1139,7 @@ class FileStore {
     } catch {
       throw Error("链接包含无效的百分号编码");
     }
-    if (
-      !relative ||
-      path.isAbsolute(relative) ||
-      relative.includes("\0") ||
-      (!relative.endsWith("/") && !/\.(md|markdown|txt)$/i.test(relative))
-    )
+    if (!relative || path.isAbsolute(relative) || relative.includes("\0"))
       throw Error("仅支持相对路径的 Markdown、TXT 文档或文件夹链接");
     const directory = await fs.realpath(path.dirname(documentPath));
     const realDocument = await fs.realpath(documentPath);
@@ -1165,8 +1167,10 @@ class FileStore {
       const handle = await fs.open(target, "wx");
       await handle.close();
     }
-    if ((await fs.stat(target)).isDirectory()) return { folder: target };
-    if (/\.txt$/i.test(target)) return { reveal: target };
+    const stat = await fs.stat(target);
+    if (stat.isDirectory()) return { folder: target };
+    if (!stat.isFile() || !/\.(md|markdown|txt)$/i.test(target))
+      throw Error("仅支持相对路径的 Markdown、TXT 文档或文件夹链接");
     this.treeRoots.set(target, root);
     return { file: await this.read(target), anchor };
   }

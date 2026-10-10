@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
 contextBridge.exposeInMainWorld("desktop", {
-  makeFileLink: (documentPath, target) =>
-    ipcRenderer.invoke("file:make-link", { documentPath, target }),
+  makeFileLink: (documentPath, target, label) =>
+    ipcRenderer.invoke("file:make-link", { documentPath, target, label }),
   dragFileOut: (target) => ipcRenderer.invoke("file:drag-out", target),
   copyDroppedFiles: (root, directory, files, options) => {
     if (!Array.isArray(files) || files.length > 20)
