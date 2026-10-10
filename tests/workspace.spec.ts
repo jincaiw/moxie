@@ -1448,13 +1448,15 @@ test("已打开列表方向键与关闭操作保持当前焦点", async ({ page 
   await expect(rows.last()).toBeFocused();
   await expect(rows.last()).toHaveAttribute("aria-current", "true");
   await expect(page.locator(".document-title")).toContainText("列表文档17.md");
-  expect(
-    await rows.last().evaluate((node) => {
-      const item = node.getBoundingClientRect(),
-        list = node.closest(".opened-files")!.getBoundingClientRect();
-      return item.top >= list.top && item.bottom <= list.bottom;
-    }),
-  ).toBe(true);
+  await expect
+    .poll(() =>
+      rows.last().evaluate((node) => {
+        const item = node.getBoundingClientRect(),
+          list = node.closest(".opened-files")!.getBoundingClientRect();
+        return item.top >= list.top && item.bottom <= list.bottom;
+      }),
+    )
+    .toBe(true);
   await page.keyboard.press("ArrowDown");
   await expect(rows.first()).toBeFocused();
   await page.keyboard.press("ArrowUp");
@@ -1493,6 +1495,11 @@ test("已打开列表方向键与关闭操作保持当前焦点", async ({ page 
     await tabClose.focus();
     await page.keyboard.press("Enter");
     await expect(rows).toHaveCount(count - 1);
+    if (count > 2)
+      await expect(
+        page.locator('.document-tab-select[aria-selected="true"]'),
+      ).toBeFocused();
+    else await expect(page.locator(".cm-content")).toBeFocused();
   }
   await expect(page.locator(".cm-content")).toBeFocused();
   await page.keyboard.press(shortcut("w"));
