@@ -4934,3 +4934,210 @@ test("大纲平铺与折叠可持久切换，当前标题可从过滤状态定�
   await page.getByRole("button", { name: "可折叠大纲", exact: true }).click();
   await expect(page.locator(".outline-toggle").first()).toBeVisible();
 });
+
+test("大纲右键与键盘菜单保持边界、导航和来源焦点", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 700 });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  await selectSidebarMode(page, "大纲", false);
+  const row = page.locator(".outline-row").filter({ hasText: "9. 数学公式" });
+  await row.focus();
+  await page.keyboard.press("Shift+F10");
+  const menu = page.getByRole("group", { name: "大纲显示选项" });
+  await expect(menu).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "平铺大纲", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(
+    page.getByRole("button", { name: "定位当前标题", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(
+    page.getByRole("button", { name: "平铺大纲", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+  await expect(row).toBeFocused();
+  await row.click({ button: "right", position: { x: 5, y: 5 } });
+  await expect(menu).toBeVisible();
+  const bounds = await menu.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(8);
+  expect(bounds!.y).toBeGreaterThanOrEqual(8);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(892);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(692);
+  await page.setViewportSize({ width: 390, height: 500 });
+  await expect
+    .poll(async () => {
+      const b = await menu.boundingBox();
+      return b!.x + b!.width <= 382 && b!.y + b!.height <= 492;
+    })
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(row).toBeFocused();
+});
+
+test("大纲偏好迁移、设置与菜单跨窗口同步", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("moxie.outline-collapsible.v1", "false");
+  });
+  await page.goto("/");
+  await selectSidebarMode(page, "大纲", false);
+  await expect(page.locator(".outline-toggle")).toHaveCount(0);
+  const other = await page.context().newPage();
+  await other.goto("/");
+  await other.getByRole("button", { name: "偏好设置", exact: true }).click();
+  await expect(other.getByLabel("使用可折叠大纲")).not.toBeChecked();
+  await other.getByLabel("使用可折叠大纲").check();
+  await expect(page.locator(".outline-toggle").first()).toBeVisible();
+  await page.getByRole("button", { name: "大纲显示选项", exact: true }).click();
+  await page.getByRole("button", { name: "平铺大纲", exact: true }).click();
+  await expect(other.getByLabel("使用可折叠大纲")).not.toBeChecked();
+  await other.getByLabel("使用可折叠大纲").check();
+  await page.reload();
+  await expect(page.locator(".outline-toggle").first()).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("moxie.preferences.v2")!)
+          .outlineCollapsible,
+    ),
+  ).toBe(true);
+});
+
+test("原生视图命令显示文件与大纲并退出专注，切换侧栏保留模式", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.desktop = {
+      recent: async () => [],
+      dirty: () => {},
+      onAction: (callback) => {
+        (window as any).nativeAction = callback;
+        return () => {};
+      },
+    } as any;
+  });
+  await page.goto("/");
+  await page.locator(".cm-editor").waitFor();
+  await page.getByRole("button", { name: "专注模式", exact: true }).click();
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await page.evaluate(() => (window as any).nativeAction("sidebar-outline"));
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("大纲");
+  await expect(page.locator(".outline-row.active")).toBeFocused();
+  await page.evaluate(() => (window as any).nativeAction("toggle-sidebar"));
+  await expect(page.locator(".sidebar")).toHaveCount(0);
+  await page.evaluate(() => (window as any).nativeAction("toggle-sidebar"));
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("大纲");
+  await page.evaluate(() => (window as any).nativeAction("sidebar-files"));
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("文件");
+  await expect(page.locator(".file-row[aria-current]")).toBeFocused();
+  await page.reload();
+  await expect(page.locator("#sidebar-mode-caption")).toHaveText("文件");
+});
+
+test("原生大纲偏好跨独立存储窗口同步且不回写广播", async ({
+  page,
+  browser,
+}) => {
+  const isolated = await browser.newContext({
+    baseURL: "http://127.0.0.1:5173",
+  });
+  const other = await isolated.newPage();
+  const windows = [page, other];
+  let stored = true;
+  const writes: boolean[] = [];
+  try {
+    for (const target of windows) {
+      await target.exposeFunction("readNativeOutline", () => stored);
+      await target.exposeFunction(
+        "writeNativeOutline",
+        async (value: boolean) => {
+          stored = value;
+          writes.push(value);
+          for (const recipient of windows) {
+            await recipient.evaluate(
+              (value) => (window as any).receiveNativeOutline?.(value),
+              value,
+            );
+          }
+          return value;
+        },
+      );
+      await target.addInitScript(() => {
+        window.desktop = {
+          recent: async () => [],
+          dirty: () => {},
+          onAction: () => () => {},
+          getOutlinePreference: () => (window as any).readNativeOutline(),
+          setOutlinePreference: (value: boolean) =>
+            (window as any).writeNativeOutline(value),
+          onOutlinePreference: (callback: any) => {
+            (window as any).receiveNativeOutline = callback;
+            return () => {
+              delete (window as any).receiveNativeOutline;
+            };
+          },
+        } as any;
+      });
+      await target.goto("/");
+    }
+    await selectSidebarMode(other, "大纲", false);
+    await page.getByRole("button", { name: "偏好设置", exact: true }).click();
+    await page.getByLabel("使用可折叠大纲").uncheck();
+    await expect(other.locator(".outline-toggle")).toHaveCount(0);
+    await expect.poll(() => writes).toEqual([false]);
+    await other
+      .getByRole("button", { name: "大纲显示选项", exact: true })
+      .click();
+    await other
+      .getByRole("button", { name: "可折叠大纲", exact: true })
+      .click();
+    await expect(page.getByLabel("使用可折叠大纲")).toBeChecked();
+    await expect.poll(() => writes).toEqual([false, true]);
+    await other.reload();
+    await expect(other.locator(".outline-toggle").first()).toBeVisible();
+    expect(writes).toEqual([false, true]);
+  } finally {
+    await isolated.close();
+  }
+});
+
+test("原生大纲偏好迟到读取不覆盖本地操作，同步失败保留本窗口设置", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.desktop = {
+      recent: async () => [],
+      dirty: () => {},
+      onAction: () => () => {},
+      getOutlinePreference: () =>
+        new Promise((resolve) => {
+          (window as any).resolveOutlineRead = resolve;
+        }),
+      setOutlinePreference: async (value: boolean) => {
+        (window as any).outlineWrite = value;
+        throw Error("磁盘不可写");
+      },
+      onOutlinePreference: () => () => {},
+    } as any;
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "偏好设置", exact: true }).click();
+  await page.getByLabel("使用可折叠大纲").uncheck();
+  await page.evaluate(() => (window as any).resolveOutlineRead(true));
+  await expect(page.getByLabel("使用可折叠大纲")).not.toBeChecked();
+  await expect
+    .poll(() => page.evaluate(() => (window as any).outlineWrite))
+    .toBe(false);
+  await expect(page.locator(".toast")).toContainText("未同步到其他窗口");
+  expect(
+    await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("moxie.preferences.v2")!)
+          .outlineCollapsible,
+    ),
+  ).toBe(false);
+});

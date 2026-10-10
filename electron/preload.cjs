@@ -62,6 +62,15 @@ contextBridge.exposeInMainWorld("desktop", {
   downloadUpdate: () => ipcRenderer.invoke("update:download"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
   fetchThemeResource: (url) => ipcRenderer.invoke("theme:fetch", url),
+  getOutlinePreference: () => ipcRenderer.invoke("preferences:outline-read"),
+  setOutlinePreference: (value) =>
+    ipcRenderer.invoke("preferences:outline-write", value),
+  onOutlinePreference: (fn) => {
+    const listener = (_event, value) => fn(value);
+    ipcRenderer.on("preferences:outline-changed", listener);
+    return () =>
+      ipcRenderer.removeListener("preferences:outline-changed", listener);
+  },
   dirty: (value) => ipcRenderer.send("document:dirty", Boolean(value)),
   closeReady: () => ipcRenderer.send("window:close-ready"),
   onAction: (fn) => {

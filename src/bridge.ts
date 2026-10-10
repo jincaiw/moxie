@@ -224,6 +224,9 @@ declare global {
       installUpdate: () => Promise<UpdateStatus>;
       fetchThemeResource: (url: string) => Promise<string>;
       onUpdateStatus: (fn: (status: UpdateStatus) => void) => () => void;
+      getOutlinePreference?: () => Promise<boolean | null>;
+      setOutlinePreference?: (value: boolean) => Promise<boolean>;
+      onOutlinePreference?: (fn: (value: boolean) => void) => () => void;
       onAction: (fn: (action: string) => void) => () => void;
       dirty: (dirty: boolean) => void;
       closeReady: () => void;

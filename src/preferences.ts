@@ -33,6 +33,7 @@ export type Preferences = {
   pdfHeaderFooter: boolean;
   htmlOutline: boolean;
   floatingToolbar: boolean;
+  outlineCollapsible: boolean;
   showHiddenFiles: boolean;
   showOtherFiles: boolean;
   hiddenFilePatterns: string;
@@ -60,6 +61,7 @@ const defaults: Preferences = {
   pdfHeaderFooter: false,
   htmlOutline: false,
   floatingToolbar: false,
+  outlineCollapsible: true,
   showHiddenFiles: false,
   showOtherFiles: false,
   hiddenFilePatterns: "",
@@ -146,6 +148,10 @@ function initial(): Preferences {
       pdfHeaderFooter: value.pdfHeaderFooter === true,
       htmlOutline: value.htmlOutline === true,
       floatingToolbar: value.floatingToolbar === true,
+      outlineCollapsible:
+        typeof value.outlineCollapsible === "boolean"
+          ? value.outlineCollapsible
+          : localStorage.getItem("moxie.outline-collapsible.v1") !== "false",
       showHiddenFiles: value.showHiddenFiles === true,
       showOtherFiles: value.showOtherFiles === true,
       hiddenFilePatterns:
@@ -165,9 +171,70 @@ function initial(): Preferences {
     return defaults;
   }
 }
-export function usePreferences() {
+export function usePreferences(reportError?: (message: string) => void) {
   const [preferences, setPreferences] = useState(initial);
   const receivedPreferences = useRef<string | null>(null);
+  const outlineServerValue = useRef<boolean | null>(null);
+  const outlineChanges = useRef(0);
+  const [outlineDesktopReady, setOutlineDesktopReady] = useState(
+    !window.desktop?.getOutlinePreference,
+  );
+  useEffect(() => {
+    const desktop = window.desktop;
+    if (!desktop?.getOutlinePreference) return;
+    let mounted = true;
+    const generation = outlineChanges.current;
+    const receive = (value: boolean) => {
+      if (!mounted || typeof value !== "boolean") return;
+      outlineChanges.current++;
+      outlineServerValue.current = value;
+      setPreferences((current) =>
+        current.outlineCollapsible === value
+          ? current
+          : { ...current, outlineCollapsible: value },
+      );
+    };
+    const dispose = desktop.onOutlinePreference?.(receive);
+    void desktop
+      .getOutlinePreference()
+      .then((value) => {
+        if (!mounted) return;
+        if (generation === outlineChanges.current && typeof value === "boolean")
+          receive(value);
+        setOutlineDesktopReady(true);
+      })
+      .catch(() => {
+        if (mounted) setOutlineDesktopReady(true);
+      });
+    return () => {
+      mounted = false;
+      dispose?.();
+    };
+  }, []);
+  useEffect(() => {
+    const value = preferences.outlineCollapsible;
+    if (
+      !outlineDesktopReady ||
+      !window.desktop?.setOutlinePreference ||
+      outlineServerValue.current === value
+    )
+      return;
+    const previous = outlineServerValue.current;
+    outlineServerValue.current = value;
+    let mounted = true;
+    void window.desktop.setOutlinePreference(value).catch((error) => {
+      if (!mounted) return;
+      if (outlineServerValue.current === value)
+        outlineServerValue.current = previous;
+      reportError?.(
+        "大纲设置已保存在本窗口，但未同步到其他窗口：" +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [preferences.outlineCollapsible, outlineDesktopReady, reportError]);
   useEffect(() => {
     const syncPreferences = (event: StorageEvent) => {
       if (event.key !== "moxie.preferences.v2" && event.key !== null) return;
@@ -215,7 +282,12 @@ export function usePreferences() {
     } catch {}
     receivedPreferences.current = null;
   }, [preferences]);
-  const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
+  const update = <K extends keyof Preferences>(
+    key: K,
+    value: Preferences[K],
+  ) => {
+    if (key === "outlineCollapsible") outlineChanges.current++;
     setPreferences((p) => ({ ...p, [key]: value }));
+  };
   return { preferences, update };
 }

@@ -34,6 +34,8 @@ jobs:
         run: npx playwright test tests/workspace.spec.ts -g "跨文档搜索清除" --repeat-each=5 --workers=2 --retries=0
       - name: Repeat sidebar parity flows without retries
         run: npx playwright test -g "侧栏宽度|大纲平铺|打开文档自动" --repeat-each=5 --workers=2 --retries=0
+      - name: Repeat native sidebar and outline preferences without retries
+        run: npx playwright test -g "大纲右键与键盘|大纲偏好迁移|原生视图命令|原生大纲偏好" --repeat-each=5 --workers=2 --retries=0
       - uses: actions/upload-artifact@v4
         if: always()
         name: Playwright diagnostics

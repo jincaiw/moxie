@@ -163,6 +163,15 @@ function setupIPC() {
       const state = verify(event);
       return handler(input, state);
     });
+  handle("preferences:outline-read", () => store.getOutlinePreference());
+  handle("preferences:outline-write", async (value) => {
+    await store.setOutlinePreference(value);
+    for (const other of windowStates.values()) {
+      if (!other.window.isDestroyed?.())
+        other.window.webContents.send("preferences:outline-changed", value);
+    }
+    return value;
+  });
   handle("update:status", () => updates.getStatus());
   handle("update:check", () => updates.check());
   handle("update:download", () => updates.download());
@@ -769,6 +778,10 @@ function createMenu() {
       {
         label: "视图",
         submenu: [
+          command("切换侧栏", "toggle-sidebar"),
+          command("文件侧栏", "sidebar-files"),
+          command("大纲", "sidebar-outline"),
+          { type: "separator" },
           command("切换源码模式", "source", "CmdOrCtrl+/"),
           command("跨文档搜索", "global-search", "CmdOrCtrl+Shift+F"),
           command("专注模式", "focus"),

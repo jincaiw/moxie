@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   FileText,
   List,
@@ -201,7 +208,7 @@ function shortcutLabel(shortcut: string) {
 
 export default function App() {
   const [message, setMessage] = useState("");
-  const { preferences, update } = usePreferences();
+  const { preferences, update } = usePreferences(setMessage);
   const workspace = useWorkspace(preferences.autoSave, setMessage);
   const initialFileRequest = useRef<ReturnType<
     NonNullable<NonNullable<Window["desktop"]>["initialFile"]>
@@ -243,18 +250,49 @@ export default function App() {
   );
   const [outlineQuery, setOutlineQuery] = useState("");
   const [outlineSearchOpen, setOutlineSearchOpen] = useState(false);
-  const [outlineCollapsible, setOutlineCollapsible] = useState(() => {
-    try {
-      return localStorage.getItem("moxie.outline-collapsible.v1") !== "false";
-    } catch {
-      return true;
-    }
-  });
+  const outlineCollapsible = preferences.outlineCollapsible;
   const outlineNavigation = useRef<HTMLDivElement>(null);
   const [sidebarPopup, setSidebarPopup] = useState<
     "mode" | "actions" | "outline" | null
   >(null);
   const sidebarPopupOrigin = useRef<HTMLElement | null>(null);
+  const [outlineContextPoint, setOutlineContextPoint] = useState<{
+    left: number;
+    top: number;
+  } | null>(null);
+  const outlineMenu = useRef<HTMLDivElement>(null);
+  const [outlineMenuPosition, setOutlineMenuPosition] = useState({
+    left: 8,
+    top: 8,
+  });
+  useLayoutEffect(() => {
+    if (sidebarPopup !== "outline" || !outlineContextPoint) return;
+    const place = () => {
+      const bounds = outlineMenu.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setOutlineMenuPosition({
+        left: Math.max(
+          8,
+          Math.min(outlineContextPoint.left, innerWidth - bounds.width - 8),
+        ),
+        top: Math.max(
+          8,
+          Math.min(outlineContextPoint.top, innerHeight - bounds.height - 8),
+        ),
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [sidebarPopup, outlineContextPoint]);
+  const openOutlineContextMenu = (
+    origin: HTMLElement,
+    point: { left: number; top: number },
+  ) => {
+    sidebarPopupOrigin.current = origin;
+    setOutlineContextPoint(point);
+    setSidebarPopup("outline");
+  };
   const sidebarElement = useRef<HTMLElement>(null);
   const folderBrowser = useRef<FolderBrowserHandle>(null);
   const [folderControlsHost, setFolderControlsHost] =
@@ -277,6 +315,7 @@ export default function App() {
     origin: HTMLElement,
   ) => {
     sidebarPopupOrigin.current = origin;
+    setOutlineContextPoint(null);
     setSidebarPopup((current) => (current === kind ? null : kind));
   };
   useEffect(() => {
@@ -904,6 +943,29 @@ export default function App() {
   const sidebarNavigation = useRef<HTMLElement>(null);
   const documentTabs = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
+  const [sidebarCommandFocus, setSidebarCommandFocus] = useState<
+    "files" | "outline" | null
+  >(null);
+  useEffect(() => {
+    if (!sidebarCommandFocus || !visibleSidebar || tab !== sidebarCommandFocus)
+      return;
+    const frame = requestAnimationFrame(() => {
+      const target =
+        sidebarElement.current?.querySelector<HTMLElement>(
+          sidebarCommandFocus === "outline"
+            ? ".outline-row.active"
+            : ".tree-row.selected, .file-row[aria-current]",
+        ) ||
+        sidebarElement.current?.querySelector<HTMLElement>(
+          sidebarCommandFocus === "outline"
+            ? ".outline-row, .sidebar-mode-trigger"
+            : ".tree-row, .file-row, .sidebar-mode-trigger",
+        );
+      target?.focus({ preventScroll: true });
+      setSidebarCommandFocus(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [sidebarCommandFocus, visibleSidebar, tab]);
   const documentOrder = docs.map((document) => document.id).join("\n");
   const visibleDocumentOrder = visibleDocs
     .map((document) => document.id)
@@ -1729,6 +1791,20 @@ export default function App() {
     if (action === "find") editor.current?.find();
     if (action === "copy-as-html") void copySelectionAsHTML();
     if (action === "copy-as-html-code") void copySelectionAsHTML(true);
+    if (action === "toggle-sidebar") {
+      setSidebar(!visibleSidebar);
+      setFocus(false);
+      setSidebarCommandFocus(null);
+      dismissSidebarPopup();
+      if (visibleSidebar) requestAnimationFrame(() => editor.current?.focus());
+    }
+    if (action === "sidebar-files" || action === "sidebar-outline") {
+      setSidebar(true);
+      setFocus(false);
+      setTab(action === "sidebar-files" ? "files" : "outline");
+      dismissSidebarPopup();
+      setSidebarCommandFocus(action === "sidebar-files" ? "files" : "outline");
+    }
     if (action === "quick-open") showQuickOpen();
     if (action === "global-search") {
       setSidebar(true);
@@ -2392,9 +2468,35 @@ export default function App() {
                   className="outline-navigation"
                   onContextMenu={(event) => {
                     event.preventDefault();
-                    toggleSidebarPopup("outline", event.currentTarget);
+                    const origin =
+                      (event.target as HTMLElement).closest<HTMLButtonElement>(
+                        "button",
+                      ) ||
+                      event.currentTarget.querySelector<HTMLButtonElement>(
+                        ".outline-row.active, .outline-row",
+                      ) ||
+                      sidebarElement.current!.querySelector<HTMLButtonElement>(
+                        '[aria-label="大纲显示选项"]',
+                      )!;
+                    openOutlineContextMenu(origin, {
+                      left: event.clientX,
+                      top: event.clientY,
+                    });
                   }}
                   onKeyDown={(event) => {
+                    if (
+                      (event.shiftKey && event.key === "F10") ||
+                      event.key === "ContextMenu"
+                    ) {
+                      event.preventDefault();
+                      const origin = event.target as HTMLElement;
+                      const bounds = origin.getBoundingClientRect();
+                      openOutlineContextMenu(origin, {
+                        left: bounds.left,
+                        top: bounds.bottom,
+                      });
+                      return;
+                    }
                     if (
                       event.altKey ||
                       event.ctrlKey ||
@@ -2688,20 +2790,28 @@ export default function App() {
           </div>
           {sidebarPopup === "outline" && (
             <div
+              ref={outlineMenu}
               className="sidebar-popover sidebar-actions-popover sidebar-outline-options"
+              style={
+                outlineContextPoint
+                  ? {
+                      position: "fixed",
+                      ...outlineMenuPosition,
+                      right: "auto",
+                      bottom: "auto",
+                      width: 240,
+                      maxWidth: "calc(100vw - 16px)",
+                      maxHeight: "calc(100vh - 16px)",
+                    }
+                  : undefined
+              }
               role="group"
               aria-label="大纲显示选项"
             >
               <button
                 aria-pressed={!outlineCollapsible}
                 onClick={() => {
-                  setOutlineCollapsible(false);
-                  try {
-                    localStorage.setItem(
-                      "moxie.outline-collapsible.v1",
-                      "false",
-                    );
-                  } catch {}
+                  update("outlineCollapsible", false);
                   dismissSidebarPopup(true);
                 }}
               >
@@ -2710,13 +2820,7 @@ export default function App() {
               <button
                 aria-pressed={outlineCollapsible}
                 onClick={() => {
-                  setOutlineCollapsible(true);
-                  try {
-                    localStorage.setItem(
-                      "moxie.outline-collapsible.v1",
-                      "true",
-                    );
-                  } catch {}
+                  update("outlineCollapsible", true);
                   dismissSidebarPopup(true);
                 }}
               >

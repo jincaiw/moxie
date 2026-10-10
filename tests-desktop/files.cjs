@@ -333,10 +333,12 @@ async function harness(userData) {
       super();
       this.options = options;
       this.calls = [];
+      this.messages = [];
       this.webContents = new EventEmitter();
       this.webContents.mainFrame = {};
       this.webContents.setWindowOpenHandler = () => {};
       this.webContents.send = (channel, action) => {
+        this.messages.push([channel, action]);
         this.lastAction = action;
       };
       this.webContents.executeJavaScript = async (script) => {
@@ -2000,6 +2002,77 @@ test("仅已授权普通文档可以自动加载父目录，目录切换不扩�
     await assert.rejects(store.folderForFile(root), /普通文件/);
     await assert.rejects(store.folderForFile(null), /选择该文档/);
     assert.equal((await store.read(selected, true)).text, "# selected");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("原生视图菜单侧栏命令发给当前窗口", async () => {
+  const h = await harness();
+  const view = h.menuTemplate.find((menu) => menu.label === "视图");
+  for (const [label, action] of [
+    ["切换侧栏", "toggle-sidebar"],
+    ["文件侧栏", "sidebar-files"],
+    ["大纲", "sidebar-outline"],
+  ]) {
+    view.submenu.find((item) => item.label === label).click();
+    assert.equal(h.window.lastAction, action);
+  }
+});
+
+test("大纲偏好跨独立窗口广播、重启恢复并拒绝非法请求", async () => {
+  const h = await harness();
+  assert.equal(await h.call("preferences:outline-read"), null);
+  const fileMenu = h.menuTemplate.find((menu) => menu.label === "文件");
+  fileMenu.submenu.find((item) => item.label === "新建窗口").click();
+  const second = h.windows.at(-1);
+  assert.match(
+    second.options.webPreferences.partition,
+    /^persist:moxie-workspace-/,
+  );
+  await h.call("preferences:outline-write", false);
+  assert.deepEqual(second.messages.at(-1), [
+    "preferences:outline-changed",
+    false,
+  ]);
+  assert.equal(await h.callFor("preferences:outline-read", second), false);
+  for (const bad of [null, "false", {}, 1])
+    await assert.rejects(h.call("preferences:outline-write", bad), /布尔值/);
+  await assert.rejects(
+    h.foreign("preferences:outline-write", true),
+    /未知窗口/,
+  );
+  assert.equal(await h.call("preferences:outline-read"), false);
+  const restarted = await harness(h.userData);
+  assert.equal(await restarted.call("preferences:outline-read"), false);
+  await h.callFor("preferences:outline-write", second, true);
+  assert.deepEqual(h.window.messages.at(-1), [
+    "preferences:outline-changed",
+    true,
+  ]);
+});
+
+test("大纲偏好写盘失败保持已提交值，重试和连续写入可恢复", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-outline-"));
+  try {
+    const blocker = path.join(root, "blocked");
+    await fs.writeFile(blocker, "保留");
+    const stateFile = path.join(blocker, "state.json");
+    const store = new FileStore(stateFile);
+    await assert.rejects(store.setOutlinePreference(false));
+    assert.equal(await store.getOutlinePreference(), null);
+    assert.equal(await fs.readFile(blocker, "utf8"), "保留");
+    await fs.unlink(blocker);
+    await fs.mkdir(blocker);
+    await Promise.all([
+      store.setOutlinePreference(false),
+      store.setOutlinePreference(true),
+      store.setOutlinePreference(false),
+    ]);
+    assert.equal(await store.getOutlinePreference(), false);
+    const restored = new FileStore(stateFile);
+    await restored.init();
+    assert.equal(await restored.getOutlinePreference(), false);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

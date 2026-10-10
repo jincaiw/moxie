@@ -259,7 +259,18 @@ export function Settings({
         />
         选中文本时显示浮动格式工具栏
       </label>
-      <h3 className="settings-section-title">文件侧栏</h3>
+      <h3 className="settings-section-title">侧栏</h3>
+      <label className="toggle-setting">
+        <input
+          type="checkbox"
+          aria-label="使用可折叠大纲"
+          checked={preferences.outlineCollapsible}
+          onChange={(event) =>
+            update("outlineCollapsible", event.target.checked)
+          }
+        />
+        使用可折叠大纲
+      </label>
       <label>
         启动时打开文件夹
         <select

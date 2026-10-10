@@ -310,6 +310,8 @@ async function copyDirectoryContents(source, destination, entries) {
 class FileStore {
   constructor(stateFile, trashItem) {
     this.stateFile = stateFile;
+    this.outlinePreference = null;
+    this.outlineWrites = Promise.resolve();
     this.authorized = new Set();
     this.recent = [];
     this.writing = Promise.resolve();
@@ -747,6 +749,10 @@ class FileStore {
     try {
       const state = JSON.parse(await fs.readFile(this.stateFile, "utf8"));
       if (state.version !== 1) return;
+      this.outlinePreference =
+        typeof state.outlinePreference === "boolean"
+          ? state.outlinePreference
+          : null;
       this.authorized = new Set(
         (state.authorized || [])
           .filter((p) => typeof p === "string" && path.isAbsolute(p))
@@ -788,6 +794,26 @@ class FileStore {
         .slice(0, 12);
     } catch {}
   }
+  async getOutlinePreference() {
+    await this.outlineWrites.catch(() => {});
+    return this.outlinePreference;
+  }
+  async setOutlinePreference(value) {
+    if (typeof value !== "boolean") throw Error("大纲设置必须为布尔值");
+    this.outlineWrites = this.outlineWrites
+      .catch(() => {})
+      .then(async () => {
+        const previous = this.outlinePreference;
+        this.outlinePreference = value;
+        try {
+          await this.persist();
+        } catch (error) {
+          this.outlinePreference = previous;
+          throw error;
+        }
+      });
+    await this.outlineWrites;
+  }
   async remember(file) {
     this.authorized.delete(file);
     this.authorized.add(file);
@@ -810,6 +836,7 @@ class FileStore {
       const saved = new Set(authorized);
       const state = JSON.stringify({
         version: 1,
+        outlinePreference: this.outlinePreference,
         authorized,
         recent: this.recent,
         folders: [
