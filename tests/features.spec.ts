@@ -4554,3 +4554,110 @@ test("编辑区右键格式菜单保留选区，支持键盘、撤销和视口�
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   expect(box!.y + box!.height).toBeLessThanOrEqual(844);
 });
+
+test("用户综合渲染样本的元数据与矩阵不进入标题大纲", async () => {
+  const sample = await fs.readFile(
+    "tests/fixtures/MARKDOWN_RENDERING_TEST.md",
+    "utf8",
+  );
+  for (const ending of ["\n", "\r\n", "\r"]) {
+    const source = sample.replace(/\r?\n/g, ending);
+    const outline = headings(source);
+    expect(outline[0].title).toBe("Markdown 渲染综合测试");
+    expect(outline).toHaveLength(34);
+    expect(
+      outline.some((item) => /title:|tags:|bmatrix/.test(item.title)),
+    ).toBe(false);
+    expect(source.slice(outline[0].from)).toMatch(/^# Markdown/);
+  }
+  expect(
+    headings("```markdown\n$$\n# 代码中的标题\n$$\n```\n\n# 正文").map(
+      (item) => item.title,
+    ),
+  ).toEqual(["正文"]);
+  expect(headings("---\nnot: [valid\n---\n\n# 正文").at(-1)?.title).toBe(
+    "正文",
+  );
+});
+
+test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文不改写", async ({
+  page,
+}) => {
+  const sample = await fs.readFile(
+    "tests/fixtures/MARKDOWN_RENDERING_TEST.md",
+    "utf8",
+  );
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript((text) => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify([
+        {
+          id: "render-sample",
+          name: "MARKDOWN_RENDERING_TEST.md",
+          text,
+          dirty: false,
+        },
+      ]),
+    );
+    localStorage.setItem("moxie.active.v1", "render-sample");
+  }, sample);
+  await page.goto("/");
+  await expect(page.locator(".document-title")).toContainText(
+    "MARKDOWN_RENDERING_TEST.md",
+  );
+  await expect(page.locator(".md-front-matter")).toHaveCount(4);
+  await expect(page.locator(".md-front-matter.md-heading")).toHaveCount(0);
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await expect(page.locator(".outline-row")).toHaveCount(34);
+  await page.getByRole("button", { name: "6. 表格", exact: true }).click();
+  await expect(page.locator(".editable-table").first()).toBeVisible();
+  await page.getByRole("button", { name: "9. 数学公式", exact: true }).click();
+  await expect(page.locator(".formula .katex")).toHaveCount(2);
+  await expect(page.locator(".formula .katex-error")).toHaveCount(0);
+  expect(
+    await page
+      .locator(".formula")
+      .last()
+      .evaluate((element) =>
+        Number.parseFloat(getComputedStyle(element).fontSize),
+      ),
+  ).toBeLessThan(25);
+  await page
+    .getByRole("button", { name: "Mermaid 流程图", exact: true })
+    .click();
+  await expect(page.locator(".mermaid-preview svg").first()).toBeVisible();
+  await expect(page.locator(".mermaid-error")).toHaveCount(0);
+  await expect(page.locator(".mermaid-preview").first()).toContainText(
+    "编写 Markdown",
+  );
+  await expect(page.locator(".mermaid-preview").first()).toContainText(
+    "检查显示效果",
+  );
+  await page
+    .getByRole("button", { name: "11. HTML 与特殊字符", exact: true })
+    .click();
+  const details = page.locator(".html-block-preview details");
+  await expect(details.locator("summary")).toContainText("点击展开：折叠内容");
+  await expect(
+    details.getByText("折叠区域内可以包含段落、列表和代码："),
+  ).toBeHidden();
+  await details.locator("summary").click();
+  await expect(
+    details.getByText("折叠区域内可以包含段落、列表和代码："),
+  ).toBeVisible();
+  await expect(details.locator("li")).toHaveText(["第一项", "第二项"]);
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await page.keyboard.press(shortcut("a"));
+  const content = await page.evaluate(async () => {
+    // @ts-expect-error Vite resolves the browser module.
+    const { EditorView } =
+      await import("/node_modules/@codemirror/view/dist/index.js");
+    return EditorView.findFromDOM(
+      document.querySelector(".cm-editor"),
+    ).state.doc.toString();
+  });
+  expect(content).toBe(sample);
+  expect(errors).toEqual([]);
+});

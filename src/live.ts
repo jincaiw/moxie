@@ -13,6 +13,7 @@ import {
 } from "@codemirror/view";
 import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import { marked } from "marked";
+import { frontMatterEnd } from "./front-matter";
 import { nestedGfmAutolink } from "./gfm-autolink";
 import DOMPurify from "dompurify";
 import { renderInlineHTMLMarkdown } from "./export";
@@ -404,8 +405,12 @@ function enableHTMLSourceEditing(
   from: number,
 ) {
   element.tabIndex = 0;
-  element.setAttribute("role", "button");
+  element.setAttribute(
+    "role",
+    element.querySelector("details") ? "group" : "button",
+  );
   const editSource = (event: Event) => {
+    if ((event.target as HTMLElement).closest("summary")) return;
     event.preventDefault();
     view.dispatch({ selection: { anchor: from } });
     view.focus();
@@ -443,8 +448,8 @@ class RawHTMLWidget extends WidgetType {
     enableHTMLSourceEditing(el, view, this.from);
     return el;
   }
-  ignoreEvent() {
-    return false;
+  ignoreEvent(event: Event) {
+    return (event.target as HTMLElement).closest("summary") !== null;
   }
 }
 
@@ -660,6 +665,39 @@ function build(
       previous.to = Math.max(previous.to, to);
     else regions.push({ from, to });
   }
+  const formulaRanges: { from: number; to: number }[] = [];
+  for (const region of regions) {
+    const content = state.doc.sliceString(region.from, region.to);
+    const formula = /^\$\$[^\S\n]*\n[\s\S]*?\n\$\$[^\S\n]*(?=\n|$)/gm;
+    for (const match of content.matchAll(formula))
+      formulaRanges.push({
+        from: region.from + match.index,
+        to: region.from + match.index + match[0].length,
+      });
+  }
+  const source = state.doc.toString();
+  const metadataEnd = frontMatterEnd(source);
+  if (metadataEnd) {
+    codeRanges.push({ from: 0, to: metadataEnd });
+    for (
+      let number = 1;
+      number <= state.doc.lineAt(metadataEnd).number;
+      number++
+    ) {
+      const line = state.doc.line(number);
+      if (line.from >= metadataEnd) break;
+      if (
+        regions.some(
+          (region) => line.from >= region.from && line.from <= region.to,
+        )
+      )
+        add(
+          line.from,
+          line.from,
+          Decoration.line({ class: "md-front-matter" }),
+        );
+    }
+  }
   for (const visible of regions) {
     const tree = ensureSyntaxTree(state, visible.to, 12) || syntaxTree(state);
     const inlineHTML = inlineHTMLRanges(state, visible.from, visible.to);
@@ -671,12 +709,70 @@ function build(
       from: visible.from,
       to: visible.to,
       enter(node) {
+        if (node.from < metadataEnd && node.to <= metadataEnd) return false;
+        if (
+          node.name !== "Document" &&
+          formulaRanges.some(
+            (range) => node.from >= range.from && node.to <= range.to,
+          )
+        )
+          return false;
         if (
           replacedParagraphs.some(
             (range) => node.from >= range.from && node.to <= range.to,
           )
         )
           return false;
+        // CommonMark splits HTML blocks at blank lines. Keep an entire details
+        // element together so its collapsed content cannot leak into the editor.
+        if (
+          node.name === "HTMLBlock" &&
+          /^<details(?:\s|>)/i.test(
+            state.doc.sliceString(node.from, node.to).trimStart(),
+          )
+        ) {
+          const remaining = state.doc.sliceString(node.from);
+          const tags = /<!--[\s\S]*?-->|<\/?details\b[^>]*>/gi;
+          let depth = 0;
+          let end = 0;
+          for (const tag of remaining.matchAll(tags)) {
+            if (tag[0].startsWith("<!--")) continue;
+            let context = tree.resolveInner(node.from + tag.index, 1);
+            let inCode = false;
+            while (context.parent) {
+              if (
+                ["FencedCode", "CodeBlock", "InlineCode"].includes(context.name)
+              )
+                inCode = true;
+              context = context.parent;
+            }
+            if (inCode) continue;
+            depth += /^<\//.test(tag[0]) ? -1 : 1;
+            if (depth === 0) {
+              end = node.from + tag.index + tag[0].length;
+              break;
+            }
+          }
+          if (end) {
+            const range = { from: node.from, to: end };
+            replacedParagraphs.push(range);
+            codeRanges.push(range);
+            if (!activeLine(range.from, range.to))
+              add(
+                range.from,
+                range.to,
+                Decoration.replace({
+                  widget: new RawHTMLWidget(
+                    state.doc.sliceString(range.from, range.to),
+                    range.from,
+                    state.facet(documentPath),
+                  ),
+                  block: true,
+                }),
+              );
+            return false;
+          }
+        }
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
         if (

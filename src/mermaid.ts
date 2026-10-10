@@ -13,7 +13,7 @@ export function renderMermaid(source: string, theme: "dark" | "default") {
       securityLevel: "strict",
       suppressErrorRendering: true,
       theme,
-      flowchart: { htmlLabels: false },
+      htmlLabels: false,
     });
     const result = await mermaid.render(`moxie-mermaid-${++renderId}`, source);
     return DOMPurify.sanitize(result.svg, {

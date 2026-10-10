@@ -1,6 +1,11 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { documentEnd, shortcut } from "./keyboard";
 import { Buffer } from "node:buffer";
+
+async function expandFolderOptions(page: Page) {
+  if ((await page.locator(".folder-options").getAttribute("open")) === null)
+    await page.locator(".folder-options > summary").click();
+}
 
 test.beforeEach(async ({ page }) => {
   await page.context().addInitScript(() => {
@@ -358,6 +363,7 @@ test("文件侧栏可复制授权路径并请求系统显示文件夹", async ({
     };
   });
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expandFolderOptions(page);
   await page.getByRole("button", { name: "复制文件夹路径" }).click();
   await expect(page.getByRole("status")).toContainText("已复制路径");
   await page.getByRole("button", { name: "在文件管理器中显示文件夹" }).click();
@@ -448,6 +454,7 @@ test("文件侧栏支持按类型排序并持久保存置顶文档", async ({ pa
   await page.getByRole("button", { name: "文件夹 章节" }).click();
   await page.getByRole("button", { name: "文件操作：note.md" }).click();
   await page.getByRole("button", { name: "置顶", exact: true }).click();
+  await expandFolderOptions(page);
   await page.getByLabel("文件排序").selectOption("type");
   const prefs = await page.evaluate(() => ({
     sort: localStorage.getItem("moxie.folder-sort.v1"),
@@ -489,6 +496,7 @@ test("文件侧栏同步其他窗口的排序设置", async ({ page }) => {
   await otherWindow
     .getByRole("button", { name: "打开文件夹", exact: true })
     .click();
+  await expandFolderOptions(otherWindow);
   await otherWindow.getByLabel("文件排序").selectOption("type");
   await expect(page.getByLabel("文件排序")).toHaveValue("type");
 });
@@ -557,6 +565,7 @@ test("目录侧栏提供重命名入口并将其作为目录操作提交", async
         directory: undefined,
       },
     ]);
+  await expandFolderOptions(page);
   await page.getByRole("button", { name: "撤销文件操作" }).click();
   await expect
     .poll(() =>
@@ -951,24 +960,30 @@ test("文件树和列表按时间排序、分组及跨窗口同步，缺失时�
     state.desktop.refreshFolder = async () => tree;
   });
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expandFolderOptions(page);
   await page.getByLabel("文件显示方式").selectOption("list");
   await page.getByLabel("按文件夹分组").uncheck();
+  await expandFolderOptions(page);
   await page.getByLabel("文件排序").selectOption("modified");
   const rows = page.locator(".folder-browser .tree-row");
   await expect(rows).toHaveText(["10.md.", "2.md子目录", "无时间.md."]);
   await page.getByLabel("排序方向").selectOption("descending");
   await expect(rows).toHaveText(["2.md子目录", "10.md.", "无时间.md."]);
+  await expandFolderOptions(page);
   await page.getByLabel("文件排序").selectOption("created");
   await expect(rows).toHaveText(["2.md子目录", "10.md.", "无时间.md."]);
+  await expandFolderOptions(page);
   await page.getByLabel("文件排序").selectOption("name");
   await page.getByLabel("排序方向").selectOption("ascending");
   await expect(rows.first()).toContainText("2.md");
+  await expandFolderOptions(page);
   await page.getByLabel("文件排序").selectOption("alphabet");
   await expect(rows.first()).toContainText("10.md");
   const other = await page.context().newPage();
   await other.goto("/");
   await other.getByRole("button", { name: "打开文件夹", exact: true }).click();
   await expect(other.getByLabel("文件显示方式")).toHaveValue("list");
+  await expandFolderOptions(other);
   await other.getByLabel("文件显示方式").selectOption("tree");
   await expect(page.getByLabel("文件显示方式")).toHaveValue("tree");
 });
@@ -1115,6 +1130,7 @@ test("最近文件夹支持固定清除移除，启动偏好可关闭或指定�
   });
   await page.goto("/");
   await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await page.locator(".recent-folders > summary").click();
   const recent = page.getByRole("region", { name: "最近文件夹" });
   await recent
     .getByRole("button", { name: "固定文件夹 最近项目", exact: true })
@@ -1141,4 +1157,48 @@ test("最近文件夹支持固定清除移除，启动偏好可关闭或指定�
   await expect(page.getByRole("region", { name: "文件夹浏览" })).toContainText(
     "写作项目",
   );
+});
+
+test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify(
+        Array.from({ length: 18 }, (_, index) => ({
+          id: `many-${index}`,
+          name: `长名称文档${index}.md`,
+          text: "# 正文",
+          dirty: false,
+        })),
+      ),
+    );
+    localStorage.setItem("moxie.active.v1", "many-0");
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  const folder = page.getByRole("region", { name: "文件夹浏览" });
+  const row = folder.getByRole("button", { name: "文件夹 章节" });
+  await expect(row).toBeInViewport();
+  const title = folder.locator("header strong");
+  expect((await title.boundingBox())!.width).toBeGreaterThan(50);
+  await expect(page.getByLabel("文件排序")).toBeHidden();
+  const options = folder.locator("summary");
+  await options.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("文件排序")).toBeVisible();
+  await page.getByLabel("文件排序").selectOption("type");
+  await options.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("文件排序")).toBeHidden();
+  await expect(row).toBeInViewport();
+  await page.setViewportSize({ width: 900, height: 700 });
+  await expect(row).toBeInViewport();
+  expect((await title.boundingBox())!.width).toBeGreaterThan(100);
+  const group = page.getByRole("group", { name: "已打开文档" });
+  expect(
+    await group.evaluate(
+      (element) => element.scrollHeight > element.clientHeight,
+    ),
+  ).toBe(true);
 });

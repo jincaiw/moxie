@@ -1,5 +1,6 @@
 import { GFM, parser as markdownParser } from "@lezer/markdown";
 import { decode } from "html-entities";
+import { frontMatterEnd } from "./front-matter";
 
 export const welcome = `# 欢迎使用墨写
 
@@ -509,11 +510,33 @@ export function headings(text: string) {
   const htmlHeadings: { level: number; title: string; from: number }[] = [];
   let plaintextStart = Number.POSITIVE_INFINITY;
   const hasCarriageReturns = text.includes("\r");
-  // Lezer's Markdown parser splits on LF. Convert lone CRs one-for-one so
-  // parser offsets still refer to the original document.
+  // Lezer splits on LF; preserve offsets while making CRLF blank lines
+  // whitespace-only and converting lone CRs into line breaks.
   const parserSource = hasCarriageReturns
-    ? text.replace(/\r(?!\n)/g, "\n")
+    ? text.replace(/\r(?=\n)/g, " ").replace(/\r/g, "\n")
     : text;
+  const ignoredRanges: { from: number; to: number }[] = [];
+  const metadataEnd = frontMatterEnd(text);
+  if (metadataEnd) ignoredRanges.push({ from: 0, to: metadataEnd });
+  const codeRanges: { from: number; to: number }[] = [];
+  const parsedMarkdown = markdownParser.configure(GFM).parse(parserSource);
+  parsedMarkdown.iterate({
+    enter(node) {
+      if (["FencedCode", "CodeBlock", "HTMLBlock"].includes(node.name)) {
+        codeRanges.push({ from: node.from, to: node.to });
+        return false;
+      }
+    },
+  });
+  const formula = /^\$\$[^\S\n]*\n[\s\S]*?\n\$\$[^\S\n]*(?=\n|$)/gm;
+  for (const match of parserSource.matchAll(formula)) {
+    const from = match.index;
+    const to = from + match[0].length;
+    if (!codeRanges.some((range) => from < range.to && to > range.from))
+      ignoredRanges.push({ from, to });
+  }
+  const inIgnoredRange = (from: number) =>
+    ignoredRanges.some((range) => from >= range.from && from < range.to);
   const sourceLineStart = (from: number) =>
     Math.max(
       text.lastIndexOf("\n", from - 1),
@@ -525,56 +548,52 @@ export function headings(text: string) {
     templateRanges.some((range) => from >= range.from && from < range.to);
   const inHiddenElement = (from: number) =>
     hiddenRanges.some((range) => from >= range.from && from < range.to);
-  markdownParser
-    .configure(GFM)
-    .parse(parserSource)
-    .iterate({
-      enter(node) {
-        if (node.name === "HTMLBlock") {
-          const html = text.slice(node.from, node.to);
-          templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
-          hiddenRanges.push(...scanHtmlHiddenRanges(html, node.from));
-          const plaintext = /<plaintext\b/i.exec(html);
-          if (plaintext)
-            plaintextStart = Math.min(
-              plaintextStart,
-              node.from + plaintext.index,
-            );
-          if (node.from >= plaintextStart) return;
-          htmlHeadings.push(...htmlBlockHeadingNodes(html, node.from));
-          return;
-        }
-        if (inTemplate(node.from)) return;
-        const atx = /^ATXHeading([1-6])$/.exec(node.name);
-        const setext = /^SetextHeading([12])$/.exec(node.name);
-        if (!atx && !setext) return;
-        const lineStart = parserSource.lastIndexOf("\n", node.from - 1) + 1;
-        if (lineStart >= plaintextStart) return;
-        if (
-          markdownHeadingUsesListCodeTab(
-            parserSource.slice(lineStart, node.from),
-          )
-        )
-          return;
-        const raw = parserSource.slice(node.from, node.to);
-        const firstLine = raw.split(/\r?\n/, 1)[0];
-        const title = atx
-          ? firstLine
-              .replace(/^#{1,6}[ \t]*/, "")
-              .replace(/[ \t]+#+[ \t]*$/, "")
-              .trim()
-          : raw
-              .replace(/\r?\n(?:[ \t]*>[ \t]?)*[ \t]*[=-]+[ \t]*$/, "")
-              .replace(/\r?\n/g, " ")
-              .replace(/[ \t]+/g, " ")
-              .trim();
-        markdownHeadings.push({
-          level: Number(atx?.[1] || setext?.[1]),
-          title,
-          from: lineStart,
-        });
-      },
-    });
+  parsedMarkdown.iterate({
+    enter(node) {
+      if (node.name === "HTMLBlock") {
+        const html = text.slice(node.from, node.to);
+        templateRanges.push(...scanHtmlTemplateRanges(html, node.from));
+        hiddenRanges.push(...scanHtmlHiddenRanges(html, node.from));
+        const plaintext = /<plaintext\b/i.exec(html);
+        if (plaintext)
+          plaintextStart = Math.min(
+            plaintextStart,
+            node.from + plaintext.index,
+          );
+        if (node.from >= plaintextStart) return;
+        htmlHeadings.push(...htmlBlockHeadingNodes(html, node.from));
+        return;
+      }
+      if (inTemplate(node.from)) return;
+      if (node.name !== "Document" && inIgnoredRange(node.from)) return false;
+      const atx = /^ATXHeading([1-6])$/.exec(node.name);
+      const setext = /^SetextHeading([12])$/.exec(node.name);
+      if (!atx && !setext) return;
+      const lineStart = parserSource.lastIndexOf("\n", node.from - 1) + 1;
+      if (lineStart >= plaintextStart) return;
+      if (
+        markdownHeadingUsesListCodeTab(parserSource.slice(lineStart, node.from))
+      )
+        return;
+      const raw = parserSource.slice(node.from, node.to);
+      const firstLine = raw.split(/\r?\n/, 1)[0];
+      const title = atx
+        ? firstLine
+            .replace(/^#{1,6}[ \t]*/, "")
+            .replace(/[ \t]+#+[ \t]*$/, "")
+            .trim()
+        : raw
+            .replace(/\r?\n(?:[ \t]*>[ \t]?)*[ \t]*[=-]+[ \t]*$/, "")
+            .replace(/\r?\n/g, " ")
+            .replace(/[ \t]+/g, " ")
+            .trim();
+      markdownHeadings.push({
+        level: Number(atx?.[1] || setext?.[1]),
+        title,
+        from: lineStart,
+      });
+    },
+  });
   const lineAt = (from: number) => {
     const lf = text.indexOf("\n", from);
     const cr = hasCarriageReturns ? text.indexOf("\r", from) : -1;
@@ -715,5 +734,8 @@ export function headings(text: string) {
   );
   return [...scannedHtmlHeadings, ...htmlHeadings, ...markdownHeadings]
     .sort((a, b) => a.from - b.from)
-    .filter((heading) => !inHiddenElement(heading.from));
+    .filter(
+      (heading) =>
+        !inHiddenElement(heading.from) && !inIgnoredRange(heading.from),
+    );
 }

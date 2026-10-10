@@ -2498,3 +2498,109 @@ p {
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Keep navigation content ahead of occasional workspace controls. */
+.sidebar-group-title {
+  margin: 8px 12px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.folder-browser header strong {
+  min-width: 0;
+}
+.folder-browser header > svg,
+.folder-browser header > button {
+  flex-shrink: 0;
+}
+.folder-browser header > button {
+  min-width: 28px;
+  min-height: 28px;
+}
+.folder-options {
+  margin: 0 10px 8px;
+  font-size: 12px;
+}
+.folder-options > summary,
+.recent-folders > summary,
+.recent-files > summary {
+  padding: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.folder-options > summary:hover,
+.recent-folders > summary:hover,
+.recent-files > summary:hover {
+  color: var(--text);
+}
+.folder-options > summary:focus-visible,
+.recent-folders > summary:focus-visible,
+.recent-files > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.folder-secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+.folder-secondary-actions button {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 4px;
+  font-size: 11px;
+  text-align: left;
+  border-radius: 4px;
+}
+.folder-secondary-actions button:hover:not(:disabled) {
+  background: var(--selected);
+}
+.folder-secondary-actions button:disabled {
+  opacity: 0.45;
+}
+.folder-filter-summary {
+  margin: 6px 10px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.recent-files > summary svg {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.md-front-matter {
+  font-family: var(--mono, monospace);
+  font-size: 0.8em;
+  line-height: 1.6;
+  color: var(--muted);
+  background: var(--selected);
+}
+.md-front-matter span {
+  font-weight: normal;
+  text-decoration: none;
+}
+.folder-browser header {
+  flex-wrap: wrap;
+}
+.folder-browser header strong {
+  flex: 1 1 calc(100% - 24px);
+}
+.folder-primary-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.folder-primary-actions button {
+  min-width: 28px;
+  min-height: 28px;
+}
+.opened-files {
+  max-height: min(16vh, 132px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

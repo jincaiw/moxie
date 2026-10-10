@@ -813,128 +813,145 @@ export function FolderBrowser({
       >
         <Folder size={14} />
         <strong>{tree.name}</strong>
-        <button
-          aria-label="新建文档"
-          title="新建文档"
-          disabled={busy}
-          onClick={() => openOperation("new-file")}
-        >
-          <FilePlus2 size={14} />
-        </button>
-        <button
-          aria-label="新建文件夹"
-          title="新建文件夹"
-          disabled={busy}
-          onClick={() => openOperation("new-folder")}
-        >
-          <FolderPlus size={14} />
-        </button>
-        <button
-          aria-label="撤销文件操作"
-          title="撤销文件操作"
-          disabled={busy}
-          onClick={() => run({ action: "undo" })}
-        >
-          <RotateCcw size={14} />
-        </button>
-        <button
-          aria-label="在文件管理器中显示文件夹"
-          title="在文件管理器中显示文件夹"
-          disabled={busy}
-          onClick={() => void operate({ action: "reveal", target: tree.path })}
-        >
-          <ExternalLink size={14} />
-        </button>
-        <button
-          aria-label="复制文件夹路径"
-          title="复制文件夹路径"
-          disabled={busy}
-          onClick={() =>
-            void operate({ action: "copy-path", target: tree.path })
-          }
-        >
-          <Copy size={14} />
-        </button>
-        <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
-          <RefreshCw size={13} />
-        </button>
-        <button
-          aria-label="关闭文件夹"
-          disabled={copying || operating}
-          onClick={close}
-        >
-          <X size={13} />
-        </button>
+        <div className="folder-primary-actions">
+          <button
+            aria-label="新建文档"
+            title="新建文档"
+            disabled={busy}
+            onClick={() => openOperation("new-file")}
+          >
+            <FilePlus2 size={14} />
+          </button>
+          <button aria-label="刷新文件夹" disabled={busy} onClick={refresh}>
+            <RefreshCw size={13} />
+          </button>
+          <button
+            aria-label="关闭文件夹"
+            disabled={copying || operating}
+            onClick={close}
+          >
+            <X size={13} />
+          </button>
+        </div>
       </header>
-      <label className="folder-sort-control">
-        文件排序
-        <select
-          aria-label="文件排序"
-          value={sort}
-          onChange={(event) => changeSort(event.target.value as SortMode)}
-        >
-          <option value="name">按名称</option>
-          <option value="alphabet">按字母</option>
-          <option value="type">按类型</option>
-          <option value="modified">按修改时间</option>
-          <option value="created">按创建时间</option>
-        </select>
-      </label>
-      <div className="folder-layout-controls">
-        <label>
-          显示方式
-          <select
-            aria-label="文件显示方式"
-            value={layout.view}
-            onChange={(event) =>
-              changeLayout({ view: event.target.value as FolderLayout["view"] })
+      <details className="folder-options">
+        <summary>显示与操作</summary>
+        <div className="folder-secondary-actions">
+          <button
+            aria-label="新建文件夹"
+            title="新建文件夹"
+            disabled={busy}
+            onClick={() => openOperation("new-folder")}
+          >
+            <FolderPlus size={14} />
+            新建文件夹
+          </button>
+          <button
+            aria-label="撤销文件操作"
+            title="撤销文件操作"
+            disabled={busy}
+            onClick={() => run({ action: "undo" })}
+          >
+            <RotateCcw size={14} />
+            撤销操作
+          </button>
+          <button
+            aria-label="在文件管理器中显示文件夹"
+            title="在文件管理器中显示文件夹"
+            disabled={busy}
+            onClick={() =>
+              void operate({ action: "reveal", target: tree.path })
             }
           >
-            <option value="tree">文件树</option>
-            <option value="list">文件列表</option>
-          </select>
-        </label>
-        <label>
-          排序方向
-          <select
-            aria-label="排序方向"
-            value={layout.descending ? "descending" : "ascending"}
-            onChange={(event) =>
-              changeLayout({ descending: event.target.value === "descending" })
+            <ExternalLink size={14} />
+            在系统中显示
+          </button>
+          <button
+            aria-label="复制文件夹路径"
+            title="复制文件夹路径"
+            disabled={busy}
+            onClick={() =>
+              void operate({ action: "copy-path", target: tree.path })
             }
           >
-            <option value="ascending">升序</option>
-            <option value="descending">降序</option>
+            <Copy size={14} />
+            复制路径
+          </button>
+        </div>
+        <label className="folder-sort-control">
+          文件排序
+          <select
+            aria-label="文件排序"
+            value={sort}
+            onChange={(event) => changeSort(event.target.value as SortMode)}
+          >
+            <option value="name">按名称</option>
+            <option value="alphabet">按字母</option>
+            <option value="type">按类型</option>
+            <option value="modified">按修改时间</option>
+            <option value="created">按创建时间</option>
           </select>
         </label>
-        <label>
-          <input
-            type="checkbox"
-            aria-label="按文件夹分组"
-            checked={layout.foldersFirst}
-            onChange={(event) =>
-              changeLayout({ foldersFirst: event.target.checked })
-            }
-          />
-          {layout.view === "tree" ? "文件夹优先" : "按文件夹分组"}
-        </label>
-      </div>
-      <p className="folder-filter-summary">
-        {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
-        {" · "}
-        {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
-        {hasCustomFilter && " · 已应用自定义规则"}
-        {" · 可在偏好设置中更改"}
-      </p>
+        <div className="folder-layout-controls">
+          <label>
+            显示方式
+            <select
+              aria-label="文件显示方式"
+              value={layout.view}
+              onChange={(event) =>
+                changeLayout({
+                  view: event.target.value as FolderLayout["view"],
+                })
+              }
+            >
+              <option value="tree">文件树</option>
+              <option value="list">文件列表</option>
+            </select>
+          </label>
+          <label>
+            排序方向
+            <select
+              aria-label="排序方向"
+              value={layout.descending ? "descending" : "ascending"}
+              onChange={(event) =>
+                changeLayout({
+                  descending: event.target.value === "descending",
+                })
+              }
+            >
+              <option value="ascending">升序</option>
+              <option value="descending">降序</option>
+            </select>
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              aria-label="按文件夹分组"
+              checked={layout.foldersFirst}
+              onChange={(event) =>
+                changeLayout({ foldersFirst: event.target.checked })
+              }
+            />
+            {layout.view === "tree" ? "文件夹优先" : "按文件夹分组"}
+          </label>
+        </div>
+        <p className="folder-filter-summary">
+          {showHiddenFiles ? "包含隐藏项" : "隐藏项已过滤"}
+          {" · "}
+          {showOtherFiles ? "显示其他文件" : "仅显示 Markdown/TXT"}
+          {hasCustomFilter && " · 已应用自定义规则"}
+          {" · 可在偏好设置中更改"}
+        </p>
+        <p className="folder-drag-help">
+          拖入正文或使用文件操作菜单插入相对链接；系统文件拖到文件夹可复制。按住
+          Alt/Option 可拖出到系统。
+        </p>
+      </details>
       {error && (
         <p className="tree-empty" role="status">
           {error}
         </p>
       )}
-      <p className="folder-drag-help">
-        拖入正文或使用文件操作菜单插入相对链接；系统文件拖到文件夹可复制。按住
-        Alt/Option 可拖出到系统。
-      </p>
       {copying && (
         <div className="folder-copy-progress">
           <p role="status">

@@ -34,6 +34,16 @@ export function parseFrontMatter(source: string): FrontMatter | null {
   }
 }
 
+/** End offset in the original source, preserving BOM and line endings. */
+export function frontMatterEnd(source: string): number {
+  if (!parseFrontMatter(source)) return 0;
+  return (
+    /^(?:\uFEFF)?---(?:\r\n?|\n)[\s\S]*?(?:\r\n?|\n)(?:---|\.\.\.)(?:(?:\r\n?|\n)|$)/.exec(
+      source,
+    )?.[0].length || 0
+  );
+}
+
 export type EditableDocumentMetadata = {
   title: string;
   author: string;

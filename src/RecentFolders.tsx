@@ -29,9 +29,9 @@ export function RecentFolders({
   };
   if (!folders.length && !error) return null;
   return (
-    <section className="recent-folders" aria-label="最近文件夹">
+    <details className="recent-folders" aria-label="最近文件夹" role="region">
+      <summary>最近文件夹</summary>
       <div className="recent-folders-heading">
-        <h2>最近文件夹</h2>
         <button onClick={() => void update("clear")}>清除最近</button>
       </div>
       {folders.map((folder) => (
@@ -65,6 +65,6 @@ export function RecentFolders({
       ))}
       <small>清除最近保留固定项；移除记录不会删除文件。</small>
       {error && <p role="alert">{error}</p>}
-    </section>
+    </details>
   );
 }

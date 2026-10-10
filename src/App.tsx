@@ -1845,8 +1845,14 @@ export default function App() {
                 />
               </div>
             )}
-            {tab === "files"
-              ? docs.map((document) => (
+            {tab === "files" && <h2 className="sidebar-group-title">已打开</h2>}
+            {tab === "files" ? (
+              <div
+                className="opened-files"
+                role="group"
+                aria-label="已打开文档"
+              >
+                {docs.map((document) => (
                   <div
                     className={
                       "file-entry " +
@@ -1875,73 +1881,67 @@ export default function App() {
                       <X size={13} />
                     </button>
                   </div>
-                ))
-              : outlineRows.map(
-                  ({ heading, hasChildren, collapsed, identity }) => (
-                    <div
-                      className="outline-entry"
-                      key={heading.from}
-                      style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
-                    >
-                      {hasChildren ? (
-                        <button
-                          className="outline-toggle"
-                          aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
-                          aria-expanded={!collapsed}
-                          title={`${collapsed ? "展开" : "折叠"}子标题`}
-                          onClick={() =>
-                            setCollapsedOutline((previous) => {
-                              const next = new Set(previous);
-                              if (next.has(identity)) next.delete(identity);
-                              else next.add(identity);
-                              return next;
-                            })
-                          }
-                        >
-                          {collapsed ? (
-                            <ChevronRight size={14} aria-hidden="true" />
-                          ) : (
-                            <ChevronDown size={14} aria-hidden="true" />
-                          )}
-                        </button>
-                      ) : (
-                        <span
-                          className="outline-toggle-spacer"
-                          aria-hidden="true"
-                        />
-                      )}
+                ))}
+              </div>
+            ) : (
+              outlineRows.map(
+                ({ heading, hasChildren, collapsed, identity }) => (
+                  <div
+                    className="outline-entry"
+                    key={heading.from}
+                    style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
+                  >
+                    {hasChildren ? (
                       <button
-                        className={
-                          "outline-row " +
-                          (heading.from === activeHeading?.from ? "active" : "")
+                        className="outline-toggle"
+                        aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
+                        aria-expanded={!collapsed}
+                        title={`${collapsed ? "展开" : "折叠"}子标题`}
+                        onClick={() =>
+                          setCollapsedOutline((previous) => {
+                            const next = new Set(previous);
+                            if (next.has(identity)) next.delete(identity);
+                            else next.add(identity);
+                            return next;
+                          })
                         }
-                        aria-current={
-                          heading.from === activeHeading?.from
-                            ? "location"
-                            : undefined
-                        }
-                        onClick={() => editor.current?.go(heading.from)}
                       >
-                        {heading.title}
+                        {collapsed ? (
+                          <ChevronRight size={14} aria-hidden="true" />
+                        ) : (
+                          <ChevronDown size={14} aria-hidden="true" />
+                        )}
                       </button>
-                    </div>
-                  ),
-                )}
+                    ) : (
+                      <span
+                        className="outline-toggle-spacer"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <button
+                      className={
+                        "outline-row " +
+                        (heading.from === activeHeading?.from ? "active" : "")
+                      }
+                      aria-current={
+                        heading.from === activeHeading?.from
+                          ? "location"
+                          : undefined
+                      }
+                      onClick={() => editor.current?.go(heading.from)}
+                    >
+                      {heading.title}
+                    </button>
+                  </div>
+                ),
+              )
+            )}
             {tab === "outline" && outlineRows.length === 0 && (
               <p className="outline-empty" role="status">
                 {documentHeadings.length === 0
                   ? "当前文档没有标题"
                   : "没有匹配的标题"}
               </p>
-            )}
-            {tab === "files" && (
-              <RecentFolders
-                folders={folderWorkspace.recent}
-                active={folderWorkspace.root}
-                busy={folderBusy}
-                open={(path) => void folderWorkspace.open(path)}
-                changed={() => void folderWorkspace.refreshRecent()}
-              />
             )}
             {tab === "files" && tree && (
               <FolderBrowser
@@ -1989,12 +1989,21 @@ export default function App() {
                 <button onClick={folderWorkspace.close}>关闭文件夹</button>
               </section>
             )}
+            {tab === "files" && (
+              <RecentFolders
+                folders={folderWorkspace.recent}
+                active={folderWorkspace.root}
+                busy={folderBusy}
+                open={(path) => void folderWorkspace.open(path)}
+                changed={() => void folderWorkspace.refreshRecent()}
+              />
+            )}
             {tab === "files" && recent.length > 0 && (
-              <section className="recent-files">
-                <h2>
+              <details className="recent-files">
+                <summary>
                   <Clock size={13} />
                   最近打开
-                </h2>
+                </summary>
                 {recent.slice(0, 5).map((file) => (
                   <button
                     key={file.path}
@@ -2004,7 +2013,7 @@ export default function App() {
                     {file.name}
                   </button>
                 ))}
-              </section>
+              </details>
             )}
           </nav>
           <div className="side-actions">
