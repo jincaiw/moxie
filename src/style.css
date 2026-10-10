@@ -444,7 +444,7 @@ p {
   align-items: center;
   min-width: 90px;
   max-width: 220px;
-  flex: 0 1 180px;
+  flex: 0 0 180px;
   border-radius: 6px 6px 0 0;
   color: var(--muted);
   cursor: grab;

@@ -1173,7 +1173,7 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
         })),
       ),
     );
-    localStorage.setItem("moxie.active.v1", "many-0");
+    localStorage.setItem("moxie.active.v1", "many-17");
   });
   await page.goto("/");
   await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
@@ -1201,4 +1201,63 @@ test("桌面侧栏首屏优先展示文件，低频工具可键盘展开", async
       (element) => element.scrollHeight > element.clientHeight,
     ),
   ).toBe(true);
+  const selectedIsVisible = () =>
+    group.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      const selected = element
+        .querySelector(".selected")!
+        .getBoundingClientRect();
+      return (
+        selected.top >= bounds.top - 1 && selected.bottom <= bounds.bottom + 1
+      );
+    });
+  const folderTop = (await row.boundingBox())!.y;
+  await expect.poll(selectedIsVisible).toBe(true);
+  await page.getByRole("tab", { name: "长名称文档0.md", exact: true }).click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  await page.getByRole("tab", { name: "长名称文档17.md", exact: true }).click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  await expect(group.locator(".selected .file-row")).toHaveAttribute(
+    "aria-label",
+    "长名称文档17.md",
+  );
+  expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
+  expect(
+    (await page.locator(".document-tab.selected").boundingBox())!.width,
+  ).toBeGreaterThanOrEqual(175);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect.poll(selectedIsVisible).toBe(true);
+  await page.setViewportSize({ width: 900, height: 700 });
+  await expect.poll(selectedIsVisible).toBe(true);
+  await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
+  await page.getByRole("button", { name: "切换侧栏", exact: true }).click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  await page.getByRole("tab", { name: "大纲", exact: true }).click();
+  await page.getByRole("tab", { name: "文件", exact: true }).click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  // Sidebar navigation also reveals the selected tab without scrolling the page.
+  await group
+    .getByRole("button", { name: "长名称文档15.md", exact: true })
+    .click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  await expect
+    .poll(() =>
+      page.locator(".document-tabs").evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const selected = element
+          .querySelector(".selected")!
+          .getBoundingClientRect();
+        return (
+          selected.left >= bounds.left - 1 && selected.right <= bounds.right + 1
+        );
+      }),
+    )
+    .toBe(true);
+  await page.getByRole("tab", { name: "长名称文档0.md", exact: true }).click();
+  await expect.poll(selectedIsVisible).toBe(true);
+  await expect(group.locator(".selected .file-row")).toHaveAttribute(
+    "aria-label",
+    "长名称文档0.md",
+  );
+  expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
 });

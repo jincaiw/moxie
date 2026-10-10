@@ -775,7 +775,46 @@ export default function App() {
   const upload = useRef<HTMLInputElement>(null);
   const imageUpload = useRef<HTMLInputElement>(null);
   const toolbar = useRef<HTMLElement>(null);
+  const openedFiles = useRef<HTMLDivElement>(null);
+  const documentTabs = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
+  const documentOrder = docs.map((document) => document.id).join("\n");
+  const visibleDocumentOrder = visibleDocs
+    .map((document) => document.id)
+    .join("\n");
+  useEffect(() => {
+    if (!visibleSidebar || tab !== "files") return;
+    const list = openedFiles.current;
+    const selected = list?.querySelector<HTMLElement>(".selected");
+    if (!list || !selected) return;
+    const reveal = () => {
+      const bounds = list.getBoundingClientRect();
+      const row = selected.getBoundingClientRect();
+      if (row.top < bounds.top) list.scrollTop += row.top - bounds.top;
+      else if (row.bottom > bounds.bottom)
+        list.scrollTop += row.bottom - bounds.bottom;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [current.id, documentOrder, visibleSidebar, tab, workspace.recoveryReady]);
+  useEffect(() => {
+    const list = documentTabs.current;
+    const selected = list?.querySelector<HTMLElement>(".selected");
+    if (!list || !selected) return;
+    const reveal = () => {
+      const bounds = list.getBoundingClientRect();
+      const item = selected.getBoundingClientRect();
+      if (item.left < bounds.left) list.scrollLeft += item.left - bounds.left;
+      else if (item.right > bounds.right)
+        list.scrollLeft += item.right - bounds.right;
+    };
+    reveal();
+    const observer = new ResizeObserver(reveal);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [current.id, visibleDocumentOrder, workspace.recoveryReady]);
   const autoError = workspace.autoErrors[current.id];
   const editImageSize = () => {
     const size = editor.current?.imageSize();
@@ -1848,6 +1887,7 @@ export default function App() {
             {tab === "files" && <h2 className="sidebar-group-title">已打开</h2>}
             {tab === "files" ? (
               <div
+                ref={openedFiles}
                 className="opened-files"
                 role="group"
                 aria-label="已打开文档"
@@ -2561,6 +2601,7 @@ export default function App() {
               </button>
             </div>
             <nav
+              ref={documentTabs}
               className="document-tabs"
               role="tablist"
               aria-label="打开的文档"
