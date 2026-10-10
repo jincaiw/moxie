@@ -514,14 +514,13 @@ export default function App() {
   const dropInFlight = useRef(false);
   const { tree } = folderWorkspace;
   const folderBusy = folderWorkspace.busy || dropBusy;
-  useEffect(
-    () =>
-      window.desktop?.onDroppedCopyProgress?.((progress) => {
-        if (dropInFlight.current && progress.id === dropRequestId.current)
-          setDropProgress(progress);
-      }),
-    [],
-  );
+  useEffect(() => {
+    const unsubscribe = window.desktop?.onDroppedCopyProgress?.((progress) => {
+      if (dropInFlight.current && progress.id === dropRequestId.current)
+        setDropProgress(progress);
+    });
+    return typeof unsubscribe === "function" ? unsubscribe : undefined;
+  }, []);
   const cancelDroppedCopy = async () => {
     if (
       !dropProgress ||
