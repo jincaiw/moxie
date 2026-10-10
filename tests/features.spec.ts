@@ -4982,7 +4982,11 @@ test("大纲右键与键盘菜单保持边界、导航和来源焦点", async ({
   await page.keyboard.press("Escape");
   await expect(row).toBeFocused();
   const toggle = page.locator(".outline-toggle").first();
-  const title = toggle.locator("..").locator(".outline-row");
+  const titleName = await toggle
+    .locator("..")
+    .locator(".outline-row")
+    .getAttribute("title");
+  const title = page.getByRole("button", { name: titleName!, exact: true });
   await toggle.focus();
   await page.keyboard.press("Shift+F10");
   await page.getByRole("button", { name: "平铺大纲", exact: true }).click();
