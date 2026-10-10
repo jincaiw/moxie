@@ -135,7 +135,17 @@ export function useWorkspace(
     Record<string, FileChange>
   >({});
   const docsRef = useRef(docs);
-  docsRef.current = docs;
+  const updateDocuments = useCallback(
+    (
+      update: DocumentFile[] | ((documents: DocumentFile[]) => DocumentFile[]),
+    ) => {
+      const next =
+        typeof update === "function" ? update(docsRef.current) : update;
+      docsRef.current = next;
+      setDocs(next);
+    },
+    [],
+  );
   useEffect(() => {
     let cancelled = false;
     void readIndexedRecovery()
@@ -145,8 +155,7 @@ export function useWorkspace(
           ...d,
           diskText: d.diskText ?? (d.dirty ? undefined : d.text),
         }));
-        docsRef.current = restored;
-        setDocs(restored);
+        updateDocuments(restored);
         if (restored.some((d) => d.id === snapshot.active))
           setActive(snapshot.active!);
       })
@@ -326,7 +335,7 @@ export function useWorkspace(
             change.text !== undefined &&
             (!current.dirty || current.text === change.text)
           ) {
-            setDocs((list) =>
+            updateDocuments((list) =>
               list.map((d) =>
                 d.id === current.id && (!d.dirty || d.text === change.text)
                   ? {
@@ -390,7 +399,7 @@ export function useWorkspace(
         notifyRef.current("读取期间发生了编辑，请重新确认载入磁盘版本。");
         return false;
       }
-      setDocs((list) =>
+      updateDocuments((list) =>
         list.map((d) =>
           d.id === id && d.text === snapshot.text
             ? {
@@ -425,8 +434,7 @@ export function useWorkspace(
       const next = docsRef.current.map((d) =>
         d.id === id ? { ...d, text, dirty: text !== (d.diskText ?? "") } : d,
       );
-      docsRef.current = next;
-      setDocs(next);
+      updateDocuments(next);
       if (
         next.reduce((size, document) => size + document.text.length, 0) >
         localRecoveryLimit
@@ -450,8 +458,7 @@ export function useWorkspace(
     const next = docsRef.current.map((d) =>
       d.id === id && !d.dirty ? { ...d, dirty: true } : d,
     );
-    docsRef.current = next;
-    setDocs(next);
+    updateDocuments(next);
   }, []);
   const add = useCallback(() => {
     const used = new Set(docsRef.current.map((d) => d.name));
@@ -464,7 +471,7 @@ export function useWorkspace(
       text: "# 新文档\n\n",
       dirty: true,
     };
-    setDocs((list) => [...list, document]);
+    updateDocuments((list) => [...list, document]);
     setActive(document.id);
   }, []);
   const importFile = useCallback(
@@ -485,7 +492,7 @@ export function useWorkspace(
         diskVersion: "version" in file ? file.version : undefined,
         dirty: false,
       };
-      setDocs((list) =>
+      updateDocuments((list) =>
         replaceSamples &&
         list.every(
           (item) => ["welcome", "guide"].includes(item.id) && !item.dirty,
@@ -518,7 +525,7 @@ export function useWorkspace(
             automatic,
           });
           if (!file) return false;
-          setDocs((list) =>
+          updateDocuments((list) =>
             list.map((d) =>
               d.id === document.id
                 ? {
@@ -555,7 +562,7 @@ export function useWorkspace(
                     expected: file.text,
                   });
                   if (updated)
-                    setDocs((list) =>
+                    updateDocuments((list) =>
                       list.map((d) =>
                         d.id === document.id
                           ? d.text === document.text
@@ -587,7 +594,7 @@ export function useWorkspace(
         } else {
           if (automatic) return false;
           download(document.text, document.name);
-          setDocs((list) =>
+          updateDocuments((list) =>
             list.map((d) =>
               d.id === document.id
                 ? {
@@ -651,7 +658,7 @@ export function useWorkspace(
         dirty: false,
       });
     const index = docsRef.current.findIndex((d) => d.id === id);
-    setDocs(next);
+    updateDocuments(next);
     if (currentRef.current.id === id)
       setActive(next[Math.min(Math.max(0, index), next.length - 1)].id);
     setAutoErrors((errors) => {
@@ -669,8 +676,7 @@ export function useWorkspace(
     const next = [...currentDocs];
     const [document] = next.splice(from, 1);
     next.splice(to, 0, document);
-    docsRef.current = next;
-    setDocs(next);
+    updateDocuments(next);
   }, []);
   const setDocumentGroup = useCallback((id: string, group?: string) => {
     const next = docsRef.current.map((document) =>
@@ -678,8 +684,7 @@ export function useWorkspace(
         ? { ...document, group: group || undefined }
         : document,
     );
-    docsRef.current = next;
-    setDocs(next);
+    updateDocuments(next);
   }, []);
   const updateDocumentPath = useCallback(
     (from: string, to: string, version: string) => {
@@ -690,12 +695,10 @@ export function useWorkspace(
               path: to,
               name: to.split(/[\\/]/).at(-1) || document.name,
               diskVersion: version,
-              dirty: false,
             }
           : document,
       );
-      docsRef.current = next;
-      setDocs(next);
+      updateDocuments(next);
     },
     [],
   );
