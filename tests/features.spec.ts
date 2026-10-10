@@ -1,4 +1,4 @@
-import { selectSidebarMode } from "./sidebar";
+import { selectSidebarMode, clickSidebarFolderAction } from "./sidebar";
 import { test, expect } from "@playwright/test";
 import {
   documentStart,
@@ -1052,10 +1052,7 @@ test("桌面 HTML picture 会把相对 srcset 路径解析为文档资源", asyn
   });
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /打开文件/ })
-    .first()
-    .click();
+  await clickSidebarFolderAction(page, "打开文件");
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
   await page.locator(".cm-content").press(documentStart);
 
@@ -2536,7 +2533,7 @@ test("自动保存成功、外部冲突暂停、手动保存后恢复", async ({
     };
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "打开文件 ⌘O", exact: true }).click();
+  await clickSidebarFolderAction(page, "打开文件");
   await expect(page.locator(".document-title")).toContainText("note.md");
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("自动保存到原文件").check();
@@ -2987,7 +2984,7 @@ test("在重复标题前插入同名标题后仍折叠原章节", async ({ page 
 test("窄屏打开侧栏后可点击遮罩关闭", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  const toggle = page.getByRole("button", { name: "切换侧栏" });
+  const toggle = page.getByRole("button", { name: "切换侧栏", exact: true });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await toggle.click();
   const dismiss = page.getByRole("button", { name: "关闭侧栏" });

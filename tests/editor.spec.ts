@@ -100,7 +100,10 @@ test("查找替换、公式、设置和窄屏布局", async ({ page }) => {
     ),
   ).toBe("20px");
   await page.setViewportSize({ width: 390, height: 844 });
-  const sidebarToggle = page.getByRole("button", { name: "切换侧栏" });
+  const sidebarToggle = page.getByRole("button", {
+    name: "切换侧栏",
+    exact: true,
+  });
   await expect(sidebarToggle).toHaveAttribute("aria-expanded", "true");
   await sidebarToggle.click();
   await expect(sidebarToggle).toHaveAttribute("aria-expanded", "false");
