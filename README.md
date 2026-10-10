@@ -7,6 +7,7 @@
 - 修复窗口关闭后读取已销毁对象导致的主进程 JavaScript 错误。
 - 窗口记录清理使用创建时保存的 webContents 引用；加载通知发送前检查销毁状态。
 - 修复记录与实机验收项见 [差距报告](docs/typora-gap-audit.md) 和 [实施计划](docs/implementation-plan.md)。
+- 已发布 [v0.16.236](https://github.com/jincaiw/moxie/releases/tag/v0.16.236)，四个平台构建成功、20 项资产齐全；现有界面回归 198 项、桌面逻辑 40 项通过，3 项性能基准跳过。真实 Mac 退出验收与签名公证仍待完成。
 
 ## 本轮补齐（v0.16.235）
 
