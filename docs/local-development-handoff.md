@@ -2,9 +2,23 @@
 
 目标：在用户 Mac 的本地 `moxie` Git 项目继续开发、运行桌面应用，并与已安装的 Typora 逐项对照。
 
-当前 Codex 会话在 Linux 云端 `/workspace/moxie`，这份文件不表示已切换执行位置，也不表示已读取或修改本机仓库。Codex 项目列表提供的本地路径为 `/Volumes/My-Data/jason.wa/codebase/moxie`；本机分支、未提交修改和 Node 环境尚未读取。
+2026-10-10 已在 Mac 本机接续。`/Volumes/My-Data/jason.wa/codebase/moxie` 原为空目录，最初 Git 向上识别到用户主目录的仓库；确认目录为空后独立克隆 `https://github.com/jincaiw/moxie.git`，未修改主目录仓库。随后 fetch 与 `pull --ff-only origin main` 确认基线为 `e3b0f22`，没有本地修改或分叉。后续优化位于本地 `codex/local-typora-sidebar` 分支，尚未推送。
 
-## 切换执行位置
+本机为 macOS 27.0.1 / arm64，Typora 的安装元数据确认 **1.14.9（7785）**，已通过原生菜单选择 GitHub 主题。系统默认 Node 26.8.2；本轮另行准备并使用 Node 22.23.3 进行最终构建与界面回归，没有更改系统默认 Node。
+
+## 本机接续结果
+
+- 已读取本文及当前清单，完成 `npm ci`。Electron 安装第一次未生成 `path.txt`，执行其官方 `install.js` 后修复；静态构建成功。依赖安装报告 15 项审计问题，未执行自动升级或修改锁文件。
+- Browser plugin not available；界面回归使用仓库 Playwright，原生桌面操作使用 CUA。227 项界面测试无重试通过、3 项性能跳过；46 项桌面逻辑通过。首次新增用例揭示焦点备用选择器先命中模式按钮，修复后完整回归通过。
+- Typora 与本机构建均通过系统打开对话框打开 `tests/fixtures/MARKDOWN_RENDERING_TEST.md`，原件未修改，SHA-256 为 `d51c479830f5832455a540d22b8aa57aacf61762ebdf29d2b8cf3debd7fbf4b0`。
+- 对照发现 Typora 原生显示菜单提供“文档列表”“文件树”，墨写缺少独立入口。现已补齐；从大纲/专注模式进入、重复执行命令、保留排序和目录展开均有回归覆盖。实际原生菜单切换两种视图后，可访问性树确认当前文件行获得焦点。
+- 使用独立应用身份 `studio.moxie.editor.localqa` 和名称“墨写本机对照”打包并运行本机未签名测试构建，路径为 `release/mac-arm64/墨写本机对照.app`，没有覆盖 `/Applications` 内的墨写。该目录构建不含 `app-update.yml`，自动检查更新会记录缺失清单错误；不用于安装/更新验收。
+- 首次启动曾截取到空白初始化画面，后续实际呈现正文、侧栏与原生打开对话框；未据此做启动耗时结论。源码 Electron 身份与其他项目冲突造成 CUA 绑定超时，独立身份构建已成功绑定。Typora 截图为 1920×1950 像素，墨写为 2560×1800 像素，尚未统一窗口与缩放，因此没有宣称像素一致。
+- 本轮日志：`/tmp/moxie-ui-tests.log`、`/tmp/moxie-desktop-tests.log`、`/tmp/moxie-native-console.log`；CUA 实机截图及焦点证据在本地会话工具记录中。临时日志不属于 Git 中的永久证据。
+
+P01 继续进行：下一步统一窗口尺寸与缩放，核对大纲折叠/选中/滚动、文件树展开与键盘、搜索/过滤/空态，再处理 E02/E03。E01/E04 仍需凭据与其他平台设备，E05 需主题样本，E06 性能最后。
+
+## 原云端切换步骤（历史交接）
 
 在 Codex 中打开现有本地 `moxie` 项目，选择本地运行环境。若当前会话提供本地继续/交接入口，可使用该入口；否则在该项目的本地会话使用本文末尾的继续任务文本。本次可用工具没有迁移当前会话的操作，不能从云端替用户完成这个界面步骤。
 

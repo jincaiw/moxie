@@ -817,6 +817,8 @@ function createMenu() {
         submenu: [
           command("切换侧栏", "toggle-sidebar"),
           command("文件侧栏", "sidebar-files"),
+          command("文档列表", "sidebar-file-list"),
+          command("文件树", "sidebar-file-tree"),
           command("大纲", "sidebar-outline"),
           command("浮动格式工具栏", "toggle-floating-toolbar"),
           { type: "separator" },

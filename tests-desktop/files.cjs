@@ -2021,6 +2021,8 @@ test("原生视图菜单侧栏命令发给当前窗口", async () => {
   for (const [label, action] of [
     ["切换侧栏", "toggle-sidebar"],
     ["文件侧栏", "sidebar-files"],
+    ["文档列表", "sidebar-file-list"],
+    ["文件树", "sidebar-file-tree"],
     ["大纲", "sidebar-outline"],
   ]) {
     view.submenu.find((item) => item.label === label).click();

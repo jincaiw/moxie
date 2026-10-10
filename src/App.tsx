@@ -302,6 +302,9 @@ export default function App() {
   const [folderControlsHost, setFolderControlsHost] =
     useState<HTMLDivElement | null>(null);
   const [folderView, setFolderView] = useState<"tree" | "list">("tree");
+  const [folderViewRequest, setFolderViewRequest] = useState<{
+    view: "tree" | "list";
+  } | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
   const changeSidebarWidth = useCallback((width: number) => {
     setSidebarWidth(width);
@@ -957,11 +960,22 @@ export default function App() {
   const sidebarNavigation = useRef<HTMLElement>(null);
   const documentTabs = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
+  useEffect(() => {
+    if (!folderViewRequest || !visibleSidebar || tab !== "files") return;
+    if (!folderBrowser.current) return;
+    folderBrowser.current.setView(folderViewRequest.view);
+    setFolderViewRequest(null);
+  }, [folderViewRequest, visibleSidebar, tab, tree]);
   const [sidebarCommandFocus, setSidebarCommandFocus] = useState<
     "files" | "outline" | null
   >(null);
   useEffect(() => {
-    if (!sidebarCommandFocus || !visibleSidebar || tab !== sidebarCommandFocus)
+    if (
+      !sidebarCommandFocus ||
+      !visibleSidebar ||
+      tab !== sidebarCommandFocus ||
+      (folderViewRequest && tree)
+    )
       return;
     const frame = requestAnimationFrame(() => {
       const target =
@@ -972,14 +986,24 @@ export default function App() {
         ) ||
         sidebarElement.current?.querySelector<HTMLElement>(
           sidebarCommandFocus === "outline"
-            ? ".outline-row, .sidebar-mode-trigger"
-            : ".tree-row, .file-row, .sidebar-mode-trigger",
+            ? ".outline-row"
+            : ".tree-row, .file-row",
+        ) ||
+        sidebarElement.current?.querySelector<HTMLElement>(
+          ".sidebar-mode-trigger",
         );
       target?.focus({ preventScroll: true });
       setSidebarCommandFocus(null);
     });
     return () => cancelAnimationFrame(frame);
-  }, [sidebarCommandFocus, visibleSidebar, tab]);
+  }, [
+    sidebarCommandFocus,
+    visibleSidebar,
+    tab,
+    folderView,
+    folderViewRequest,
+    tree,
+  ]);
   const documentOrder = docs.map((document) => document.id).join("\n");
   const visibleDocumentOrder = visibleDocs
     .map((document) => document.id)
@@ -1853,12 +1877,23 @@ export default function App() {
       dismissSidebarPopup();
       if (visibleSidebar) requestAnimationFrame(() => editor.current?.focus());
     }
-    if (action === "sidebar-files" || action === "sidebar-outline") {
+    if (
+      action === "sidebar-files" ||
+      action === "sidebar-outline" ||
+      action === "sidebar-file-tree" ||
+      action === "sidebar-file-list"
+    ) {
+      const outline = action === "sidebar-outline";
+      if (action === "sidebar-file-tree" || action === "sidebar-file-list")
+        setFolderViewRequest({
+          view: action === "sidebar-file-tree" ? "tree" : "list",
+        });
+      else setFolderViewRequest(null);
       setSidebar(true);
       setFocus(false);
-      setTab(action === "sidebar-files" ? "files" : "outline");
+      setTab(outline ? "outline" : "files");
       dismissSidebarPopup();
-      setSidebarCommandFocus(action === "sidebar-files" ? "files" : "outline");
+      setSidebarCommandFocus(outline ? "outline" : "files");
     }
     if (action === "quick-open") showQuickOpen();
     if (action === "global-search") {

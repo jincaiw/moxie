@@ -49,6 +49,7 @@ import {
 export type FolderBrowserHandle = {
   newFile: () => void;
   toggleView: () => void;
+  setView: (view: FolderLayout["view"]) => void;
 };
 
 type FileAction =
@@ -842,6 +843,7 @@ export function FolderBrowser({
   };
   useImperativeHandle(ref, () => ({
     newFile: () => openOperation("new-file"),
+    setView: (view) => changeLayout({ view }),
     toggleView: () =>
       changeLayout({ view: layout.view === "tree" ? "list" : "tree" }),
   }));

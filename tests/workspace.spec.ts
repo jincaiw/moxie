@@ -101,6 +101,47 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("原生文件树与文档列表命令从大纲和专注切换，保留排序与展开状态", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.desktop!.onAction = (callback) => {
+      (window as any).nativeAction = callback;
+      return () => {};
+    };
+    localStorage.setItem("moxie.folder-sort.v1", "modified");
+  });
+  await page.goto("/");
+  await openSidebarFolder(page);
+  await page.locator('.tree-row[aria-expanded="false"]').first().click();
+  await expect(page.locator('.tree-row[aria-expanded="true"]')).toHaveCount(1);
+  const session = await page.evaluate(() =>
+    localStorage.getItem("moxie.folder.v1"),
+  );
+  await selectSidebarMode(page, "大纲", false);
+  await page.getByRole("button", { name: "专注模式", exact: true }).click();
+  await page.evaluate(() => (window as any).nativeAction("sidebar-file-list"));
+  await expect(
+    page.getByRole("button", { name: "切换到文件树", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".tree-row[aria-expanded]")).toHaveCount(0);
+  await expect(page.locator(".tree-row").first()).toBeFocused();
+  // Repeating a native command must override a later footer toggle as well.
+  await page.getByRole("button", { name: "切换到文件树", exact: true }).click();
+  await page.evaluate(() => (window as any).nativeAction("sidebar-file-list"));
+  await expect(
+    page.getByRole("button", { name: "切换到文件树", exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => (window as any).nativeAction("sidebar-file-tree"));
+  await expect(page.locator('.tree-row[aria-expanded="true"]')).toHaveCount(1);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("moxie.folder.v1")))
+    .toBe(session);
+  expect(
+    await page.evaluate(() => localStorage.getItem("moxie.folder-sort.v1")),
+  ).toBe("modified");
+});
+
 test("跨文档搜索可按文档名排序并筛选已打开文档", async ({ page }) => {
   await page.goto("/");
   await page.locator(".md-input").setInputFiles({
