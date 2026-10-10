@@ -1,0 +1,23 @@
+Window: "MARKDOWN_RENDERING_TEST.md", App: Typora.
+0 显示, Secondary Actions: Cancel, Pick
+	1 菜单 Secondary Actions: Cancel
+		2 显示标签页栏, ID: toggleTabBar:
+		3 显示所有标签页, ID: toggleTabOverview:
+		4 源代码模式
+		5 只读模式
+		6 专注模式
+		7 打字机模式
+		8 工具栏
+		9 显示／隐藏侧边栏
+		10 大纲
+		11 文档列表
+		12 文件树
+		13 搜索
+		14 字数统计窗口
+		15 大纲窗口
+		16 双指缩放
+		17 实际大小
+		18 放大
+		19 缩小
+		20 保持窗口在最前端
+		21 全屏

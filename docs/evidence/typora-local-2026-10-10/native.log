@@ -1,0 +1,15 @@
+[54141:1010/211058.630800:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+Error occurred in handler for 'image:read': [Error: ENOENT: no such file or directory, realpath '/Volumes/My-Data/jason.wa/codebase/moxie/tests/fixtures/missing-image-for-rendering-test.png'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'realpath',
+  path: '/Volumes/My-Data/jason.wa/codebase/moxie/tests/fixtures/missing-image-for-rendering-test.png'
+}
+Error occurred in handler for 'image:read': [Error: ENOENT: no such file or directory, realpath '/Volumes/My-Data/jason.wa/codebase/moxie/tests/fixtures/missing-linked-image.png'] {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'realpath',
+  path: '/Volumes/My-Data/jason.wa/codebase/moxie/tests/fixtures/missing-linked-image.png'
+}
+[54123:1010/211113.249609:INFO:CONSOLE(467)] "Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'addListener')", source: chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js (467)
+2026-10-10 21:11:51.423 墨写本机对照[54123:19364550] TSM AdjustCapsLockLEDForKeyTransitionHandling - _ISSetPhysicalKeyboardCapsLockLED Inhibit

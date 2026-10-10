@@ -1,0 +1,19 @@
+Window: "墨写 · Markdown 编辑器", App: 墨写本机对照.
+1 视图, Secondary Actions: Cancel, Pick
+	2 menu Secondary Actions: Cancel
+		3 切换侧栏, ID: itemSelected:
+		4 文件侧栏, ID: itemSelected:
+		5 文档列表, ID: itemSelected:
+		6 文件树, ID: itemSelected:
+		7 大纲, ID: itemSelected:
+		8 浮动格式工具栏, ID: itemSelected:
+		9 切换源码模式, ID: itemSelected:
+		10 跨文档搜索, ID: itemSelected:
+		11 只读模式, ID: itemSelected:
+		12 专注模式, ID: itemSelected:
+		13 打字机模式, ID: itemSelected:
+		14 实际大小, ID: itemSelected:
+		15 放大, ID: itemSelected:
+		16 缩小, ID: itemSelected:
+		17 保持窗口在最前端, ID: itemSelected:
+		18 全屏, ID: toggleFullScreenMode:

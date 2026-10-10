@@ -1,0 +1,15 @@
+{
+  "bundleId": "studio.moxie.editor.localqa",
+  "version": "0.16.249",
+  "documentTypes": [
+    {
+      "CFBundleTypeExtensions": ["md", "markdown", "txt"],
+      "CFBundleTypeIconFile": "icon.icns",
+      "CFBundleTypeName": "Markdown 文档",
+      "CFBundleTypeRole": "Editor",
+      "LSHandlerRank": "Default"
+    }
+  ],
+  "asarSha256": "cedafd7ada329a6dddcdb3fd7b82d31cea084e2dd8069beadbeb2ad3cbf4a12b",
+  "autoUpdateConfigPresent": false
+}

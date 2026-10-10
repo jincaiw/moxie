@@ -85,6 +85,17 @@
         {
           "target": "zip"
         }
+      ],
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown",
+            "txt"
+          ],
+          "name": "Markdown 文档",
+          "role": "Editor"
+        }
       ]
     },
     "win": {

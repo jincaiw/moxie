@@ -2364,3 +2364,114 @@ test("原生工具栏命令与偏好同步且清除隔离迟到的最近文件�
     page.getByRole("dialog", { name: "快速打开" }).getByRole("option"),
   ).toHaveCount(0);
 });
+
+test("原生只读模式保护两种编辑视图和格式命令，恢复后可继续输入", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    window.desktop!.onAction = (callback) => {
+      (window as any).nativeAction = callback;
+      return () => {};
+    };
+  });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "readonly.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 标题\n\n原文"),
+  });
+  const content = page.locator(".cm-content");
+  await expect(content).toContainText("原文");
+  await page.evaluate(() => (window as any).nativeAction("source"));
+  await expect(content).toContainText("# 标题");
+  const original = await content.locator(".cm-line").allTextContents();
+  await page.getByRole("button", { name: "导出", exact: true }).click();
+  await page.getByRole("menuitem", { name: "文档属性…" }).click();
+  await page.getByLabel("文档标题", { exact: true }).fill("禁止修改元数据");
+  await page.evaluate(() => (window as any).nativeAction("read-only"));
+  await page.getByRole("button", { name: "保存属性", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "文档属性" })).toBeVisible();
+  await page.getByRole("button", { name: "关闭文档属性", exact: true }).click();
+  await expect(content).toHaveAttribute("aria-readonly", "true");
+  await expect(content).toHaveAttribute("contenteditable", "false");
+  for (const action of ["format-bold", "undo", "redo", "format-heading1"]) {
+    await page.evaluate(
+      (action) => (window as any).nativeAction(action),
+      action,
+    );
+    await expect
+      .poll(() => content.locator(".cm-line").allTextContents())
+      .toEqual(original);
+  }
+  await page.evaluate(() => (window as any).nativeAction("source"));
+  await page.evaluate(() => (window as any).nativeAction("format-bold"));
+  await page.evaluate(() => (window as any).nativeAction("source"));
+  await expect
+    .poll(() => content.locator(".cm-line").allTextContents())
+    .toEqual(original);
+  await content.click();
+  await page.keyboard.insertText("禁止写入");
+  await expect
+    .poll(() => content.locator(".cm-line").allTextContents())
+    .toEqual(original);
+  await page.getByRole("button", { name: "恢复编辑", exact: true }).click();
+  await expect(content).toHaveAttribute("aria-readonly", "false");
+  await content.click();
+  await page.keyboard.insertText("可以写入");
+  await expect(content).toContainText("可以写入");
+  await page.getByRole("button", { name: "偏好设置" }).click();
+  const typewriter = page.getByLabel("打字机模式", { exact: true });
+  const before = await typewriter.isChecked();
+  await page.evaluate(() => (window as any).nativeAction("typewriter"));
+  await expect(typewriter).toBeChecked({ checked: !before });
+  await page.evaluate(() => (window as any).nativeAction("typewriter"));
+  await expect(typewriter).toBeChecked({ checked: before });
+});
+
+test("大纲左右方向键折叠、展开并在父子标题之间移动焦点", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "outline-keys.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 父标题\n\n## 子标题\n\n### 孙标题\n\n# 下一章"),
+  });
+  await selectSidebarMode(page, "大纲", false);
+  const parent = page.locator(".outline-row").filter({ hasText: /^父标题$/ });
+  const child = page.locator(".outline-row").filter({ hasText: /^子标题$/ });
+  await parent.focus();
+  await parent.press("ArrowLeft");
+  await expect(child).toHaveCount(0);
+  await expect(parent).toBeFocused();
+  await parent.press("ArrowRight");
+  await expect(child).toBeVisible();
+  await parent.press("ArrowRight");
+  await expect(child).toBeFocused();
+  await child.press("ArrowLeft");
+  await expect(
+    page.locator(".outline-row").filter({ hasText: /^孙标题$/ }),
+  ).toHaveCount(0);
+  await child.press("ArrowLeft");
+  await expect(parent).toBeFocused();
+  await parent.press("ArrowRight");
+  await expect(child).toBeFocused();
+});
+
+test("无标题文档的已打开列表忽略左右键，不触发大纲操作", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "plain.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("没有标题的纯文本"),
+  });
+  await expect(page.locator(".cm-content")).toContainText("没有标题的纯文本");
+  await selectSidebarMode(page, "已打开", false);
+  const row = page.locator(".file-row").filter({ hasText: "plain.md" });
+  await row.focus();
+  await row.press("ArrowLeft");
+  await row.press("ArrowRight");
+  await expect(row).toBeFocused();
+  await expect(page.locator(".cm-content")).toContainText("没有标题的纯文本");
+  expect(errors).toEqual([]);
+});

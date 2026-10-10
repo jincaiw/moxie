@@ -1,0 +1,23 @@
+[
+  {
+    "sizeMB": 1,
+    "payloadBytes": 1048576,
+    "openMs": 402,
+    "scroll20Ms": 413,
+    "endOfDocumentInputMs": 46
+  },
+  {
+    "sizeMB": 5,
+    "payloadBytes": 5242880,
+    "openMs": 1457,
+    "scroll20Ms": 313,
+    "endOfDocumentInputMs": 73
+  },
+  {
+    "sizeMB": 10,
+    "payloadBytes": 10485760,
+    "openMs": 3596,
+    "scroll20Ms": 1292,
+    "endOfDocumentInputMs": 119
+  }
+]

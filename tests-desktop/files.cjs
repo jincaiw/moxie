@@ -309,11 +309,17 @@ test("精选主题下载限制重定向主机和响应大小", async () => {
     /超过 256 KB/,
   );
 });
-async function harness(userData) {
+async function harness(userData, startupFiles = [], updateConfig = true) {
   if (!userData) {
     userData = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-main-test-"));
     harnessDirectories.push(userData);
   } else await fs.mkdir(userData, { recursive: true });
+  if (updateConfig)
+    await fs.writeFile(
+      path.join(userData, "app-update.yml"),
+      "provider: github\n",
+    );
+  const appEvents = new EventEmitter();
   const handlers = new Map(),
     events = new Map();
   const windows = [],
@@ -380,13 +386,17 @@ async function harness(userData) {
     app: {
       isPackaged: true,
       getPath: () => userData,
-      whenReady: () => ({
-        then: (ready) => {
-          startup = Promise.resolve().then(ready);
-          return startup;
-        },
-      }),
-      on: () => {},
+      whenReady: () => {
+        for (const file of startupFiles)
+          appEvents.emit("open-file", { preventDefault() {} }, file);
+        return {
+          then: (ready) => {
+            startup = Promise.resolve().then(ready);
+            return startup;
+          },
+        };
+      },
+      on: (...args) => appEvents.on(...args),
       quit: () => {},
     },
     BrowserWindow: Window,
@@ -446,7 +456,7 @@ async function harness(userData) {
                 ? path.join(__dirname, "../electron", name)
                 : name,
             ),
-    process: { env: {}, platform: "darwin" },
+    process: { env: {}, platform: "darwin", resourcesPath: userData },
     __dirname: path.join(__dirname, "../electron"),
     Buffer,
     console,
@@ -481,6 +491,7 @@ async function harness(userData) {
     },
     window,
     windows,
+    appEvents,
     userData,
     waitForProfiles: async (count) => {
       for (let attempt = 0; attempt < 50; attempt++) {
@@ -647,6 +658,12 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
 });
 test("PDF 分页预览使用最终打印流程且不创建导出文件", async () => {
   const h = await harness();
+  assert.equal(h.window.options.webPreferences.plugins, true);
+  assert.equal(h.window.options.webPreferences.sandbox, true);
+  assert.equal(h.window.options.webPreferences.nodeIntegration, false);
+  const html = await fs.readFile(path.join(__dirname, "../index.html"), "utf8");
+  assert.match(html, /frame-src 'self' blob:/);
+  assert.match(html, /object-src 'none'/);
   const bytes = await h.call("pdf:preview", {
     html: '<!doctype html><html><head><meta charset="utf-8"></head><body><p>预览</p></body></html>',
     pdf: {
@@ -1215,6 +1232,71 @@ test("多窗口同时请求时合并自动更新检查与下载", async () => {
   finishDownload();
   assert.deepEqual(await firstDownload, await secondDownload);
   assert.equal(controller.getStatus().status, "downloaded");
+});
+
+test("目录测试构建缺少更新配置时不调用更新服务", async () => {
+  assert.equal(
+    supportsAutoUpdate({
+      isPackaged: true,
+      platform: "darwin",
+      hasUpdateConfig: false,
+    }),
+    false,
+  );
+  const h = await harness(undefined, [], false);
+  assert.equal((await h.call("update:check")).status, "unsupported");
+});
+
+test("系统打开在启动前排队且去重，打开到独立窗口并保留当前文档", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-system-open-"));
+  harnessDirectories.push(root);
+  const file = path.join(root, "中文 空格.md");
+  await fs.writeFile(file, "# 系统文档");
+  const h = await harness(undefined, [
+    file,
+    file,
+    path.join(root, "ignore.exe"),
+  ]);
+  assert.equal(h.windows.length, 2);
+  assert.equal(await h.call("file:initial"), null);
+  const opened = await h.callFor("file:initial", h.windows[1]);
+  assert.equal(opened.text, "# 系统文档");
+  assert.equal(opened.path, file);
+  assert.equal(await h.callFor("file:initial", h.windows[1]), null);
+  h.events.get("document:dirty")(h.event, true);
+  let prevented = false;
+  h.appEvents.emit(
+    "open-file",
+    {
+      preventDefault() {
+        prevented = true;
+      },
+    },
+    file,
+  );
+  await h.waitForProfiles(2);
+  assert.equal(prevented, true);
+  assert.equal(h.windows.length, 3);
+  assert.equal(h.window.closed, undefined);
+  assert.equal(
+    (await h.callFor("file:initial", h.windows[2])).text,
+    "# 系统文档",
+  );
+  const menu = h.menuTemplate.find((entry) => entry.label === "视图");
+  for (const role of ["resetZoom", "zoomIn", "zoomOut"])
+    assert.ok(menu.submenu.some((entry) => entry.role === role));
+  let top;
+  menu.submenu
+    .find((entry) => entry.label === "保持窗口在最前端")
+    .click(
+      { checked: true },
+      {
+        setAlwaysOnTop(value) {
+          top = value;
+        },
+      },
+    );
+  assert.equal(top, true);
 });
 
 test("自动更新只对正式支持的安装格式启用", () => {
@@ -2024,6 +2106,8 @@ test("原生视图菜单侧栏命令发给当前窗口", async () => {
     ["文档列表", "sidebar-file-list"],
     ["文件树", "sidebar-file-tree"],
     ["大纲", "sidebar-outline"],
+    ["只读模式", "read-only"],
+    ["打字机模式", "typewriter"],
   ]) {
     view.submenu.find((item) => item.label === label).click();
     assert.equal(h.window.lastAction, action);

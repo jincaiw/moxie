@@ -9,9 +9,15 @@ function describeUpdateError(error, platform = process.platform) {
   return detail.slice(0, 400) || "检查更新失败，请稍后重试。";
 }
 
-function supportsAutoUpdate({ isPackaged, platform, env = process.env }) {
+function supportsAutoUpdate({
+  isPackaged,
+  platform,
+  env = process.env,
+  hasUpdateConfig = true,
+}) {
   return Boolean(
     isPackaged &&
+    hasUpdateConfig &&
     (platform === "darwin" ||
       platform === "win32" ||
       (platform === "linux" && env.APPIMAGE)),

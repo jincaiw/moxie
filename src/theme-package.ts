@@ -104,7 +104,12 @@ export async function importThemePackage(files: File[]) {
     );
   }
 
-  let css = await stylesheet.file.text();
+  // Typora's export-only font directive is not CSS and must never initiate
+  // a network request. The local font-face assets below remain embedded.
+  let css = (await stylesheet.file.text()).replace(
+    /@include-when-export\s+url\([^{};]*\)\s*;/gi,
+    "",
+  );
   if (/@import\b/i.test(css)) throw new Error("主题 CSS 不支持 @import。");
   css = css.replace(
     /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi,

@@ -9,6 +9,7 @@ const {
   nativeImage,
 } = require("electron");
 const fs = require("node:fs/promises");
+const { existsSync } = require("node:fs");
 const { URL } = require("node:url");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
@@ -587,9 +588,11 @@ function createWindow(primary = false, restoredProfile, initialFile) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      plugins: true, // Chromium's built-in PDF viewer for local preview blobs.
     },
   });
   state.window = window;
+  window.on("focus", () => createMenu());
   // BrowserWindow.webContents cannot be read after the window is destroyed.
   const contents = window.webContents;
   windowStates.set(contents, state);
@@ -685,6 +688,10 @@ function setupUpdater() {
       isPackaged: app.isPackaged,
       platform: process.platform,
       env: process.env,
+      hasUpdateConfig: Boolean(
+        process.resourcesPath &&
+        existsSync(path.join(process.resourcesPath, "app-update.yml")),
+      ),
     }),
     hasUnsavedChanges: () =>
       [...windowStates.values()].some((state) => state.dirty),
@@ -824,8 +831,22 @@ function createMenu() {
           { type: "separator" },
           command("切换源码模式", "source", "CmdOrCtrl+/"),
           command("跨文档搜索", "global-search", "CmdOrCtrl+Shift+F"),
+          command("只读模式", "read-only"),
           command("专注模式", "focus"),
-          { role: "togglefullscreen" },
+          command("打字机模式", "typewriter"),
+          { type: "separator" },
+          { label: "实际大小", role: "resetZoom" },
+          { label: "放大", role: "zoomIn" },
+          { label: "缩小", role: "zoomOut" },
+          {
+            label: "保持窗口在最前端",
+            type: "checkbox",
+            checked: Boolean(
+              BrowserWindow.getFocusedWindow?.()?.isAlwaysOnTop?.(),
+            ),
+            click: (item, window) => window?.setAlwaysOnTop(item.checked),
+          },
+          { role: "togglefullscreen", label: "全屏" },
         ],
       },
       {
@@ -840,6 +861,42 @@ function createMenu() {
     ]),
   );
 }
+// macOS can send open-file before app readiness. Serialize requests and never
+// replace the current renderer workspace (which may have unsaved changes).
+const pendingSystemFiles = new Set();
+let systemFilesReady = false;
+let systemFileQueue = Promise.resolve();
+function openSystemFile(file) {
+  if (
+    typeof file !== "string" ||
+    !path.isAbsolute(file) ||
+    !/\.(md|markdown|txt)$/i.test(file)
+  )
+    return Promise.resolve();
+  if (pendingSystemFiles.has(file)) return systemFileQueue;
+  pendingSystemFiles.add(file);
+  if (!systemFilesReady) return Promise.resolve();
+  systemFileQueue = systemFileQueue.then(async () => {
+    try {
+      const opened = await store.read(file);
+      createWindow(false, undefined, opened);
+      refreshRecentMenu();
+    } catch (error) {
+      await dialog.showMessageBox({
+        type: "error",
+        message: "无法打开文档",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      pendingSystemFiles.delete(file);
+    }
+  });
+  return systemFileQueue;
+}
+app.on("open-file", (event, file) => {
+  event.preventDefault();
+  void openSystemFile(file);
+});
 app.whenReady().then(async () => {
   if (app.getPath)
     windowProfileFile = path.join(app.getPath("userData"), "windows.json");
@@ -853,6 +910,10 @@ app.whenReady().then(async () => {
   setupIPC();
   restoreWindows();
   createMenu();
+  systemFilesReady = true;
+  const queuedFiles = [...pendingSystemFiles];
+  pendingSystemFiles.clear();
+  for (const file of queuedFiles) await openSystemFile(file);
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) restoreWindows();
   });

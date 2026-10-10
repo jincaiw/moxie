@@ -2018,7 +2018,7 @@ test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", as
   await fs.mkdir(path.join(theme, "assets"), { recursive: true });
   await fs.writeFile(
     path.join(theme, "theme.css"),
-    'body { background-image: url("assets/tile.png"), url("assets/shape.svg"); } :root { --accent: #117799; }',
+    '@include-when-export url(https://fonts.example.invalid/export-only.css); body { background-image: url("assets/tile.png"), url("assets/shape.svg"); } :root { --accent: #117799; }',
   );
   await fs.writeFile(path.join(theme, "assets", "tile.png"), png);
   await fs.writeFile(
@@ -2034,6 +2034,7 @@ test("主题资源文件夹导入会内嵌本地资源并拒绝越界路径", as
     await expect(css).toContainText(png.toString("base64"));
     await expect(css).toContainText("data:image/svg+xml;base64,");
     const embeddedSVG = await css.inputValue();
+    expect(embeddedSVG).not.toMatch(/include-when-export|fonts\.example/i);
     const encodedSVG = /data:image\/svg\+xml;base64,([a-z\d+/=]+)/i.exec(
       embeddedSVG,
     )?.[1];

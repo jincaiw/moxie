@@ -494,6 +494,9 @@ export default function App() {
   useEffect(() => {
     if (current.path) folderWorkspace.reveal(current.path);
   }, [current.path, folderWorkspace.root, Boolean(folderWorkspace.tree)]);
+  const [readOnly, setReadOnly] = useState(false);
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const [fileOperationBusy, setFileOperationBusy] = useState(false);
   const fileOperationInFlight = useRef(false);
   const operateOnFolderFile = async (request: {
@@ -960,11 +963,13 @@ export default function App() {
   const sidebarNavigation = useRef<HTMLElement>(null);
   const documentTabs = useRef<HTMLElement>(null);
   const visibleSidebar = sidebar && !focus;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!folderViewRequest || !visibleSidebar || tab !== "files") return;
     if (!folderBrowser.current) return;
     folderBrowser.current.setView(folderViewRequest.view);
-    setFolderViewRequest(null);
+    setFolderViewRequest((pending) =>
+      pending === folderViewRequest ? null : pending,
+    );
   }, [folderViewRequest, visibleSidebar, tab, tree]);
   const [sidebarCommandFocus, setSidebarCommandFocus] = useState<
     "files" | "outline" | null
@@ -1040,6 +1045,10 @@ export default function App() {
     setImageSizeDialog(size);
   };
   const downloadDocumentImages = async () => {
+    if (readOnlyRef.current) {
+      setMessage("当前为只读模式，请先恢复编辑。");
+      return;
+    }
     const originalText = current.text;
     const documentId = current.id;
     const originalPath = current.path;
@@ -1049,6 +1058,7 @@ export default function App() {
         (document) => document.id === documentId,
       );
       if (
+        readOnlyRef.current ||
         !latest ||
         latest.text !== originalText ||
         latest.path !== originalPath
@@ -1072,6 +1082,10 @@ export default function App() {
     mode: "copy" | "move",
     targetDirectory: string,
   ) => {
+    if (readOnlyRef.current) {
+      setMessage("当前为只读模式，请先恢复编辑。");
+      return;
+    }
     const originalText = current.text;
     const documentId = current.id;
     const originalPath = current.path;
@@ -1086,6 +1100,7 @@ export default function App() {
         (document) => document.id === documentId,
       );
       if (
+        readOnlyRef.current ||
         !latest ||
         latest.text !== originalText ||
         latest.path !== originalPath
@@ -1133,6 +1148,10 @@ export default function App() {
     setGroupDialog(null);
   };
   const openMetadataDialog = () => {
+    if (readOnlyRef.current) {
+      setMessage("当前为只读模式，请先恢复编辑。");
+      return;
+    }
     const metadata = parseFrontMatter(current.text)?.metadata;
     setMetadataDialog({
       documentId: current.id,
@@ -1147,6 +1166,10 @@ export default function App() {
   };
   const saveMetadataDialog = () => {
     if (!metadataDialog) return;
+    if (readOnlyRef.current) {
+      setMessage("当前为只读模式，未修改文档属性。");
+      return;
+    }
     const latest = workspace.docsRef.current.find(
       (document) => document.id === metadataDialog.documentId,
     );
@@ -1824,6 +1847,11 @@ export default function App() {
     }
   };
   const handleAction = (action: string) => {
+    if (action === "read-only") {
+      editor.current?.flush();
+      setReadOnly((value) => !value);
+    }
+    if (action === "typewriter") update("typewriter", !preferences.typewriter);
     if (action === "toggle-floating-toolbar")
       update("floatingToolbar", !preferences.floatingToolbar);
     if (action === "clear-recent") void clearRecentRecords();
@@ -2603,6 +2631,41 @@ export default function App() {
                       event.target as HTMLButtonElement,
                     );
                     if (index < 0) return;
+                    if (
+                      outlineCollapsible &&
+                      (event.key === "ArrowLeft" || event.key === "ArrowRight")
+                    ) {
+                      event.preventDefault();
+                      const row = outlineRows[index];
+                      if (
+                        row.hasChildren &&
+                        ((event.key === "ArrowLeft" && !row.collapsed) ||
+                          (event.key === "ArrowRight" && row.collapsed))
+                      ) {
+                        setCollapsedOutline((previous) => {
+                          const next = new Set(previous);
+                          if (event.key === "ArrowLeft") next.add(row.identity);
+                          else next.delete(row.identity);
+                          return next;
+                        });
+                      } else if (
+                        event.key === "ArrowRight" &&
+                        row.hasChildren
+                      ) {
+                        rows[index + 1]?.focus();
+                      } else if (event.key === "ArrowLeft") {
+                        for (let parent = index - 1; parent >= 0; parent--) {
+                          if (
+                            outlineRows[parent].heading.level <
+                            row.heading.level
+                          ) {
+                            rows[parent].focus();
+                            break;
+                          }
+                        }
+                      }
+                      return;
+                    }
                     const next =
                       event.key === "Home"
                         ? 0
@@ -3541,6 +3604,12 @@ export default function App() {
             <button onClick={() => saveCurrent()}>手动保存</button>
           </div>
         )}
+        {readOnly && (
+          <div className="recovery-banner" role="status">
+            <span>只读模式：本窗口中的文档可浏览、查找和导出。</span>
+            <button onClick={() => setReadOnly(false)}>恢复编辑</button>
+          </div>
+        )}
         {fileOperationBusy && (
           <p className="file-operation-notice" role="status">
             正在执行文件操作，正文暂时只读，完成后恢复编辑。
@@ -3560,7 +3629,7 @@ export default function App() {
             text={current.text}
             path={current.path}
             source={source}
-            readOnly={fileOperationBusy}
+            readOnly={fileOperationBusy || readOnly}
             typewriter={preferences.typewriter}
             smartQuotes={preferences.smartQuotes}
             smartDashes={preferences.smartDashes}
@@ -3603,7 +3672,11 @@ export default function App() {
               if (!saved?.path) throw Error("请先保存当前文档。");
               return window.desktop.makeFileLink(saved.path, target, label);
             }}
-            onImages={withImages(current)}
+            onImages={async (files) => {
+              if (readOnlyRef.current)
+                throw Error("当前为只读模式，请先恢复编辑。");
+              return withImages(current)(files);
+            }}
             onError={setMessage}
           />
         </div>

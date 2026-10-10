@@ -1,0 +1,10 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 15
+~					13 button Description: 展开 Markdown 渲染综合测试, Help: 展开子标题
+The focused UI element is 14 button Markdown 渲染综合测试
+
+恢复：
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~					13 button Description: 折叠 Markdown 渲染综合测试, Help: 折叠子标题
++					175 button 1. 标题层级与段落
+The focused UI element is 14 button Markdown 渲染综合测试
