@@ -1926,11 +1926,11 @@ test("最近文件夹固定清除与指定启动目录在历史淘汰后仍持�
   );
   try {
     const state = path.join(root, "state.json"),
-      first = path.join(root, "first");
-    await fs.mkdir(first);
+      firstInput = path.join(root, "first");
+    await fs.mkdir(firstInput);
     const store = new FileStore(state);
     await store.init();
-    await store.folder(first);
+    const first = (await store.folder(firstInput)).path;
     await store.setStartupFolder(first);
     await store.updateFolderHistory({ action: "pin", path: first });
     await store.updateFolderHistory({ action: "clear" });
