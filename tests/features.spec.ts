@@ -4534,6 +4534,13 @@ test("编辑区右键格式菜单保留选区，支持键盘、撤销和视口�
   await page.keyboard.press("Escape");
   await expect(content).toBeFocused();
   await page.setViewportSize({ width: 390, height: 844 });
+  // Finish resize layout and its queued scroll notifications before right-clicking.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
   await content.evaluate((el) =>
     el.dispatchEvent(
       new MouseEvent("contextmenu", {
