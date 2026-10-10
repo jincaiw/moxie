@@ -1,0 +1,15 @@
+version: 0.16.249
+files:
+  - url: Moxie-0.16.249-arm64.zip
+    sha512: cgNVtw2rXfdgf4Cz0BmRUA2xTIVd04dKiEoHNKH5wHvMyPJA/qINnS5gKopH13giC8wxRyCB1RT+/Zd80Xsr5A==
+    size: 152098516
+  - url: Moxie-0.16.249-arm64.dmg
+    sha512: rUhuiEom+U70nltjtwkNGV4YNx7SLz1YaGWNBR1TB3BG2/pPQI3qM4DcuELF8brRpkyXj3MInmZybdWpEVBpBQ==
+    size: 154104946
+  - url: Moxie-0.16.249-x64.zip
+    sha512: rTqqANEMnvaCRLzf1IgVgWinddktFyvsfXZRc3HJM33guisTom9EMESa1SRYPpm3O4QB1JHUZSRmCIc0C6TBCA==
+    size: 156535635
+  - url: Moxie-0.16.249-x64.dmg
+    sha512: dscWxyOyloUl60OsmbPMSANOnz8llAjHpavpoSgsg0Hf0Wn1iwgbXAmYDyE1FDCfHktdWPbMuogLtnwiYsk9uQ==
+    size: 158532242
+releaseDate: '2026-10-10T12:26:27.858Z'

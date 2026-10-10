@@ -2,6 +2,10 @@
 
 以本地 Markdown 为中心的桌面写作工具。采用 Electron、React、TypeScript、CodeMirror 6。优先验收 macOS，同时提供浏览器预览入口。
 
+## 本地 Codex 开发与 Typora 对照
+
+本机项目路径已由 Codex 项目列表识别；云端会话切换、本地安全同步、Electron 启动、原件和可携带证据见 [本地交接说明](docs/local-development-handoff.md)。确认执行环境在本机后，再进行 Typora 1.14.9（7785）/ GitHub 主题实机对照。当前未完成状态见 [统一清单](docs/typora-current-plan.md)。
+
 ## 最近菜单与目录快速打开（v0.16.249）
 
 - 原生“最近打开”包含文件、最近目录和固定目录；清除记录保留固定目录与文件授权。

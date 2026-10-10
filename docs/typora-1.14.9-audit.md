@@ -67,13 +67,17 @@
 
 ### 已查看截图
 
-![墨写文件树与完整样本首屏](/workspace/artifacts/moxie-typora-1.14.9-audit/files-after.png)
-![墨写快速打开：文档与固定、最近文件夹](/workspace/artifacts/moxie-typora-1.14.9-audit/quick-open-after.png)
-![墨写 900×700 深色快速打开](/workspace/artifacts/moxie-typora-1.14.9-audit/quick-open-dark.png)
-![墨写清除记录成功反馈](/workspace/artifacts/moxie-typora-1.14.9-audit/clear-feedback.png)
+![墨写文件树与完整样本首屏](evidence/typora-1.14.9/files-after.png)
+![墨写快速打开：文档与固定、最近文件夹](evidence/typora-1.14.9/quick-open-after.png)
+![墨写 900×700 深色快速打开](evidence/typora-1.14.9/quick-open-dark.png)
+![墨写清除记录成功反馈](evidence/typora-1.14.9/clear-feedback.png)
 
 ## 发布验证补充
 
 正式 [v0.16.249](https://github.com/jincaiw/moxie/releases/tag/v0.16.249)，源 `99bccc6`。macOS 主分支 CI #471 与发布 #222 均成功；226 项界面、46 项桌面逻辑通过，额外 129 次连续验证通过，3 项性能跳过。发布的源码验证、四平台构建和上传 6 项任务全部成功，20 项资产齐全。
 
 两种架构 DMG 的 `hdiutil verify` 为 VALID；线上独立下载的 SHA-256、更新清单 SHA-512 及大小全部匹配。三份更新清单版本正确，9 项摘要与 GitHub 资产摘要一致；未独立下载其他平台包重算。Apple 签名公证因凭据缺失跳过，未进行用户 Mac 的 Typora 实机对照和安装升级，不改变暂评分或待验收状态。日志：`/workspace/artifacts/moxie-release-0.16.249/`。
+
+## 本地交接资源
+
+截图与渲染日志已复制到 [审计证据目录](evidence/typora-1.14.9/)，发布验证摘要与更新清单见 [发布证据目录](evidence/release-0.16.249/)。这些目录随 Git 拉取，Mac 上不需要云端 `/workspace` 路径；二进制安装包从正式 Release 下载。进入本机后的步骤见 [本地开发交接](local-development-handoff.md)。

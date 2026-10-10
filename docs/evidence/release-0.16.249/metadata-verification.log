@@ -1,0 +1,12 @@
+latest-mac.yml 0.16.249 [
+  'Moxie-0.16.249-arm64.zip',
+  'Moxie-0.16.249-arm64.dmg',
+  'Moxie-0.16.249-x64.zip',
+  'Moxie-0.16.249-x64.dmg'
+]
+latest.yml 0.16.249 [ 'Moxie-0.16.249-x64.exe' ]
+latest-linux.yml 0.16.249 [ 'Moxie-0.16.249-x86_64.AppImage' ]
+SHA256SUMS: 9 records; this metadata check does not recalculate binary hashes
+Moxie-0.16.249-arm64.dmg downloaded SHA512 and size match update metadata
+Moxie-0.16.249-x64.dmg downloaded SHA512 and size match update metadata
+20 release assets present; 9 GitHub asset digests match checksum records (when provided)

@@ -1,0 +1,9 @@
+version: 0.16.249
+files:
+  - url: Moxie-0.16.249-x86_64.AppImage
+    sha512: LuR5Tk70zKK9s/XQC8y7e/c5NZTnICGWohV/F40ru7jwzv5N30KXhQzI40LbYam8aJvQMJ7JehxkiNrL4wrWBg==
+    size: 158616290
+    blockMapSize: 166646
+path: Moxie-0.16.249-x86_64.AppImage
+sha512: LuR5Tk70zKK9s/XQC8y7e/c5NZTnICGWohV/F40ru7jwzv5N30KXhQzI40LbYam8aJvQMJ7JehxkiNrL4wrWBg==
+releaseDate: '2026-10-10T12:25:43.456Z'

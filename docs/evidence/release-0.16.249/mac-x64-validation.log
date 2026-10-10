@@ -1,0 +1,5 @@
+2026-10-10T12:25:22.2011230Z macOS signing secrets are not configured; building unsigned packages.
+2026-10-10T12:27:43.5701470Z [36;1m  echo "Skipped: this build does not have signing credentials."[0m
+2026-10-10T12:27:43.6056530Z Skipped: this build does not have signing credentials.
+2026-10-10T12:27:44.4199360Z Verified Moxie-0.16.249-x64.dmg (158532242 bytes).
+2026-10-10T12:27:48.1111420Z hdiutil: verify: checksum of "release/Moxie-0.16.249-x64.dmg" is VALID
