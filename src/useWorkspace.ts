@@ -393,10 +393,13 @@ export function useWorkspace(
       const latest = docsRef.current.find((d) => d.id === id);
       if (
         !latest ||
+        saving.current ||
+        latest.path !== snapshot.path ||
+        latest.diskText !== snapshot.diskText ||
         latest.text !== snapshot.text ||
         latest.diskVersion !== snapshot.diskVersion
       ) {
-        notifyRef.current("读取期间发生了编辑，请重新确认载入磁盘版本。");
+        notifyRef.current("读取期间文档状态已变化，请重新确认载入磁盘版本。");
         return false;
       }
       updateDocuments((list) =>
@@ -514,6 +517,7 @@ export function useWorkspace(
       if (saving.current) return false;
       saving.current = true;
       setBusy(true);
+      let completionWarning = "";
       try {
         if (window.desktop) {
           const file = await window.desktop.save({
@@ -550,10 +554,12 @@ export function useWorkspace(
                 const latest = docsRef.current.find(
                   (d) => d.id === document.id,
                 );
-                if (latest && latest.text !== document.text) {
-                  notifyRef.current(
-                    "另存为已完成，保存期间发生了编辑，请检查图片路径后再次保存。",
-                  );
+                if (!latest || latest.path !== file.path) {
+                  completionWarning =
+                    "文档已另存为，但当前文档已关闭或路径已变化，未继续写入图片链接，请检查目标文件。";
+                } else if (latest.text !== document.text) {
+                  completionWarning =
+                    "另存为已完成，保存期间发生了编辑，请检查图片路径后再次保存。";
                 } else {
                   const updated = await window.desktop.save({
                     path: file.path,
@@ -561,7 +567,13 @@ export function useWorkspace(
                     name: file.name,
                     expected: file.text,
                   });
-                  if (updated)
+                  if (
+                    updated &&
+                    docsRef.current.some(
+                      (item) =>
+                        item.id === document.id && item.path === file.path,
+                    )
+                  )
                     updateDocuments((list) =>
                       list.map((d) =>
                         d.id === document.id
@@ -582,12 +594,15 @@ export function useWorkspace(
                           : d,
                       ),
                     );
+                  else
+                    completionWarning = updated
+                      ? "图片链接已写入目标文件，但当前文档已关闭或路径已变化，请检查目标文件。"
+                      : "文档已另存为，但图片链接更新已取消，请检查目标文件中的图片路径。";
                 }
               }
             } catch {
-              notifyRef.current(
-                "文档已另存为，但部分图片未能复制，请检查图片路径。",
-              );
+              completionWarning =
+                "文档已另存为，但图片迁移或链接更新未完成，请检查目标文件中的图片路径。";
             }
           }
           void refreshRecent();
@@ -616,7 +631,17 @@ export function useWorkspace(
           delete next[document.id];
           return next;
         });
-        if (!automatic) notifyRef.current("文档已保存");
+        if (!automatic) {
+          const latest = docsRef.current.find(
+            (item) => item.id === document.id,
+          );
+          notifyRef.current(
+            completionWarning ||
+              (latest?.dirty
+                ? "当前版本已保存，仍有新编辑未保存。"
+                : "文档已保存"),
+          );
+        }
         return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
