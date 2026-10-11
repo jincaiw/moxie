@@ -1,0 +1,19 @@
+
+> moxie-editor@0.16.249 benchmark:long-doc
+> MOXIE_PERF=1 playwright test tests/performance.spec.ts --workers=1
+
+[WebServer] (node:37494) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:37496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+MOXIE_PERF {"sizeMB":1,"payloadBytes":1048576,"openMs":454,"scroll20Ms":402,"endOfDocumentInputMs":35}
+  ✓  1 tests/performance.spec.ts:10:3 › 1 MB 文档打开、输入与滚动基准 (1.4s)
+MOXIE_PERF {"sizeMB":5,"payloadBytes":5242880,"openMs":1444,"scroll20Ms":320,"endOfDocumentInputMs":65}
+  ✓  2 tests/performance.spec.ts:10:3 › 5 MB 文档打开、输入与滚动基准 (2.8s)
+MOXIE_PERF {"sizeMB":10,"payloadBytes":10485760,"openMs":2662,"scroll20Ms":871,"endOfDocumentInputMs":94}
+  ✓  3 tests/performance.spec.ts:10:3 › 10 MB 文档打开、输入与滚动基准 (5.1s)
+
+  3 passed (10.4s)

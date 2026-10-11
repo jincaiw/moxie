@@ -1,0 +1,132 @@
+Window: "墨写 · Markdown 编辑器", App: 墨写本机对照.
+0 standard window 墨写 · Markdown 编辑器, Secondary Actions: Raise
+	1 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 文件
+				7 button 搜索项目文件夹
+					8 image
+			9 container 文档列表
+				10 container 文件
+					11 container 文件夹浏览
+						12 container /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ
+							13 image
+							14 text moxie-readonly-native-jvkAXZ
+						15 text 文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home 和 End 跳到列表首尾。Shift+F10 打开文件操作，上下方向键循环切换操作，Home/End 跳到首尾，Tab 切换操作，Enter 执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
+						16 content list 文件列表
+							17 container
+								18 button Description: 打开 quit-recovery-evidence.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ/quit-recovery-evidence.md
+									19 image
+									20 text quit-recovery-evidence.md
+								21 button 文件操作：quit-recovery-evidence.md
+									22 image
+							23 container
+								24 button Description: 打开 readonly-copy.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ/readonly-copy.md
+									25 image
+									26 text readonly-copy.md
+								27 button 文件操作：readonly-copy.md
+									28 image
+							29 container
+								30 button Description: 打开 readonly.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ/readonly.md
+									31 image
+									32 text readonly.md
+								33 button 文件操作：readonly.md
+									34 image
+			35 container
+				36 button 新建文件
+					37 image
+				38 button Description: 文件夹菜单, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ
+					39 text moxie-readonly-native-jvkAXZ
+					40 image
+				41 button 切换到文件列表
+					42 image
+			43 splitter Description: 调整侧栏宽度, Value: 260
+			44 container
+				45 button 切换侧栏
+					46 image
+				47 text 未命名.md
+				48 container 文档未保存
+				49 button 即时排版
+				50 button 源码
+					51 image
+					52 text 源码
+				53 pop up button 格式
+					54 image
+				55 button 插入图片
+					56 image
+				57 button 设置图片尺寸
+					58 image
+				59 button 查找与替换
+					60 image
+				61 button 跨文档搜索
+					62 image
+				63 button 快速打开
+					64 image
+				65 pop up button 导出
+					66 image
+					67 text 导出
+					68 image
+				69 button 专注模式
+					70 image
+				71 button 切换深色主题
+					72 image
+				73 button 偏好设置
+					74 image
+			75 container 文档分组
+				76 button 全部 4
+					77 text 全部
+					78 text 4
+				79 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			80 tab group 打开的文档
+				81 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				82 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					83 (selected) 未分组
+				84 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					85 image
+				86 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				87 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					88 (selected) 未分组
+				89 button Description: 关闭 写作指南.md, Help: 关闭文档
+					90 image
+				91 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				92 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
+					93 (selected) 未分组
+				94 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
+					95 image
+				96 tab (selected) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+					97 container 未保存
+					98 text 未命名.md
+				99 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					100 (selected) 未分组
+				101 button Description: 关闭 未命名.md, Help: 关闭文档
+					102 image
+			103 container 未保存 未命名.md
+				104 container
+					105 text entry area (settable) Description: Markdown 编辑区, Value:  新文档
+第六轮退出恢复诊断样本
+
+						106 text  新文档
+						107 text 第六轮退出恢复诊断样本
+			108 container
+				109 button 未保存 · 点击保存
+					110 image
+					111 text 未保存 · 点击保存
+				112 text 恢复副本已更新 Markdown UTF-8 行  2 , 列  12
+				113 button 字数统计
+					114 text 14
+					115 text  字符
+	116 close button
+	117 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	118 minimize button
+119 menu bar
+	120 墨写本机对照
+	121 文件
+	122 编辑
+	123 格式
+	124 视图
+	125 窗口
+
+The focused UI element is 105 text entry area (settable) Description: Markdown 编辑区, Value:  新文档
+第六轮退出恢复诊断样本

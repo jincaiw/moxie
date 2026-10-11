@@ -109,3 +109,65 @@ test("恢复写入期间外部文档变化时不确认关闭，保留最新编�
   await expect(page.locator(".app")).not.toHaveAttribute("inert");
   await expect(page.locator(".cm-content")).toContainText("外部新增内容");
 });
+
+test("焦点触发的只读目录刷新不阻止保留恢复副本退出", async ({ page }) => {
+  await page.evaluate(() => {
+    const state = window as any;
+    state.desktop.folder = async () => ({
+      path: "/notes",
+      name: "notes",
+      entries: [],
+      truncated: false,
+    });
+    state.desktop.refreshFolder = () =>
+      new Promise((resolve) => {
+        state.finishReadOnlyRefresh = resolve;
+      });
+  });
+  await page.getByRole("button", { name: "文件夹菜单" }).click();
+  await page.getByRole("button", { name: "打开文件夹", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => typeof (window as any).finishReadOnlyRefresh),
+    )
+    .toBe("function");
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("focus"));
+    (window as any).nativeAction("keep-close", 45);
+  });
+  await expect
+    .poll(() => page.evaluate(() => (window as any).closeResults))
+    .toEqual([["ready", 45]]);
+  expect(
+    await page.evaluate(() => localStorage.getItem("moxie.recovery.v1")),
+  ).toContain("尚未保存");
+});
+
+test("真实保存仍在进行时拒绝关闭并恢复编辑", async ({ page }) => {
+  await page.evaluate(() => {
+    const state = window as any;
+    state.desktop.save = (input: any) =>
+      new Promise((resolve) => {
+        state.finishPendingSave = () =>
+          resolve({
+            path: "/notes/退出测试.md",
+            name: "退出测试.md",
+            text: input.text,
+            version: "v2",
+          });
+      });
+    state.nativeAction("save");
+  });
+  await expect
+    .poll(() => page.evaluate(() => typeof (window as any).finishPendingSave))
+    .toBe("function");
+  await page.evaluate(() => (window as any).nativeAction("keep-close", 46));
+  await expect
+    .poll(() => page.evaluate(() => (window as any).closeResults))
+    .toEqual([["cancel", 46]]);
+  await expect(page.locator(".app")).not.toHaveAttribute("inert");
+  await page.evaluate(() => (window as any).finishPendingSave());
+  await expect(
+    page.getByRole("button", { name: "已保存", exact: true }),
+  ).toBeVisible();
+});

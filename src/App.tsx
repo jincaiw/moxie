@@ -1980,7 +1980,11 @@ export default function App() {
         let ready = false;
         try {
           editor.current?.flush();
-          if (workspace.saving.current || folderBusy || busy) {
+          if (
+            workspace.saving.current ||
+            fileOperationInFlight.current ||
+            dropInFlight.current
+          ) {
             setMessage("正在执行文件操作，请完成后再关闭。");
             return;
           }

@@ -1,0 +1,39 @@
+[WebServer] (node:34934) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:34936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/closing.spec.ts:33:1 › 取消另存为会通知主进程并恢复交互，恢复副本成功后冻结直到退出取消 (840ms)
+  ✓  2 tests/closing.spec.ts:63:1 › 恢复副本两种存储都失败时禁止关闭并恢复编辑 (212ms)
+  ✓  3 tests/closing.spec.ts:83:1 › 恢复写入期间外部文档变化时不确认关闭，保留最新编辑 (385ms)
+  ✘  4 tests/closing.spec.ts:113:1 › 焦点触发的只读目录刷新不阻止保留恢复副本退出 (30.0s)
+(node:35109) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 tests/closing.spec.ts:146:1 › 真实保存仍在进行时拒绝关闭并恢复编辑 (400ms)
+
+
+  1) tests/closing.spec.ts:113:1 › 焦点触发的只读目录刷新不阻止保留恢复副本退出 ──────────────────────────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '打开文件夹…', exact: true })
+
+
+      126 |   });
+      127 |   await page.getByRole("button", { name: "文件夹菜单" }).click();
+    > 128 |   await page.getByRole("button", { name: "打开文件夹…", exact: true }).click();
+          |                                                                   ^
+      129 |   await expect
+      130 |     .poll(() =>
+      131 |       page.evaluate(() => typeof (window as any).finishReadOnlyRefresh),
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/closing.spec.ts:128:67
+
+    Error Context: test-results/closing-焦点触发的只读目录刷新不阻止保留恢复副本退出/error-context.md
+
+  1 failed
+    tests/closing.spec.ts:113:1 › 焦点触发的只读目录刷新不阻止保留恢复副本退出 ───────────────────────────────────────────
+  4 passed (33.4s)

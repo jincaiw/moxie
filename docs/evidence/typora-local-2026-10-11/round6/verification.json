@@ -1,0 +1,18 @@
+{
+  "baseCommit": "cc1e1ec",
+  "appSourceSHA256": "d6e42d2f378d950cb13806a7ab3d4343a1546acdc5f5e5e148a15df0d9dc3535",
+  "asarSHA256": "e27bf08a51c0b1b42d5caa4b32600bfeb9de305ed5ef7ac0d7276d3db081ea51",
+  "distFiles": 242,
+  "distMatchesBundle": true,
+  "qaMetadata": true,
+  "fixtureSHA256": "d51c479830f5832455a540d22b8aa57aacf61762ebdf29d2b8cf3debd7fbf4b0",
+  "uiPassed": 239,
+  "performanceSkipped": 3,
+  "workers": 2,
+  "retries": 0,
+  "desktopPassed": 55,
+  "nativeQuitCycles": 2,
+  "nativeCancelThenEdit": true,
+  "observedBeforeError": "正在执行文件操作，请完成后再关闭。",
+  "beforeErrorSource": "首次原生点击保留恢复副本并关闭后的 CUA AX 返回；后续截图提示已消失"
+}
