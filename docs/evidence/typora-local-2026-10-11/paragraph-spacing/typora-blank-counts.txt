@@ -1,0 +1,46 @@
+The following is a diff from the previous accessibility tree for Window: "blank-counts.md" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 178-317
+~163 标准窗口 blank-counts.md, URL: file:///private/tmp/moxie-paragraph-layout/blank-counts.md, Secondary Actions: Raise
+~	164 滚动区
+~		165 HTML内容 Description: Typora, URL: file:///Applications/Typora.app/Contents/Resources/TypeMark/index.html
+~			166 文本输入区 (settable) Placeholder: Start writing..., Secondary Actions: 显示写作工具, Value: **空行数量**
+起始段。
+
+1 个空行后的段落。
+
+2 个空行后的段落。
+
+3 个空行后的段落。
+
+4 个空行后的段落。
+
+5 个空行后的段落。
+~				167 文本输入区 (settable) Value: **空行数量**, Secondary Actions: 显示写作工具
+~				168 文本输入区 (settable) Value: 起始段。, Secondary Actions: 显示写作工具
+~				169 文本输入区 (settable) Value: 1 个空行后的段落。, Secondary Actions: 显示写作工具
+~				170 文本输入区 (settable) Value: 2 个空行后的段落。, Secondary Actions: 显示写作工具
+~				171 文本输入区 (settable) Secondary Actions: 显示写作工具
+~				172 文本输入区 (settable) Value: 3 个空行后的段落。, Secondary Actions: 显示写作工具
+~				173 文本输入区 (settable) Secondary Actions: 显示写作工具
+~				174 文本输入区 (settable) Value: 4 个空行后的段落。, Secondary Actions: 显示写作工具
+~				175 文本输入区 (settable) Secondary Actions: 显示写作工具
+~				176 文本输入区 (settable) Secondary Actions: 显示写作工具
+~				177 文本输入区 (settable) Value: 5 个空行后的段落。, Secondary Actions: 显示写作工具
++	178 关闭按钮
++	179 全屏幕按钮 Help: 此按钮也可以执行缩放窗口的操作, Secondary Actions: 缩放窗口
++	180 最小化按钮
++	181 菜单按钮 (disabled) 文稿操作
++	182 图像 blank-counts.md
++	183 文本 blank-counts.md
+The focused UI element is 166 文本输入区 (settable) Placeholder: Start writing..., Secondary Actions: 显示写作工具, Value: **空行数量**
+起始段。
+
+1 个空行后的段落。
+
+2 个空行后的段落。
+
+3 个空行后的段落。
+
+4 个空行后的段落。
+
+5 个空行后的段落。

@@ -1,0 +1,40 @@
+Window: "blank-counts.md — /private/tmp/moxie-paragraph-layout — 墨写", App: 墨写本机对照.
+1 窗口, Secondary Actions: Cancel, Pick
+	2 menu Secondary Actions: Cancel
+		3 新建窗口, ID: itemSelected:
+		4 Minimize, ID: performMiniaturize:
+		5 Minimize All, ID: miniaturizeAll:
+		6 Zoom, ID: performZoom:
+		7 Zoom All, ID: zoomAll:
+		8 Fill
+		9 Center
+		10 Move & Resize
+			11 menu Secondary Actions: Cancel
+				12 (disabled) Halves
+				13 Left
+				14 Right
+				15 Top
+				16 Bottom
+				17 (disabled) Quarters
+				18 Top Left
+				19 Top Right
+				20 Bottom Left
+				21 Bottom Right
+				22 (disabled) Arrange
+				23 Left & Right
+				24 Left & Quarters
+				25 Right & Left
+				26 Right & Quarters
+				27 Top & Bottom
+				28 Top & Quarters
+				29 Bottom & Top
+				30 Bottom & Quarters
+				31 Quarters
+				32 (disabled) Return to Previous Size
+		33 Full Screen Tile
+			34 menu Secondary Actions: Cancel
+				35 Left of Screen
+				36 Right of Screen
+		37 (disabled) Remove Window from Set
+		38 欢迎使用.md — 墨写, ID: makeKeyAndOrderFront:
+		39 blank-counts.md — /private/tmp/moxie-paragraph-layout — 墨写, ID: makeKeyAndOrderFront:

@@ -724,6 +724,26 @@ function build(
   const theme = state.facet(previewTheme) === "dark" ? "dark" : "default";
   const ranges: { from: number; to: number; deco: Decoration }[] = [];
   const codeRanges: { from: number; to: number }[] = [];
+  const paragraphGap = (from: number, to: number) => {
+    const root = syntaxTree(state).topNode;
+    const previous = root.childBefore(from);
+    const next = root.childAfter(to);
+    if (
+      previous?.name !== "Paragraph" ||
+      next?.name !== "Paragraph" ||
+      [previous.from, next.from].some((position) =>
+        /^(?:\$\$|\\\[|<)/.test(state.doc.sliceString(position, position + 2)),
+      )
+    )
+      return null;
+    const count =
+      state.doc.lineAt(next.from).number -
+      state.doc.lineAt(previous.to).number -
+      1;
+    return count > 0
+      ? { count, emptyParagraphs: Math.floor((count - 1) / 2) }
+      : null;
+  };
   const active = (from: number, to: number) =>
     state.selection.ranges.some((r) => r.from <= to && r.to >= from);
   const activeLine = (from: number, to: number) =>
@@ -1364,8 +1384,22 @@ function build(
     ).number;
     for (; lineNo <= lastLine; lineNo++) {
       const line = state.doc.line(lineNo);
-      if (!line.text)
-        add(line.from, line.from, Decoration.line({ class: "md-empty" }));
+      const gap = /^\s*$/.test(line.text)
+        ? paragraphGap(line.from, line.to)
+        : null;
+      if (!line.text || gap)
+        add(
+          line.from,
+          line.from,
+          Decoration.line({
+            class: gap ? "md-empty md-paragraph-gap" : "md-empty",
+            attributes: gap
+              ? {
+                  style: `--md-blank-count:${gap.count};--md-empty-paragraphs:${gap.emptyParagraphs}`,
+                }
+              : undefined,
+          }),
+        );
     }
     const from = visible.from;
     const to = visible.to;

@@ -1,0 +1,12 @@
+The following is a diff from the previous accessibility tree for Window: "paragraphs.md — /private/tmp/moxie-paragraph-layout — 墨写" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~				134 text 恢复副本已更新 Markdown UTF-8 行  10 , 列  6
+The focused UI element is 121 text entry area (settable) Description: Markdown 编辑区, Value:  段落间距对照
+第一段第一行。
+第一段第二行。
+第二段：单个空行分隔。
+
+
+第三段：三个空行分隔。
+ 下一级标题
+标题后的段落。
+结尾段落。

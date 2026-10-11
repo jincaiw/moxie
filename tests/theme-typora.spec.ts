@@ -199,3 +199,101 @@ test("Typora 引用与表格样式作用于正文，保留列对齐和表格工�
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(page.locator(".md-quote")).toHaveCount(0);
 });
+
+test("主题段落间距按连续空行成对保留，媒体级联和点击定位不改变原文", async ({
+  page,
+}) => {
+  let source = "起始段。";
+  for (let count = 1; count <= 5; count++)
+    source += "\n".repeat(count + 1) + `${count} 个空行后的段落。`;
+  source += "\n";
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "paragraphs.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(
+      "#write{font-size:20px;line-height:1.5} p{margin:10px 0 16px} @media(max-width:1000px){#write p{margin:4px 0 6px}}",
+    );
+    document.head.append(style);
+  });
+  const measure = () =>
+    page.locator(".cm-line").evaluateAll((lines) => {
+      const paragraphs = lines.filter((line) => line.textContent?.trim());
+      return paragraphs
+        .slice(1)
+        .map(
+          (line, index) =>
+            Math.round(
+              (line.getBoundingClientRect().top -
+                paragraphs[index].getBoundingClientRect().bottom) *
+                10,
+            ) / 10,
+        );
+    });
+  await expect.poll(measure).toEqual([16, 16, 62, 62, 108]);
+  await page
+    .locator(".cm-line")
+    .filter({ hasText: "3 个空行后的段落" })
+    .click();
+  await expect(page.locator(".cm-activeLine")).toContainText(
+    "3 个空行后的段落",
+  );
+  await page.keyboard.press("ArrowUp");
+  await expect(page.locator(".cm-activeLine")).toHaveClass(/md-paragraph-gap/);
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator(".cm-activeLine")).toContainText(
+    "3 个空行后的段落",
+  );
+  await page.setViewportSize({ width: 900, height: 1000 });
+  await expect.poll(measure).toEqual([6, 6, 42, 42, 78]);
+  await page.screenshot({
+    path: "/tmp/moxie-paragraph-evidence/browser-narrow.png",
+  });
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  expect(
+    await page
+      .locator(".cm-line")
+      .evaluateAll((lines) => lines.map((line) => line.textContent).join("\n")),
+  ).toBe(source);
+  await page.getByRole("button", { name: "即时排版", exact: true }).click();
+  await expect.poll(measure).toEqual([6, 6, 42, 42, 78]);
+  expect(errors).toEqual([]);
+});
+
+test("段落主题留白不作用于标题、列表、引用、公式和代码的空行", async ({
+  page,
+}) => {
+  const source =
+    "# 标题\n\n普通段落\n\n- 列表\n\n  列表续段\n\n> 引用\n>\n> 引用续段\n\n$$\nx^2\n$$\n\n后续段落\n\n```text\na\n\nb\n```\n\n结尾";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "blocks.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(
+      "#write{font-size:16px;line-height:1.6} p{margin:.8em 0}",
+    );
+    document.head.append(style);
+  });
+  await expect(page.locator(".md-paragraph-gap")).toHaveCount(0);
+  await expect(page.locator(".md-code-preview")).toBeVisible();
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  expect(
+    await page
+      .locator(".cm-line")
+      .evaluateAll((lines) => lines.map((line) => line.textContent).join("\n")),
+  ).toBe(source);
+});

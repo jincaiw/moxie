@@ -113,6 +113,23 @@ export function typoraEditorCSS(css: string): string {
                 .join("");
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}${bottomBorder}border-bottom-color:transparent !important;}`;
             }
+            if (/^(?:#write\s*>?\s*)?p$/.test(selector)) {
+              const spacing = ["top", "bottom"]
+                .map((side) => {
+                  const name = `margin-${side}`;
+                  const value = rule.style.getPropertyValue(name);
+                  return value && value !== "auto"
+                    ? `--md-paragraph-${name}:${value}${rule.style.getPropertyPriority(name) ? " !important" : ""};`
+                    : "";
+                })
+                .join("");
+              if (!spacing) return "";
+              const gap =
+                "max(0px,var(--md-paragraph-margin-top,0px),var(--md-paragraph-margin-bottom,0px))";
+              // Share the measured gap across source blank lines, keeping each
+              // one selectable without introducing unmeasured outside margins.
+              return `${host} .cm-content{${spacing}}${host} .cm-content .md-paragraph-gap{font-size:inherit;line-height:inherit;min-height:0;height:calc((${gap} + var(--md-empty-paragraphs)*(1lh + ${gap}))/var(--md-blank-count));}`;
+            }
             const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
             if (list) {
               const inset = rule.style.getPropertyValue("padding-left");

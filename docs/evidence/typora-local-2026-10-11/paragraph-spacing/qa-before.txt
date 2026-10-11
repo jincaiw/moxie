@@ -1,0 +1,154 @@
+The following is a diff from the previous accessibility tree for Window: "paragraphs.md — /private/tmp/moxie-paragraph-layout — 墨写" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 183, 186-341
+~178 standard window paragraphs.md — /private/tmp/moxie-paragraph-layout — 墨写, Secondary Actions: Raise
+~	179 HTML content paragraphs.md — /private/tmp/moxie-paragraph-layout — 墨写, URL: file:///private/tmp/moxie-path-title-qa/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+~		180 container
+~			181 container
+~				182 button 切换侧栏导航模式
++					183 image
+~				184 text 大纲
+~				185 button 搜索大纲标题
++					186 image
++			187 container 文档大纲
++				188 container 大纲
++					189 button Description: 折叠 段落间距对照, Help: 折叠子标题
++					190 button 段落间距对照
++					191 button 下一级标题
++			192 container
++				193 button 新建文件
++					194 image
++				195 button Description: 文件夹菜单, Help: /private/tmp
++					196 text tmp
++					197 image
++				198 button 大纲显示选项
++					199 image
++			200 splitter Description: 调整侧栏宽度, Value: 260
++			201 container
++				202 button 切换侧栏
++					203 image
++				204 text paragraphs.md
++				205 button 即时排版
++				206 button 源码
++					207 image
++					208 text 源码
++				209 pop up button 格式
++					210 image
++				211 button 插入图片
++					212 image
++				213 button 设置图片尺寸
++					214 image
++				215 button 查找与替换
++					216 image
++				217 button 跨文档搜索
++					218 image
++				219 button 快速打开
++					220 image
++				221 pop up button 导出
++					222 image
++					223 text 导出
++					224 image
++				225 button 专注模式
++					226 image
++				227 button 切换深色主题
++					228 image
++				229 button 偏好设置
++					230 image
++			231 container 文档分组
++				232 button 全部 11
++					233 text 全部
++					234 text 11
++				235 button Description: 新建标签分组, Help: 将当前文档加入新分组
++			236 tab group 打开的文档
++				237 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				238 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
++					239 (selected) 未分组
++				240 button Description: 关闭 欢迎使用.md, Help: 关闭文档
++					241 image
++				242 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				243 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
++					244 (selected) 未分组
++				245 button Description: 关闭 写作指南.md, Help: 关闭文档
++					246 image
++				247 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				248 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
++					249 (selected) 未分组
++				250 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
++					251 image
++				252 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				253 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
++					254 (selected) 未分组
++				255 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
++					256 image
++				257 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++					258 container 未保存
++					259 text 未命名.md
++				260 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
++					261 (selected) 未分组
++				262 button Description: 关闭 未命名.md, Help: 关闭文档
++					263 image
++				264 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				265 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
++					266 (selected) 未分组
++				267 button Description: 关闭 recovered-copy.md, Help: 关闭文档
++					268 image
++				269 tab (settable, integer) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				270 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
++					271 (selected) 未分组
++				272 button Description: 关闭 image-copy.md, Help: 关闭文档
++					273 image
++				274 tab (settable, integer) moxie-theme-blocks.md, Help: moxie-theme-blocks.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				275 pop up button Description: moxie-theme-blocks.md所属分组, Help: 所属分组, Value: 未分组
++					276 (selected) 未分组
++				277 button Description: 关闭 moxie-theme-blocks.md, Help: 关闭文档
++					278 image
++				279 tab (settable, integer) parity.md, Help: parity.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				280 pop up button Description: parity.md所属分组, Help: 所属分组, Value: 未分组
++					281 (selected) 未分组
++				282 button Description: 关闭 parity.md, Help: 关闭文档
++					283 image
++				284 tab (settable, integer) native.md, Help: native.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				285 pop up button Description: native.md所属分组, Help: 所属分组, Value: 未分组
++					286 (selected) 未分组
++				287 button Description: 关闭 native.md, Help: 关闭文档
++					288 image
++				289 tab (selected) paragraphs.md, Help: paragraphs.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
++				290 pop up button Description: paragraphs.md所属分组, Help: 所属分组, Value: 未分组
++					291 (selected) 未分组
++				292 button Description: 关闭 paragraphs.md, Help: 关闭文档
++					293 image
++			294 text 已恢复上次会话的未保存文档。请保存到文件。
++			295 button 关闭恢复提示
++				296 image
++			297 container paragraphs.md
++				298 container
++					299 text entry area (settable) Description: Markdown 编辑区, Value:  段落间距对照
+第一段第一行。
+第一段第二行。
+第二段：单个空行分隔。
+
+
+第三段：三个空行分隔。
+ 下一级标题
+标题后的段落。
+结尾段落。
+
++						300 text  段落间距对照
++						301 text 第一段第一行。
++						302 text 第一段第二行。
++						303 text 第二段：单个空行分隔。
++						304 text 第三段：三个空行分隔。
++						305 text  下一级标题
++						306 text 标题后的段落。
++						307 text 结尾段落。
++			308 container
++				309 button 已保存
++					310 image
++					311 text 已保存
++				312 text 恢复副本已更新 Markdown UTF-8 行  17 , 列  1
++				313 button 字数统计
++					314 text 59
++					315 text  字符
++	316 close button
++	317 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
++	318 minimize button
+The focused UI element is 179 HTML content paragraphs.md — /private/tmp/moxie-paragraph-layout — 墨写, URL: file:///private/tmp/moxie-path-title-qa/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
