@@ -7,7 +7,7 @@ test("首屏、表格、大纲、模式切换和主题无运行错误", async ({
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(page).toHaveTitle("墨写 · Markdown 编辑器");
+  await expect(page).toHaveTitle("欢迎使用.md — 墨写");
   await expect(page.locator(".md-h1")).toContainText("欢迎使用墨写");
   await expect(page.locator(".render-block table")).toBeVisible();
   await selectSidebarMode(page, "大纲");
@@ -125,4 +125,42 @@ test("表格点击后可编辑原文，回到其他段落后恢复排版", async
   await selectSidebarMode(page, "大纲");
   await page.getByRole("button", { name: "从这里开始", exact: true }).click();
   await expect(page.locator(".render-block table")).toBeVisible();
+});
+
+test("窗口标题随当前文件与未保存状态变化，独立窗口互不覆盖", async ({
+  page,
+  context,
+}) => {
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles({
+      name: "第一份<&>.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# 第一份\n\n正文"),
+    });
+  await expect(page).toHaveTitle("第一份<&>.md — 墨写");
+  const other = await context.newPage();
+  await other.goto("/");
+  await other
+    .locator(".md-input")
+    .setInputFiles({
+      name: "第二份.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# 第二份\n\n正文"),
+    });
+  await expect(other).toHaveTitle("第二份.md — 墨写");
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
+  await editor.press(documentEnd);
+  await editor.press("Enter");
+  await editor.pressSequentially("edited");
+  await expect(page).toHaveTitle("未保存 · 第一份<&>.md — 墨写");
+  await expect(other).toHaveTitle("第二份.md — 墨写");
+  await editor.press(shortcut("z"));
+  await editor.press(shortcut("z"));
+  await expect(page).toHaveTitle("第一份<&>.md — 墨写");
+  await page.getByRole("tab", { name: "欢迎使用.md", exact: true }).click();
+  await expect(page).toHaveTitle("欢迎使用.md — 墨写");
+  await expect(other).toHaveTitle("第二份.md — 墨写");
 });

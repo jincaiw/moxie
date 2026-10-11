@@ -1095,6 +1095,7 @@ function build(
                   state.doc.sliceString(node.from, node.to).includes("X"),
                 node.from,
                 line.text.slice(node.to - line.from).trim(),
+                state.readOnly,
               ),
             }),
           );
@@ -1708,6 +1709,7 @@ const livePreviewField = StateField.define<LivePreviewState>({
     }
     const shouldRebuild =
       transaction.docChanged ||
+      transaction.startState.readOnly !== transaction.state.readOnly ||
       rangesChanged ||
       !transaction.startState.selection.eq(transaction.state.selection) ||
       transaction.startState.facet(documentPath) !==
@@ -1775,6 +1777,7 @@ class TaskWidget extends WidgetType {
     readonly checked: boolean,
     readonly from: number,
     readonly label: string,
+    readonly readOnly: boolean,
   ) {
     super();
   }
@@ -1782,7 +1785,8 @@ class TaskWidget extends WidgetType {
     return (
       this.checked === other.checked &&
       this.from === other.from &&
-      this.label === other.label
+      this.label === other.label &&
+      this.readOnly === other.readOnly
     );
   }
   toDOM(view: EditorView) {
@@ -1790,8 +1794,13 @@ class TaskWidget extends WidgetType {
     input.type = "checkbox";
     input.className = "task-checkbox";
     input.checked = this.checked;
+    input.disabled = this.readOnly;
     input.setAttribute("aria-label", "任务：" + this.label);
     input.addEventListener("change", () => {
+      if (view.state.readOnly) {
+        input.checked = this.checked;
+        return;
+      }
       view.dispatch({
         changes: {
           from: this.from + 1,

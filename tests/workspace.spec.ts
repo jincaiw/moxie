@@ -2553,3 +2553,36 @@ for (const saveFails of [false, true]) {
     }
   });
 }
+
+test("只读任务框保持禁用与原状态，恢复编辑后可勾选", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.desktop!.onAction = (callback) => {
+      (window as any).nativeAction = callback;
+      return () => {};
+    };
+  });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles({
+      name: "readonly-task.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("- [ ] 受保护任务\n\n结尾"),
+    });
+  const task = page.getByRole("checkbox", {
+    name: "任务：受保护任务",
+    exact: true,
+  });
+  await expect(task).toBeEnabled();
+  await page.evaluate(() => (window as any).nativeAction("read-only"));
+  await expect(task).toBeDisabled();
+  await expect(task).not.toBeChecked();
+  await expect(page).toHaveTitle("readonly-task.md — 墨写");
+  await page.getByRole("button", { name: "恢复编辑", exact: true }).click();
+  await expect(task).toBeEnabled();
+  await task.check();
+  await expect(task).toBeChecked();
+  await expect(page).toHaveTitle("未保存 · readonly-task.md — 墨写");
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".cm-content")).toContainText("- [x] 受保护任务");
+});

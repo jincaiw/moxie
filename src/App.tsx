@@ -241,6 +241,9 @@ export default function App() {
   } | null>(null);
   const [creatingLink, setCreatingLink] = useState(false);
   const { docs, current, busy, recent } = workspace;
+  useEffect(() => {
+    document.title = `${current.dirty ? "未保存 · " : ""}${current.name} — 墨写`;
+  }, [current.name, current.dirty]);
   const documentHeadings = useMemo(
     () =>
       headings(current.text).map((heading) => ({

@@ -1,0 +1,15 @@
+[WebServer] (node:91551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+
+(node:91556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:91557) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/editor.spec.ts:6:1 › 首屏、表格、大纲、模式切换和主题无运行错误 (1.7s)
+  ✓  1 tests/editor.spec.ts:130:1 › 窗口标题随当前文件与未保存状态变化，独立窗口互不覆盖 (2.1s)
+  ✓  3 tests/workspace.spec.ts:2368:1 › 原生只读模式保护两种编辑视图和格式命令，恢复后可继续输入 (833ms)
+  ✓  4 tests/workspace.spec.ts:2557:1 › 只读任务框保持禁用与原状态，恢复编辑后可勾选 (504ms)
+
+  4 passed (3.7s)

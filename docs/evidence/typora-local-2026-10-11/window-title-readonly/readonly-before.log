@@ -1,0 +1,37 @@
+
+Running 1 test using 1 worker
+
+(node:91232) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/workspace.spec.ts:2557:1 › 只读任务框保持禁用与原状态，恢复编辑后可勾选 (5.8s)
+
+
+  1) tests/workspace.spec.ts:2557:1 › 只读任务框保持禁用与原状态，恢复编辑后可勾选 ───────────────────────────────────────
+
+    Error: expect(locator).toBeDisabled() failed
+
+    Locator:  getByRole('checkbox', { name: '任务：受保护任务', exact: true })
+    Expected: disabled
+    Received: enabled
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeDisabled" getByRole('checkbox', { name: '任务：受保护任务', exact: true }) with timeout 5000ms
+      - waiting for getByRole('checkbox', { name: '任务：受保护任务', exact: true })
+        14 × locator resolved to <input type="checkbox" class="task-checkbox" aria-label="任务：受保护任务" contenteditable="false"/>
+           - unexpected value "enabled"
+
+
+      2576 |   await expect(task).toBeEnabled();
+      2577 |   await page.evaluate(() => (window as any).nativeAction("read-only"));
+    > 2578 |   await expect(task).toBeDisabled();
+           |                      ^
+      2579 |   await expect(task).not.toBeChecked();
+      2580 |   await expect(page).toHaveTitle("readonly-task.md — 墨写");
+      2581 |   await page.getByRole("button", { name: "恢复编辑", exact: true }).click();
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/workspace.spec.ts:2578:22
+
+    Error Context: test-results/workspace-只读任务框保持禁用与原状态，恢复编辑后可勾选/error-context.md
+
+  1 failed
+    tests/workspace.spec.ts:2557:1 › 只读任务框保持禁用与原状态，恢复编辑后可勾选 ────────────────────────────────────────

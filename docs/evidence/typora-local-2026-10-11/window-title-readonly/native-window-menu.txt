@@ -1,0 +1,40 @@
+Window: "native.md — 墨写", App: 墨写本机对照.
+0 窗口, Secondary Actions: Cancel, Pick
+	1 menu Secondary Actions: Cancel
+		2 新建窗口, ID: itemSelected:
+		3 Minimize, ID: performMiniaturize:
+		4 Minimize All, ID: miniaturizeAll:
+		5 Zoom, ID: performZoom:
+		6 Zoom All, ID: zoomAll:
+		7 Fill
+		8 Center
+		9 Move & Resize
+			10 menu Secondary Actions: Cancel
+				11 (disabled) Halves
+				12 Left
+				13 Right
+				14 Top
+				15 Bottom
+				16 (disabled) Quarters
+				17 Top Left
+				18 Top Right
+				19 Bottom Left
+				20 Bottom Right
+				21 (disabled) Arrange
+				22 Left & Right
+				23 Left & Quarters
+				24 Right & Left
+				25 Right & Quarters
+				26 Top & Bottom
+				27 Top & Quarters
+				28 Bottom & Top
+				29 Bottom & Quarters
+				30 Quarters
+				31 (disabled) Return to Previous Size
+		32 Full Screen Tile
+			33 menu Secondary Actions: Cancel
+				34 Left of Screen
+				35 Right of Screen
+		36 (disabled) Remove Window from Set
+		37 欢迎使用.md — 墨写, ID: makeKeyAndOrderFront:
+		38 native.md — 墨写, ID: makeKeyAndOrderFront:
