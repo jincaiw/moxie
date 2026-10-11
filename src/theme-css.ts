@@ -24,7 +24,7 @@ export function themeCSSError(css: string): string | null {
 }
 
 // Typora themes describe a #write document; CodeMirror renders headings as
-// decorated lines. Adapt only the shared typography and document box rules.
+// decorated lines. Adapt shared typography and real table elements narrowly.
 // Keep the original CSS for local theme editing and export.
 export function typoraEditorCSS(css: string): string {
   if (!/#write\b/.test(css) || themeCSSError(css)) return "";
@@ -47,15 +47,18 @@ export function typoraEditorCSS(css: string): string {
   const box =
     /^(?:max-width|min-width|width|margin(?:-(?:top|right|bottom|left))?|padding(?:-(?:top|right|bottom|left))?|box-sizing)$/;
   const heading = /^(?:margin|padding|border)(?:-[a-z-]+)?$/;
+  const surface =
+    /^(?:background(?:-color)?|border(?:-[a-z-]+)?|padding(?:-[a-z-]+)?|word-break|border-collapse)$/;
   const declarations = (
     style: CSSStyleDeclaration,
     accept: (name: string) => boolean,
+    forcePriority: (name: string) => boolean = () => false,
   ) =>
     Array.from(style)
       .filter(accept)
       .map(
         (name) =>
-          `${name}:${style.getPropertyValue(name)}${style.getPropertyPriority(name) ? " !important" : ""};`,
+          `${name}:${style.getPropertyValue(name)}${style.getPropertyPriority(name) || forcePriority(name) ? " !important" : ""};`,
       )
       .join("");
   const walk = (rules: CSSRuleList): string =>
@@ -79,6 +82,21 @@ export function typoraEditorCSS(css: string): string {
             const match = /^(?:#write\s*>?\s*)?h([1-6])$/.exec(selector);
             if (match)
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || heading.test(name))}}`;
+            // A quote is a sequence of decorated lines, not a block element.
+            // Do not repeat block margins on every line or flatten nested quotes.
+            if (/^(?:#write\s*>?\s*)?blockquote$/.test(selector))
+              return `${host} .cm-content .md-quote{${declarations(
+                rule.style,
+                (name) => typography.test(name) || surface.test(name),
+                (name) => /^padding(?:-|$)/.test(name),
+              )}}`;
+            const tableSelector = selector.replace(/^#write\s*>?\s*/, "");
+            if (
+              /^(?:table(?:\s+|\s*>\s*))?(?:table|thead|tbody|tr|th|td)(?::(?:first-child|last-child|nth-child\(2n\)))?$/.test(
+                tableSelector,
+              )
+            )
+              return `${host} .cm-content .render-block ${tableSelector}{${declarations(rule.style, (name) => typography.test(name) || surface.test(name) || /^(?:margin(?:-[a-z]+)?|width|max-width)$/.test(name))}}`;
             return "";
           })
           .join("");

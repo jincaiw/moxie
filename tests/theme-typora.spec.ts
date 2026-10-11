@@ -65,3 +65,71 @@ test("只有真实 write 选择器启用映射，正文容器字体可覆盖 htm
   await expect(page.locator(".cm-editor")).toHaveCSS("font-size", "17px");
   await expect(page.locator(".cm-content")).toHaveCSS("font-family", "Georgia");
 });
+
+test("Typora 引用与表格样式作用于正文，保留列对齐和表格工具", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify([
+        {
+          id: "blocks",
+          name: "blocks.md",
+          dirty: false,
+          text: "# 标题\n\n> 引用第一行\n> 引用第二行\n\n| 左列 | 右列 |\n| :--- | ---: |\n| 一 | 二 |\n| 三 | 四 |\n\n正文",
+        },
+      ]),
+    );
+  });
+  await page.goto("/");
+  await expect(page.locator(".editable-table table")).toBeVisible();
+  const toolFont = await page
+    .locator(".table-tools button")
+    .first()
+    .evaluate((el) => getComputedStyle(el).fontSize);
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(`#write{max-width:860px}
+      blockquote{border-left:4px solid #dfe2e5;padding:0 15px;color:#777777;margin:0.8em 0}
+      table{font-size:16px} table th{font-weight:bold;padding:6px 13px;border:1px solid #dfe2e5}
+      table td{padding:6px 13px;border:1px solid #dfe2e5}
+      table tr:nth-child(2n){background-color:#f8f8f8}
+      #write table td:last-child{color:rgb(120,20,40)}
+      table button{font-size:99px} .toolbar{font-size:99px}`);
+    document.head.append(style);
+  });
+  const quote = page.locator(".md-quote").first();
+  await expect(quote).toHaveCSS("padding-left", "15px");
+  await expect(quote).toHaveCSS("color", "rgb(119, 119, 119)");
+  await expect(quote).toHaveCSS("border-left-color", "rgb(223, 226, 229)");
+  await expect(quote).toHaveCSS("margin-top", "0px");
+  await expect(page.locator(".editable-table th").first()).toHaveCSS(
+    "font-weight",
+    "700",
+  );
+  await expect(page.locator(".editable-table td").first()).toHaveCSS(
+    "padding-left",
+    "13px",
+  );
+  await expect(page.locator(".editable-table tbody tr").nth(1)).toHaveCSS(
+    "background-color",
+    "rgb(248, 248, 248)",
+  );
+  await expect(page.locator(".editable-table td").nth(1)).toHaveCSS(
+    "text-align",
+    "right",
+  );
+  await expect(page.locator(".editable-table td").nth(1)).toHaveCSS(
+    "color",
+    "rgb(120, 20, 40)",
+  );
+  await expect(page.locator(".table-tools button").first()).toHaveCSS(
+    "font-size",
+    toolFont,
+  );
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".md-quote")).toHaveCount(0);
+});

@@ -1,0 +1,12 @@
+[WebServer] (node:56715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:56723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/theme-typora.spec.ts:3:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 (572ms)
+  ✓  2 tests/theme-typora.spec.ts:46:1 › 只有真实 write 选择器启用映射，正文容器字体可覆盖 html 基础字号 (241ms)
+  ✓  3 tests/theme-typora.spec.ts:69:1 › Typora 引用与表格样式作用于正文，保留列对齐和表格工具 (311ms)
+
+  3 passed (2.1s)
