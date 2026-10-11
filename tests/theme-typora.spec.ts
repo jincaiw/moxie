@@ -1,4 +1,70 @@
 import { test, expect } from "@playwright/test";
+import { documentEnd } from "./keyboard";
+
+test("Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const code = 'const text = "<安全>";\nconsole.log(text);';
+  const source = "行内 `sample`\n\n```js\n" + code + "\n```\n\n结尾";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "code-theme.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const css = `#write{font-size:16px}
+      .md-fences,code{border:1px solid #ddd;background:#f8f8f8;border-radius:3px;padding:2px 4px;font-size:.9em}
+      code{background:#f3f4f4;padding:0 2px}
+      .md-fences{margin:15px 0;padding-top:8px;padding-bottom:6px}
+      @media(max-width:1000px){#write .md-fences{font-size:1em}}
+      .toolbar code{font-size:99px}`;
+    const style = document.createElement("style");
+    // Use the same original-plus-adapted cascade as an imported theme.
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  const block = page.locator(".md-code-preview");
+  const inline = page.locator(".md-inline-code");
+  await expect(inline).toHaveCSS("background-color", "rgb(243, 244, 244)");
+  await expect(inline).toHaveCSS("padding-left", "2px");
+  await expect(block).toHaveCSS("background-color", "rgb(248, 248, 248)");
+  await expect(block).toHaveCSS("font-size", "14.4px");
+  await expect(block).toHaveCSS("margin-top", "15px");
+  await expect(block.locator("pre")).toHaveCSS("padding-top", "32px");
+  await expect(block.locator("pre")).toHaveCSS("padding-left", "4px");
+  await expect(block.locator("code")).toHaveCSS("border-top-width", "0px");
+  await expect(block.locator("code")).toHaveCSS("padding-left", "0px");
+  await expect(block.locator("code")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await expect(block.locator("code")).toHaveCSS("font-size", "14.4px");
+  await expect(page.locator(".md-code-line .md-code-preview")).toHaveCount(0);
+  await expect(block.locator(".md-code-token").first()).toBeVisible();
+  await block.getByRole("button", { name: "复制代码" }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+  await block.locator("pre").click();
+  await expect(block).toHaveCount(0);
+  await expect(page.locator(".md-code-line").first()).toContainText("```js");
+  await page
+    .getByRole("textbox", { name: "Markdown 编辑区" })
+    .press(documentEnd);
+  await expect(block).toBeVisible();
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(block.locator("code")).toHaveCSS("font-size", "16px");
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(block).toHaveCount(0);
+  expect(
+    await page
+      .locator(".cm-line")
+      .evaluateAll((lines) => lines.map((line) => line.textContent).join("\n")),
+  ).toBe(source);
+});
 
 test("Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样", async ({
   page,

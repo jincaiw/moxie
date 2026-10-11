@@ -920,14 +920,6 @@ function build(
         )
           codeRanges.push({ from: node.from, to: node.to });
         if (node.name === "FencedCode") {
-          for (
-            let n = line.number;
-            n <= state.doc.lineAt(node.to).number;
-            n++
-          ) {
-            const l = state.doc.line(n);
-            add(l.from, l.from, Decoration.line({ class: "md-code-line" }));
-          }
           if (!isActive) {
             const raw = state.doc.sliceString(node.from, node.to);
             const lines = raw.split(/\r?\n/);
@@ -969,6 +961,16 @@ function build(
               );
               return false;
             }
+          }
+          // Only source lines need this surface. A preview has its own box;
+          // decorating its host line would add a second background and inset.
+          for (
+            let n = line.number;
+            n <= state.doc.lineAt(node.to).number;
+            n++
+          ) {
+            const l = state.doc.line(n);
+            add(l.from, l.from, Decoration.line({ class: "md-code-line" }));
           }
         }
         if (node.name === "Table")

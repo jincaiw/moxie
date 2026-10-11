@@ -82,6 +82,19 @@ export function typoraEditorCSS(css: string): string {
             const match = /^(?:#write\s*>?\s*)?h([1-6])$/.exec(selector);
             if (match)
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || heading.test(name))}}`;
+            if (/^(?:#write\s*>?\s*)?code$/.test(selector))
+              return `${host} .cm-content .md-inline-code{${declarations(rule.style, (name) => typography.test(name) || surface.test(name))}}`;
+            if (/^(?:#write\s*>?\s*)?\.md-fences$/.test(selector)) {
+              // Keep the copy/language controls clear while transferring the
+              // theme's code surface and padding to the actual code body.
+              const padding = ["top", "right", "bottom", "left"]
+                .map((side) => {
+                  const value = rule.style.getPropertyValue(`padding-${side}`);
+                  return value ? `--md-code-pad-${side}:${value};` : "";
+                })
+                .join("");
+              return `${host} .cm-content .md-code-preview{${declarations(rule.style, (name) => typography.test(name) || (surface.test(name) && !/^padding/.test(name)) || /^margin(?:-|$)/.test(name))}${padding}}`;
+            }
             // A quote is a sequence of decorated lines, not a block element.
             // Do not repeat block margins on every line or flatten nested quotes.
             if (/^(?:#write\s*>?\s*)?blockquote$/.test(selector)) {

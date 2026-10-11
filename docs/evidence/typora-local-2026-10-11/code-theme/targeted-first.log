@@ -1,0 +1,53 @@
+[WebServer] (node:74382) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 2 workers
+
+(node:74385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:74384) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/theme-typora.spec.ts:65:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 (682ms)
+  ✘  2 tests/theme-typora.spec.ts:4:1 › Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容 (860ms)
+  ✓  3 tests/theme-typora.spec.ts:108:1 › 只有真实 write 选择器启用映射，正文容器字体可覆盖 html 基础字号 (266ms)
+(node:74495) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 tests/typora-reading.spec.ts:4:1 › YAML 阅读态保留原始字段、注释和安全文本，首段沿用正文大小 (384ms)
+  ✓  5 tests/theme-typora.spec.ts:131:1 › Typora 引用与表格样式作用于正文，保留列对齐和表格工具 (364ms)
+  ✓  6 tests/typora-reading.spec.ts:38:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 (531ms)
+  ✓  8 tests/typora-reading.spec.ts:98:1 › 嵌套引用保留各层边框和缩进，主题内边距按层递增 (307ms)
+  ✓  7 tests/typora-reading.spec.ts:66:1 › 目录默认展开且可用键盘定位，标题编辑后更新并保留折叠选择 (629ms)
+
+
+  1) tests/theme-typora.spec.ts:4:1 › Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容 ──────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    - Expected  - 0
+    + Received  + 2
+
+      行内 `sample`
+
+    +
+      ```js
+      const text = "<安全>";
+      console.log(text);
+      ```
+
+    +
+      结尾
+
+      60 |   await page.getByRole("button", { name: "源码", exact: true }).click();
+      61 |   await expect(block).toHaveCount(0);
+    > 62 |   expect(await page.locator(".cm-content").innerText()).toBe(source);
+         |                                                         ^
+      63 | });
+      64 |
+      65 | test("Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/theme-typora.spec.ts:62:57
+
+    Error Context: test-results/theme-typora-Typora-代码主题区分行内与整块表面，复制、编辑和源码往返保留内容/error-context.md
+
+  1 failed
+    tests/theme-typora.spec.ts:4:1 › Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容 ───────────────────────────
+  7 passed (3.4s)
