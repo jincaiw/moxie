@@ -1,0 +1,106 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 114-121, 133
+~					113 text entry area (settable) Description: Markdown 编辑区, Value: title: 对照验收
+author: 本机样本
+tags: [Markdown, 写作]
+文档属性对照验收 · 本机样本3 项 · 展开源码
+[TOC]
+ 标题一
+普通段落第一行
+普通段落第二行
+第二个段落。
+ 列表与引用
+第一项
+第二项
+嵌套子项
+1.有序第一项
+2.有序第二项
+ 引用第一行
+ 引用第二行
+ 
+ 嵌套引用
+ 行内与代码
+粗体、强调、删除、inline code 和 链接。
+js
+复制
+const message = "hello"
+;
+console.log(message);
+ 表格
+添加行
+添加列
+删除行
+删除列
+上移行
+下移行
+左移列
+右移列
+左对齐列
+居中对齐列
+右对齐列
+编辑原文
+左列
+右列
+一
+二
+三
+四
+结尾。
+
++						197 button Description: 展开文档属性源码, Help: 点击直接编辑 YAML；离开属性区域后自动收起
++							198 text title: 对照验收
+author: 本机样本
+tags: [Markdown, 写作]
++							199 text 文档属性
++							200 text 对照验收 · 本机样本
++							201 text 3 项 · 展开源码
++						202 container
++							203 text [ TOC ]
++							204 text 2. 有序第二项
+~				183 text 恢复副本已更新 Markdown UTF-8 行  7 , 列  1
+The focused UI element is 113 text entry area (settable) Description: Markdown 编辑区, Value: title: 对照验收
+author: 本机样本
+tags: [Markdown, 写作]
+文档属性对照验收 · 本机样本3 项 · 展开源码
+[TOC]
+ 标题一
+普通段落第一行
+普通段落第二行
+第二个段落。
+ 列表与引用
+第一项
+第二项
+嵌套子项
+1.有序第一项
+2.有序第二项
+ 引用第一行
+ 引用第二行
+ 
+ 嵌套引用
+ 行内与代码
+粗体、强调、删除、inline code 和 链接。
+js
+复制
+const message = "hello"
+;
+console.log(message);
+ 表格
+添加行
+添加列
+删除行
+删除列
+上移行
+下移行
+左移列
+右移列
+左对齐列
+居中对齐列
+右对齐列
+编辑原文
+左列
+右列
+一
+二
+三
+四
+结尾。

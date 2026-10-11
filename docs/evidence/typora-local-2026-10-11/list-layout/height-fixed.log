@@ -1,0 +1,59 @@
+[WebServer] (node:81955) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:81957) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  rect: {
+    x: 370,
+    y: 182.265625,
+    width: 800,
+    height: 25.59375,
+    top: 182.265625,
+    right: 1170,
+    bottom: 207.859375,
+    left: 370
+  },
+  pos: 124,
+  line: 20,
+  domPos: 116,
+  domLine: 20,
+  coords: {
+    x: 430,
+    y: 186.265625,
+    width: 0,
+    height: 17,
+    top: 186.265625,
+    right: 430,
+    bottom: 203.265625,
+    left: 430
+  },
+  documentTop: -514,
+  lineBlock: {
+    from: 116,
+    length: 8,
+    top: 696.265625,
+    height: 25.59375,
+    _content: 0
+  },
+  hitBlock: {
+    from: 116,
+    length: 8,
+    top: 696.265625,
+    height: 25.59375,
+    _content: 0
+  },
+  contentTop: -518,
+  font: '16px',
+  padding: '0px 2px 0px 60px',
+  headings: [
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] },
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] },
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] }
+  ]
+}
+  ✓  1 tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 (616ms)
+
+  1 passed (1.5s)

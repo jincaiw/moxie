@@ -1,0 +1,32 @@
+[WebServer] (node:79257) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:79259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 (30.1s)
+
+
+  1) tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ───────────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('.outline-navigation').getByRole('button', { name: '列表与引用', exact: true })
+
+
+      34 |     .locator(".outline-navigation")
+      35 |     .getByRole("button", { name: "列表与引用", exact: true })
+    > 36 |     .click();
+         |      ^
+      37 |   const nested = page.locator(".cm-line").filter({ hasText: "嵌套子项" });
+      38 |   await nested.click();
+      39 |   await expect(page.locator(".cm-activeLine")).toContainText("  - 嵌套子项");
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/typora-reading.spec.ts:36:6
+
+    Error Context: test-results/typora-reading-带-YAML-与目录的主题文档定位后，列表文字点击对应实际源码行/error-context.md
+
+  1 failed
+    tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ────────────────────────────

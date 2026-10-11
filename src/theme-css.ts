@@ -80,8 +80,35 @@ export function typoraEditorCSS(css: string): string {
             )
               return `${host} .cm-editor,${host} .cm-content{${declarations(rule.style, (name) => typography.test(name))}}`;
             const match = /^(?:#write\s*>?\s*)?h([1-6])$/.exec(selector);
-            if (match)
-              return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || heading.test(name))}}`;
+            if (match) {
+              // CodeMirror measures each line's border box. Vertical margins
+              // sit outside it and make pointer/arrow coordinates drift.
+              const spacing = ["top", "bottom"]
+                .flatMap((side) =>
+                  ["margin", "padding"].map((kind) => {
+                    const name = `${kind}-${side}`;
+                    const value = rule.style.getPropertyValue(name);
+                    return value
+                      ? `--md-heading-${name}:${value === "auto" ? "0px" : value}${rule.style.getPropertyPriority(name) ? " !important" : ""};`
+                      : "";
+                  }),
+                )
+                .join("");
+              const horizontal = ["left", "right"]
+                .map((side) => {
+                  const value = rule.style.getPropertyValue(`padding-${side}`);
+                  return value ? `padding-${side}:${value};` : "";
+                })
+                .join("");
+              return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}}`;
+            }
+            const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
+            if (list) {
+              const inset = rule.style.getPropertyValue("padding-left");
+              return inset
+                ? `${host} .cm-content{--md-${list[1] === "ul" ? "bullet" : "ordered"}-inset:${inset};}`
+                : "";
+            }
             if (/^(?:#write\s*>?\s*)?code$/.test(selector))
               return `${host} .cm-content .md-inline-code{${declarations(rule.style, (name) => typography.test(name) || surface.test(name))}}`;
             if (/^(?:#write\s*>?\s*)?\.md-fences$/.test(selector)) {
@@ -122,5 +149,5 @@ export function typoraEditorCSS(css: string): string {
           .join("");
       })
       .join("");
-  return `${host} .cm-line{min-height:1em;}\n${walk(sheet.cssRules)}`;
+  return `${host} .cm-line{min-height:1em;}\n${host} .md-heading{margin-top:0;margin-bottom:0;padding-top:calc(var(--md-heading-margin-top,0px) + var(--md-heading-padding-top,0px));padding-bottom:calc(var(--md-heading-margin-bottom,0px) + var(--md-heading-padding-bottom,0px));}\n${walk(sheet.cssRules)}`;
 }

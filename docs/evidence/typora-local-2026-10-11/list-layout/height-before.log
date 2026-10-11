@@ -1,0 +1,82 @@
+[WebServer] (node:81818) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:81824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  rect: {
+    x: 370,
+    y: 182.265625,
+    width: 800,
+    height: 25.59375,
+    top: 182.265625,
+    right: 1170,
+    bottom: 207.859375,
+    left: 370
+  },
+  pos: 125,
+  line: 21,
+  domPos: 116,
+  domLine: 20,
+  coords: {
+    x: 430,
+    y: 186.265625,
+    width: 0,
+    height: 17,
+    top: 186.265625,
+    right: 430,
+    bottom: 203.265625,
+    left: 430
+  },
+  documentTop: -514,
+  lineBlock: {
+    from: 116,
+    length: 8,
+    top: 668.265625,
+    height: 25.59375,
+    _content: 0
+  },
+  hitBlock: { from: 125, length: 0, top: 693.859375, height: 18, _content: 0 },
+  contentTop: -518,
+  font: '16px',
+  padding: '0px 2px 0px 60px',
+  headings: [
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] },
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] },
+    { margin: '0px', padding: '16px 2px 16px 6px', rect: [Object] }
+  ]
+}
+  ✘  1 tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 (5.8s)
+
+
+  1) tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ───────────────────────────
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cm-activeLine')
+    Expected substring: "  - 嵌套子项"
+    Received string:    ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('.cm-activeLine') with timeout 5000ms
+      - waiting for locator('.cm-activeLine')
+        14 × locator resolved to <div class="cm-line cm-activeLine md-empty">…</div>
+           - unexpected value ""
+
+
+      48 |   }));
+      49 |   await nested.click();
+    > 50 |   await expect(page.locator(".cm-activeLine")).toContainText("  - 嵌套子项");
+         |                                                ^
+      51 | });
+      52 |
+      53 | test("列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/typora-reading.spec.ts:50:48
+
+    Error Context: test-results/typora-reading-带-YAML-与目录的主题文档定位后，列表文字点击对应实际源码行/error-context.md
+
+  1 failed
+    tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ────────────────────────────

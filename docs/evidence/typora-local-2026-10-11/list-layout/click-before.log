@@ -1,0 +1,39 @@
+[WebServer] (node:79430) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:79438) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 (5.5s)
+
+
+  1) tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ───────────────────────────
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('.cm-activeLine')
+    Expected substring: "  - 嵌套子项"
+    Received string:    ""
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" locator('.cm-activeLine') with timeout 5000ms
+      - waiting for locator('.cm-activeLine')
+        14 × locator resolved to <div class="cm-line cm-activeLine md-empty">…</div>
+           - unexpected value ""
+
+
+      38 |   const nested = page.locator(".cm-line").filter({ hasText: "嵌套子项" });
+      39 |   await nested.click();
+    > 40 |   await expect(page.locator(".cm-activeLine")).toContainText("  - 嵌套子项");
+         |                                                ^
+      41 | });
+      42 |
+      43 | test("列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/typora-reading.spec.ts:40:48
+
+    Error Context: test-results/typora-reading-带-YAML-与目录的主题文档定位后，列表文字点击对应实际源码行/error-context.md
+
+  1 failed
+    tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 ────────────────────────────

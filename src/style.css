@@ -2652,7 +2652,7 @@ p {
 }
 
 .md-metadata-preview {
-  margin: 8px 0 20px;
+  padding: 8px 0 20px;
 }
 .md-metadata-summary {
   display: block;
@@ -2674,10 +2674,21 @@ p {
     Menlo,
     monospace;
 }
-.md-bullet-marker {
+.md-list-line {
+  padding-left: var(--md-list-offset) !important;
+}
+.md-bullet-marker,
+.md-ordered-marker {
   display: inline-block;
-  min-width: 0.65em;
+  box-sizing: border-box;
+  width: var(--md-list-marker-width, 0.65em);
+  margin-left: calc(-1 * var(--md-list-marker-width, 0px));
   text-align: center;
+  text-indent: 0;
+}
+.md-ordered-marker {
+  text-align: right;
+  padding-right: 0.4em;
 }
 .rendered-link .linked-image-preview {
   display: inline-block;

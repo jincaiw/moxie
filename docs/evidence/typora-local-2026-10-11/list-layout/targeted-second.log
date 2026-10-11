@@ -1,0 +1,43 @@
+[WebServer] (node:77415) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 9 tests using 2 workers
+
+(node:77418) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:77417) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/theme-typora.spec.ts:69:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 (635ms)
+  ✓  2 tests/theme-typora.spec.ts:4:1 › Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容 (793ms)
+  ✓  3 tests/theme-typora.spec.ts:112:1 › 只有真实 write 选择器启用映射，正文容器字体可覆盖 html 基础字号 (256ms)
+  ✓  4 tests/theme-typora.spec.ts:135:1 › Typora 引用与表格样式作用于正文，保留列对齐和表格工具 (323ms)
+  ✘  5 tests/typora-reading.spec.ts:4:1 › 列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格 (303ms)
+(node:77446) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  6 tests/typora-reading.spec.ts:68:1 › YAML 阅读态保留原始字段、注释和安全文本，首段沿用正文大小 (372ms)
+  ✓  7 tests/typora-reading.spec.ts:102:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 (575ms)
+  ✓  8 tests/typora-reading.spec.ts:130:1 › 目录默认展开且可用键盘定位，标题编辑后更新并保留折叠选择 (683ms)
+  ✓  9 tests/typora-reading.spec.ts:162:1 › 嵌套引用保留各层边框和缩进，主题内边距按层递增 (252ms)
+
+
+  1) tests/typora-reading.spec.ts:4:1 › 列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格 ──────────────────────────────
+
+    Error: expect(received).toBeGreaterThan(expected)
+
+    Expected: > 1
+    Received:   0
+
+      46 |     };
+      47 |   });
+    > 48 |   expect(hanging.rects.length).toBeGreaterThan(1);
+         |                                ^
+      49 |   for (const rect of hanging.rects)
+      50 |     expect(rect.left - hanging.left).toBeCloseTo(30, 0);
+      51 |   await expect(page.getByRole("checkbox").last()).toBeChecked();
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/typora-reading.spec.ts:48:32
+
+    Error Context: test-results/typora-reading-列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格/error-context.md
+
+  1 failed
+    tests/typora-reading.spec.ts:4:1 › 列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格 ───────────────────────────────
+  8 passed (3.5s)

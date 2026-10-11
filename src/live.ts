@@ -43,6 +43,7 @@ import {
 marked.use(nestedGfmAutolink);
 import { renderMermaid } from "./mermaid";
 import { highlightCodeElement } from "./code-highlight";
+import type { SyntaxNode } from "@lezer/common";
 import { inlineMathMatches, renderMath } from "./math";
 export const documentPath = Facet.define<
   string | undefined,
@@ -349,18 +350,22 @@ function renderInlineHTMLPreview(
     .catch(() => {});
 }
 
-class BulletMarkerWidget extends WidgetType {
-  constructor(readonly depth: number) {
+class ListMarkerWidget extends WidgetType {
+  constructor(
+    readonly depth: number,
+    readonly ordered = "",
+  ) {
     super();
   }
-  eq(other: BulletMarkerWidget) {
-    return this.depth === other.depth;
+  eq(other: ListMarkerWidget) {
+    return this.depth === other.depth && this.ordered === other.ordered;
   }
   toDOM() {
     const marker = document.createElement("span");
-    marker.className = "md-bullet-marker";
-    marker.setAttribute("aria-hidden", "true");
-    marker.textContent = ["•", "◦", "▪"][(Math.max(1, this.depth) - 1) % 3];
+    marker.className = this.ordered ? "md-ordered-marker" : "md-bullet-marker";
+    if (!this.ordered) marker.setAttribute("aria-hidden", "true");
+    marker.textContent =
+      this.ordered || ["•", "◦", "▪"][(Math.max(1, this.depth) - 1) % 3];
     return marker;
   }
 }
@@ -725,6 +730,46 @@ function build(
     active(state.doc.lineAt(from).from, state.doc.lineAt(to).to);
   const add = (from: number, to: number, deco: Decoration) =>
     ranges.push({ from, to, deco });
+  const listLayout = (node: SyntaxNode) => {
+    let item: SyntaxNode | null = null;
+    let bullets = 0;
+    let ordered = 0;
+    let kind = "";
+    for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
+      // Quote prefixes and task controls keep their existing editing layout.
+      if (parent.name === "Blockquote") return null;
+      if (!item && parent.name === "ListItem") item = parent;
+      if (parent.name === "BulletList") {
+        bullets++;
+        kind ||= "bullet";
+      }
+      if (parent.name === "OrderedList") {
+        ordered++;
+        kind ||= "ordered";
+      }
+    }
+    if (
+      !item ||
+      /^\s*(?:[-+*]|\d+[.)])\s+\[[ xX]\]/.test(state.doc.lineAt(item.from).text)
+    )
+      return null;
+    return { item, bullets, ordered, kind };
+  };
+  const listLine = (
+    from: number,
+    layout: NonNullable<ReturnType<typeof listLayout>>,
+  ) => {
+    add(
+      from,
+      from,
+      Decoration.line({
+        class: "md-list-line",
+        attributes: {
+          style: `--md-list-offset:calc(${layout.bullets} * var(--md-bullet-inset,30px) + ${layout.ordered} * var(--md-ordered-inset,30px));--md-list-marker-width:var(--md-${layout.kind}-inset,30px)`,
+        },
+      }),
+    );
+  };
   const regions: { from: number; to: number }[] = [];
   for (const visible of visibleRanges) {
     const firstLine = Math.max(1, state.doc.lineAt(visible.from).number - 24);
@@ -863,6 +908,29 @@ function build(
         }
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
+        if (node.name === "Paragraph") {
+          const layout = listLayout(node.node);
+          if (layout) {
+            const first = state.doc.lineAt(layout.item.from).number;
+            for (
+              let n = line.number;
+              n <= state.doc.lineAt(node.to).number;
+              n++
+            ) {
+              const continuation = state.doc.line(n);
+              if (n === first || active(continuation.from, continuation.to))
+                continue;
+              listLine(continuation.from, layout);
+              const indent = /^[ \t]+/.exec(continuation.text)?.[0];
+              if (indent)
+                add(
+                  continuation.from,
+                  continuation.from + indent.length,
+                  Decoration.replace({}),
+                );
+            }
+          }
+        }
         if (
           (node.name === "Comment" || node.name === "CommentBlock") &&
           !isActive
@@ -1223,19 +1291,39 @@ function build(
           }
           add(node.from, node.to, Decoration.mark({ class: "md-link" }));
         }
-        if (
-          node.name === "ListMark" &&
-          !isActive &&
-          /^[-+*]$/.test(state.doc.sliceString(node.from, node.to))
-        ) {
-          let depth = 0;
-          for (let parent = node.node.parent; parent; parent = parent.parent)
-            if (parent.name === "BulletList") depth++;
-          add(
-            node.from,
-            node.to,
-            Decoration.replace({ widget: new BulletMarkerWidget(depth) }),
-          );
+        if (node.name === "ListMark" && !isActive) {
+          const layout = listLayout(node.node);
+          const marker = state.doc.sliceString(node.from, node.to);
+          if (layout && /^(?:[-+*]|\d+[.)])$/.test(marker)) {
+            listLine(line.from, layout);
+            if (
+              node.from > line.from &&
+              /^[ \t]+$/.test(state.doc.sliceString(line.from, node.from))
+            )
+              add(line.from, node.from, Decoration.replace({}));
+            const gap = /^[ \t]*/.exec(
+              state.doc.sliceString(node.to, line.to),
+            )![0].length;
+            add(
+              node.from,
+              node.to + gap,
+              Decoration.replace({
+                widget: new ListMarkerWidget(
+                  layout.bullets,
+                  /^\d/.test(marker) ? marker : "",
+                ),
+              }),
+            );
+          } else if (/^[-+*]$/.test(marker)) {
+            let depth = 0;
+            for (let parent = node.node.parent; parent; parent = parent.parent)
+              if (parent.name === "BulletList") depth++;
+            add(
+              node.from,
+              node.to,
+              Decoration.replace({ widget: new ListMarkerWidget(depth) }),
+            );
+          }
         }
         if (
           !isActive &&

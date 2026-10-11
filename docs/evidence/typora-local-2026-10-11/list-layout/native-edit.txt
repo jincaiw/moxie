@@ -1,0 +1,98 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 126-127, 134
+~					113 text entry area (settable) Description: Markdown 编辑区, Value: 目录
+标题一
+列表与引用
+行内与代码
+表格
+ 标题一
+普通段落第一行
+普通段落第二行
+第二个段落。
+ 列表与引用
+第一项
+第二项
+嵌套子项
+1.有序第一项
+2. 有序第二项
+ 引用第一行
+ 引用第二行
+ 
+ 嵌套引用
+ 行内与代码
+粗体、强调、删除、inline code 和 链接。
+js
+复制
+const message = "hello"
+;
+console.log(message);
+ 表格
+添加行
+添加列
+删除行
+删除列
+上移行
+下移行
+左移列
+右移列
+左对齐列
+居中对齐列
+右对齐列
+编辑原文
+左列
+右列
+一
+二
+三
+四
+结尾。
+
++						198 text  列表与引用
++							199 text 2.  有序第二项
+~				184 text 恢复副本已更新 Markdown UTF-8 行  23 , 列  8
+The focused UI element is 113 text entry area (settable) Description: Markdown 编辑区, Value: 目录
+标题一
+列表与引用
+行内与代码
+表格
+ 标题一
+普通段落第一行
+普通段落第二行
+第二个段落。
+ 列表与引用
+第一项
+第二项
+嵌套子项
+1.有序第一项
+2. 有序第二项
+ 引用第一行
+ 引用第二行
+ 
+ 嵌套引用
+ 行内与代码
+粗体、强调、删除、inline code 和 链接。
+js
+复制
+const message = "hello"
+;
+console.log(message);
+ 表格
+添加行
+添加列
+删除行
+删除列
+上移行
+下移行
+左移列
+右移列
+左对齐列
+居中对齐列
+右对齐列
+编辑原文
+左列
+右列
+一
+二
+三
+四
+结尾。
