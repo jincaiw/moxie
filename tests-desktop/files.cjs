@@ -922,6 +922,85 @@ test("新建窗口独立恢复工作区和未保存状态，并在关闭时清�
   );
 });
 const { FileStore } = require("../electron/files.cjs");
+
+test("只读原件拒绝手动/自动保存及同路径另存为，新副本可保存", async (t) => {
+  if (process.platform === "win32")
+    return t.skip("POSIX 模式位；Windows 只读属性另行实机验收");
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-readonly-test-"));
+  const file = path.join(root, "readonly.md");
+  try {
+    await fs.writeFile(file, "原件", { mode: 0o444 });
+    const store = new FileStore();
+    const opened = await store.read(file);
+    for (const options of [{}, { automatic: true }, { saveAs: true }]) {
+      await assert.rejects(
+        () =>
+          store.save(
+            {
+              path: file,
+              name: "readonly.md",
+              text: "修改",
+              expected: opened.text,
+              ...options,
+            },
+            async () => file,
+            async () => true,
+          ),
+        /只读|写入权限/,
+      );
+      assert.equal(await fs.readFile(file, "utf8"), "原件");
+      assert.equal((await fs.stat(file)).mode & 0o777, 0o444);
+      assert.deepEqual(await fs.readdir(root), ["readonly.md"]);
+    }
+    const copy = path.join(root, "copy.md");
+    await store.save(
+      { path: file, name: "readonly.md", text: "修改", saveAs: true },
+      async () => copy,
+      async () => false,
+    );
+    assert.equal(await fs.readFile(copy, "utf8"), "修改");
+    assert.equal(await fs.readFile(file, "utf8"), "原件");
+    await fs.chmod(file, 0o644);
+    await store.save(
+      { path: file, name: "readonly.md", text: "授权修改", expected: "原件" },
+      async () => null,
+      async () => false,
+    );
+    assert.equal(await fs.readFile(file, "utf8"), "授权修改");
+  } finally {
+    await fs.chmod(file, 0o644).catch(() => {});
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("写入期间目标转为只读时拒绝替换并清理临时文件", async (t) => {
+  if (process.platform === "win32") return t.skip("POSIX 模式位");
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-permission-change-"),
+  );
+  const file = path.join(root, "target.md");
+  const originalWrite = fs.writeFile;
+  try {
+    await originalWrite(file, "原件");
+    fs.writeFile = async function (target, ...args) {
+      const result = await originalWrite.call(this, target, ...args);
+      if (String(target).startsWith(path.join(root, ".target.md.")))
+        await fs.chmod(file, 0o444);
+      return result;
+    };
+    await assert.rejects(
+      () => require("../electron/files.cjs").atomicWrite(file, "不应覆盖"),
+      /只读|写入权限/,
+    );
+    assert.equal(await fs.readFile(file, "utf8"), "原件");
+    assert.deepEqual(await fs.readdir(root), ["target.md"]);
+  } finally {
+    fs.writeFile = originalWrite;
+    await fs.chmod(file, 0o644).catch(() => {});
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 const png = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
   "base64",

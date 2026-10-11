@@ -1,0 +1,16 @@
+{
+  "files": [
+    {
+      "name": "readonly.md",
+      "text": "# 只读验收\n\n原件必须保留。\n",
+      "mode": "444"
+    },
+    {
+      "name": "readonly-copy.md",
+      "text": "# 只读验收\n\n原件必须保留。\n\n只读修改应另存为副本。",
+      "mode": "600"
+    }
+  ],
+  "observedSaveError": "Error invoking remote method 'file:save': Error: 文件为只读或没有写入权限，请使用“另存为”保存副本。",
+  "source": "实际原生 Cmd+S 后的 CUA AX 返回；后续截图中短暂提示已消失"
+}

@@ -1,0 +1,18 @@
+{
+  "baseCommit": "7b8a304",
+  "modifiedSources": {
+    "electron/files.cjs": "3e199d3a5adbae4c05f22c51611c33b3eef153c1d76a3eb3c574aee5cd6b67a3",
+    "tests-desktop/files.cjs": "0e88988c934ae53a502de40764492b013abcee2228bb05dc95fa8078034c14b2"
+  },
+  "asarSHA256": "9aa6fc6497cbfbf2f883d1d8f8d80691f92e4e0cecf4dcf7a37928db1cc24a81",
+  "fixtureSHA256": "d51c479830f5832455a540d22b8aa57aacf61762ebdf29d2b8cf3debd7fbf4b0",
+  "desktopTests": {
+    "passed": 54,
+    "failed": 0,
+    "skipped": 0
+  },
+  "native": "macOS arm64 / Electron 35.7.5, isolated moxie-editor-localqa profile",
+  "build": "npm run package:mac:qa succeeded; unsigned local directory bundle",
+  "uiRegression": "No renderer changes this round; prior 235 passed / 3 performance skipped is historical, not rerun",
+  "performance": "No performance changes; not rerun"
+}

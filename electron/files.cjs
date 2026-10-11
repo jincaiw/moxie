@@ -132,28 +132,51 @@ function lineBoundsAt(text, position) {
     .reduce((nearest, offset) => Math.min(nearest, offset), text.length);
   return { from: before + 1, to: after };
 }
+async function writableTargetMode(file) {
+  try {
+    const { mode } = await fs.stat(file);
+    // Rename permission comes from the parent directory, so an atomic replace
+    // must explicitly respect the existing file's write protection as well.
+    if ((mode & 0o222) === 0) {
+      const error = new Error(
+        "文件为只读或没有写入权限，请使用“另存为”保存副本。",
+      );
+      error.code = "EACCES";
+      throw error;
+    }
+    await fs.access(file, require("node:fs").constants.W_OK);
+    return mode;
+  } catch (error) {
+    if (error.code === "ENOENT") return undefined;
+    if (error.code === "EACCES" || error.code === "EPERM") {
+      const denied = new Error(
+        "文件为只读或没有写入权限，请使用“另存为”保存副本。",
+      );
+      denied.code = error.code;
+      throw denied;
+    }
+    throw error;
+  }
+}
 async function atomicWrite(file, text) {
   const temp = path.join(
     path.dirname(file),
     "." + path.basename(file) + "." + crypto.randomUUID() + ".tmp",
   );
   try {
-    let mode;
-    try {
-      mode = (await fs.stat(file)).mode;
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
+    const mode = await writableTargetMode(file);
     await fs.writeFile(temp, text, {
       encoding: "utf8",
       flag: "wx",
       mode: mode ?? 0o600,
     });
+    await writableTargetMode(file);
     await fs.rename(temp, file);
   } finally {
     await fs.rm(temp, { force: true }).catch(() => {});
   }
 }
+
 function imageType(bytes) {
   if (bytes.length > 10 * 1024 * 1024) throw Error("单张图片不能超过 10 MB");
   if (
