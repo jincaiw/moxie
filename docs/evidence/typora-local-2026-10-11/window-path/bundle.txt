@@ -1,0 +1,3 @@
+Path: /tmp/moxie-path-title-qa/mac-arm64/墨写本机对照.app
+Bundle ID: studio.moxie.editor.localqa
+Version: 0.16.249

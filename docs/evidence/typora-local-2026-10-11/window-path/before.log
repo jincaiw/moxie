@@ -1,0 +1,66 @@
+[WebServer] (node:96830) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 2 workers
+
+(node:96832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96833) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  2 tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：C:\项目甲\章节 (5.7s)
+  ✘  1 tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：/项目甲/章节 (5.8s)
+
+
+  1) tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：/项目甲/章节 ──────────────────────────────────
+
+    Error: expect(page).toHaveTitle(expected) failed
+
+    Expected: "同名.md — /项目甲/章节 — 墨写"
+    Received: "同名.md — 墨写"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveTitle" with timeout 5000ms
+        14 × locator resolved to <html lang="zh-CN" data-theme="light">…</html>
+           - unexpected value "同名.md — 墨写"
+
+
+      187 |     const other = await context.newPage();
+      188 |     await initialize(other, directories[1]);
+    > 189 |     await expect(page).toHaveTitle(`同名.md — ${directories[0]} — 墨写`);
+          |                        ^
+      190 |     await expect(other).toHaveTitle(`同名.md — ${directories[1]} — 墨写`);
+      191 |     await page.keyboard.press(shortcut("Shift+s"));
+      192 |     await expect(page).toHaveTitle(`同名.md — ${directories[2]} — 墨写`);
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/editor.spec.ts:189:24
+
+    Error Context: test-results/editor-同名文件窗口显示完整目录，另存为同名文件后更新：-项目甲-章节/error-context.md
+
+  2) tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：C:\项目甲\章节 ────────────────────────────────
+
+    Error: expect(page).toHaveTitle(expected) failed
+
+    Expected: "同名.md — C:\\项目甲\\章节 — 墨写"
+    Received: "同名.md — 墨写"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveTitle" with timeout 5000ms
+        14 × locator resolved to <html lang="zh-CN" data-theme="light">…</html>
+           - unexpected value "同名.md — 墨写"
+
+
+      187 |     const other = await context.newPage();
+      188 |     await initialize(other, directories[1]);
+    > 189 |     await expect(page).toHaveTitle(`同名.md — ${directories[0]} — 墨写`);
+          |                        ^
+      190 |     await expect(other).toHaveTitle(`同名.md — ${directories[1]} — 墨写`);
+      191 |     await page.keyboard.press(shortcut("Shift+s"));
+      192 |     await expect(page).toHaveTitle(`同名.md — ${directories[2]} — 墨写`);
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/editor.spec.ts:189:24
+
+    Error Context: test-results/editor-同名文件窗口显示完整目录，另存为同名文件后更新：C-项目甲-章节/error-context.md
+
+  2 failed
+    tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：/项目甲/章节 ───────────────────────────────────
+    tests/editor.spec.ts:168:3 › 同名文件窗口显示完整目录，另存为同名文件后更新：C:\项目甲\章节 ─────────────────────────────────

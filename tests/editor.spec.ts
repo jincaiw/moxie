@@ -160,3 +160,50 @@ test("窗口标题随当前文件与未保存状态变化，独立窗口互不�
   await expect(page).toHaveTitle("欢迎使用.md — 墨写");
   await expect(other).toHaveTitle("第二份.md — 墨写");
 });
+
+for (const directories of [
+  ["/项目甲/章节", "/项目乙/章节", "/归档/章节"],
+  ["C:\\项目甲\\章节", "D:\\项目乙\\章节", "E:\\归档\\章节"],
+]) {
+  test(`同名文件窗口显示完整目录，另存为同名文件后更新：${directories[0]}`, async ({
+    page,
+    context,
+  }) => {
+    const separator = directories[0].includes("\\") ? "\\" : "/";
+    const initialize = async (target: typeof page, directory: string) => {
+      await target.addInitScript(
+        ({ directory, separator, savedDirectory }) => {
+          const file = {
+            name: "同名.md",
+            text: "# 同名\n\n正文",
+            version: "v1",
+          };
+          window.desktop = {
+            initialFile: async () => ({
+              ...file,
+              path: `${directory}${separator}同名.md`,
+            }),
+            save: async ({ text }: { text: string }) => ({
+              ...file,
+              text,
+              path: `${savedDirectory}${separator}同名.md`,
+            }),
+            recent: async () => [],
+            dirty: () => {},
+            onAction: () => () => {},
+          } as unknown as typeof window.desktop;
+        },
+        { directory, separator, savedDirectory: directories[2] },
+      );
+      await target.goto("/");
+    };
+    await initialize(page, directories[0]);
+    const other = await context.newPage();
+    await initialize(other, directories[1]);
+    await expect(page).toHaveTitle(`同名.md — ${directories[0]} — 墨写`);
+    await expect(other).toHaveTitle(`同名.md — ${directories[1]} — 墨写`);
+    await page.keyboard.press(shortcut("Shift+s"));
+    await expect(page).toHaveTitle(`同名.md — ${directories[2]} — 墨写`);
+    await expect(other).toHaveTitle(`同名.md — ${directories[1]} — 墨写`);
+  });
+}

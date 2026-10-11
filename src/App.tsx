@@ -242,8 +242,21 @@ export default function App() {
   const [creatingLink, setCreatingLink] = useState(false);
   const { docs, current, busy, recent } = workspace;
   useEffect(() => {
-    document.title = `${current.dirty ? "未保存 · " : ""}${current.name} — 墨写`;
-  }, [current.name, current.dirty]);
+    const path = current.path;
+    const separator = path
+      ? Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"))
+      : -1;
+    const directory =
+      path && separator >= 0
+        ? path.slice(
+            0,
+            separator === 0 || (separator === 2 && path[1] === ":")
+              ? separator + 1
+              : separator,
+          )
+        : "";
+    document.title = `${current.dirty ? "未保存 · " : ""}${current.name}${directory ? ` — ${directory}` : ""} — 墨写`;
+  }, [current.name, current.path, current.dirty]);
   const documentHeadings = useMemo(
     () =>
       headings(current.text).map((heading) => ({
