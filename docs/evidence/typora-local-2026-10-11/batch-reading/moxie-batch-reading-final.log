@@ -1,0 +1,12 @@
+[WebServer] (node:64074) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:64076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/typora-reading.spec.ts:4:1 › YAML 阅读态保留原始字段、注释和安全文本，首段沿用正文大小 (725ms)
+  ✓  2 tests/typora-reading.spec.ts:38:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 (591ms)
+  ✓  3 tests/typora-reading.spec.ts:66:1 › 目录默认展开且可用键盘定位，标题编辑后更新并保留折叠选择 (639ms)
+
+  3 passed (3.1s)

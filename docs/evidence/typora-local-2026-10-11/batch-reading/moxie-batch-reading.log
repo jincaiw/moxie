@@ -1,0 +1,51 @@
+[WebServer] (node:63926) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:63931) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/typora-reading.spec.ts:4:1 › YAML 阅读态保留原始字段、注释和安全文本，首段沿用正文大小 (683ms)
+  ✘  2 tests/typora-reading.spec.ts:42:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 (5.3s)
+(node:63945) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/typora-reading.spec.ts:82:1 › 目录默认展开且可用键盘定位，标题编辑后更新并保留折叠选择 (683ms)
+
+
+  1) tests/typora-reading.spec.ts:42:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 ──────────────────────────────
+
+    Error: expect(locator).toHaveText(expected) failed
+
+    Locator: locator('.md-bullet-marker')
+    Timeout: 5000ms
+    - Expected  - 1
+    + Received  + 0
+
+      Array [
+        "•",
+        "◦",
+        "▪",
+    -   "•",
+      ]
+
+    Call log:
+      - Expect "toHaveText" locator('.md-bullet-marker') with timeout 5000ms
+      - waiting for locator('.md-bullet-marker')
+        - locator resolved to 0 elements
+        13 × locator resolved to 3 elements
+
+
+      55 |       buffer: Buffer.from(source),
+      56 |     });
+    > 57 |   await expect(page.locator(".md-bullet-marker")).toHaveText([
+         |                                                   ^
+      58 |     "•",
+      59 |     "◦",
+      60 |     "▪",
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/typora-reading.spec.ts:57:51
+
+    Error Context: test-results/typora-reading-无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容/error-context.md
+
+  1 failed
+    tests/typora-reading.spec.ts:42:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 ───────────────────────────────
+  2 passed (8.1s)

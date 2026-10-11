@@ -84,12 +84,19 @@ export function typoraEditorCSS(css: string): string {
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || heading.test(name))}}`;
             // A quote is a sequence of decorated lines, not a block element.
             // Do not repeat block margins on every line or flatten nested quotes.
-            if (/^(?:#write\s*>?\s*)?blockquote$/.test(selector))
+            if (/^(?:#write\s*>?\s*)?blockquote$/.test(selector)) {
+              const inset = rule.style.getPropertyValue("padding-left");
+              const borderWidth =
+                rule.style.getPropertyValue("border-left-width");
+              const borderColor =
+                rule.style.getPropertyValue("border-left-color");
+              const nested = `${inset ? `--md-quote-inset:${inset};padding-left:calc(var(--md-quote-inset)*var(--md-quote-depth,1) + var(--md-quote-border-width,4px)*(var(--md-quote-depth,1) - 1)) !important;` : ""}${borderWidth ? `--md-quote-border-width:${borderWidth};` : ""}${borderColor ? `--md-quote-border-color:${borderColor};` : ""}`;
               return `${host} .cm-content .md-quote{${declarations(
                 rule.style,
                 (name) => typography.test(name) || surface.test(name),
                 (name) => /^padding(?:-|$)/.test(name),
-              )}}`;
+              )}${nested}}`;
+            }
             const tableSelector = selector.replace(/^#write\s*>?\s*/, "");
             if (
               /^(?:table(?:\s+|\s*>\s*))?(?:table|thead|tbody|tr|th|td)(?::(?:first-child|last-child|nth-child\(2n\)))?$/.test(

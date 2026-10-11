@@ -1,0 +1,15 @@
+[WebServer] (node:63211) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+
+(node:63587) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:63588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/features.spec.ts:3336:1 › [TOC] 预览生成分级目录并定位到对应标题 (783ms)
+  ✓  1 tests/features.spec.ts:3375:1 › 格式菜单可插入独立文档目录并立即预览 (988ms)
+  ✓  3 tests/features.spec.ts:3422:1 › 回车延续列表、任务项和引用，并在空项中退出 (885ms)
+  ✓  4 tests/features.spec.ts:4849:1 › 文档属性摘要安全显示，展开编辑可撤销，源码模式保留完整属性 (851ms)
+
+  4 passed (3.4s)

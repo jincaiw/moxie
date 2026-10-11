@@ -331,6 +331,16 @@ export default function App() {
     setOutlineContextPoint(null);
     setSidebarPopup((current) => (current === kind ? null : kind));
   };
+  useLayoutEffect(() => {
+    if (!sidebarPopup) return;
+    const selector =
+      sidebarPopup === "mode"
+        ? '.side-tabs [aria-selected="true"]'
+        : sidebarPopup === "outline"
+          ? ".sidebar-outline-options button"
+          : "#sidebar-folder-menu .sidebar-menu-actions button";
+    sidebarElement.current?.querySelector<HTMLButtonElement>(selector)?.focus();
+  }, [sidebarPopup]);
   useEffect(() => {
     if (!sidebarPopup) return;
     const outside = (event: Event) => {
@@ -345,22 +355,10 @@ export default function App() {
         dismissSidebarPopup(true);
       }
     };
-    const frame = requestAnimationFrame(() => {
-      const selector =
-        sidebarPopup === "mode"
-          ? '.side-tabs [aria-selected="true"]'
-          : sidebarPopup === "outline"
-            ? ".sidebar-outline-options button"
-            : "#sidebar-folder-menu .sidebar-menu-actions button";
-      sidebarElement.current
-        ?.querySelector<HTMLButtonElement>(selector)
-        ?.focus();
-    });
     window.addEventListener("pointerdown", outside);
     window.addEventListener("focusin", outside);
     window.addEventListener("keydown", key);
     return () => {
-      cancelAnimationFrame(frame);
       window.removeEventListener("pointerdown", outside);
       window.removeEventListener("focusin", outside);
       window.removeEventListener("keydown", key);

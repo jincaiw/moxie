@@ -775,7 +775,29 @@ p {
 .md-quote {
   border-left: 4px solid var(--border);
   color: var(--muted);
-  padding-left: 24px !important;
+  position: relative;
+  padding-left: calc(
+    var(--md-quote-inset, 24px) * var(--md-quote-depth, 1) +
+      var(--md-quote-border-width, 4px) * (var(--md-quote-depth, 1) - 1)
+  ) !important;
+}
+.md-quote[data-quote-depth]:not([data-quote-depth="1"])::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(
+    (var(--md-quote-inset, 24px) + var(--md-quote-border-width, 4px)) *
+      (var(--md-quote-depth, 1) - 1)
+  );
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 var(--md-quote-inset, 24px),
+    var(--md-quote-border-color, var(--border)) var(--md-quote-inset, 24px)
+      calc(var(--md-quote-inset, 24px) + var(--md-quote-border-width, 4px))
+  );
 }
 .md-strong {
   font-weight: 650;
@@ -1662,10 +1684,6 @@ p {
 .md-rule-text * {
   color: transparent !important;
 }
-.md-h1 + .md-empty + .cm-line {
-  font-size: 22px;
-  color: var(--muted);
-}
 .editor-host {
   max-width: var(--editor-width, 880px);
 }
@@ -2402,9 +2420,8 @@ p {
 }
 .md-toc {
   margin: 1em 0;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
   color: var(--muted);
 }
 .md-toc summary {
@@ -2414,7 +2431,8 @@ p {
 }
 .md-toc ol {
   margin: 8px 0 0;
-  padding-left: 22px;
+  padding-left: 0;
+  list-style: none;
 }
 .md-toc li {
   margin: 3px 0;
@@ -2627,35 +2645,29 @@ p {
   margin: 8px 0 20px;
 }
 .md-metadata-summary {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: block;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 3px;
   color: var(--muted);
-  background: var(--panel);
+  background: var(--code);
   text-align: left;
-  font-size: 13px;
 }
-.md-metadata-summary strong {
-  flex-shrink: 0;
-  color: var(--text);
-  font-size: inherit;
-  font-weight: 550;
+.md-metadata-source {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font:
+    0.85em/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
-.md-metadata-description {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.md-metadata-summary small {
-  flex-shrink: 0;
-  font-size: 11px;
+.md-bullet-marker {
+  display: inline-block;
+  min-width: 0.65em;
+  text-align: center;
 }
 .rendered-link .linked-image-preview {
   display: inline-block;

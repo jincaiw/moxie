@@ -1,0 +1,67 @@
+[WebServer] (node:66700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 20 tests using 2 workers
+
+(node:66703) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66702) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.7s)
+  ✓   1 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.7s)
+(node:66723) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66722) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+  ✓   3 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66737) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66738) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+  ✓   6 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+(node:66747) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66749) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.6s)
+  ✓   8 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.6s)
+(node:66764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.6s)
+(node:66776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  10 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.6s)
+(node:66777) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  11 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+(node:66795) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  12 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66797) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  13 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+(node:66805) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  14 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66810) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  15 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+(node:66816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  16 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+(node:66818) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  17 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.3s)
+(node:66826) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  18 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.2s)
+(node:66832) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  19 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.3s)
+  ✓  20 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.2s)
+
+  20 passed (19.8s)

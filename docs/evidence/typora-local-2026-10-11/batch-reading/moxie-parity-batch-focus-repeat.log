@@ -1,0 +1,67 @@
+[WebServer] (node:66347) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 10 tests using 2 workers
+
+(node:66350) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66349) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   2 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (2.0s)
+  ✓   1 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (2.1s)
+(node:66385) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:66386) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   4 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66398) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   5 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.3s)
+(node:66408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   6 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66414) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘   3 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (5.7s)
+(node:66419) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   7 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   8 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.4s)
+(node:66437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   9 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+  ✓  10 tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 (1.5s)
+
+
+  1) tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 ───────────────────────────────────────
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator:  getByRole('button', { name: '文件夹菜单', exact: true })
+    Expected: focused
+    Received: inactive
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeFocused" getByRole('button', { name: '文件夹菜单', exact: true }) with timeout 5000ms
+      - waiting for getByRole('button', { name: '文件夹菜单', exact: true })
+        14 × locator resolved to <button title="/notes" aria-label="文件夹菜单" aria-expanded="false" aria-controls="sidebar-folder-menu" class="sidebar-popup-trigger sidebar-folder-trigger">…</button>
+           - unexpected value "inactive"
+
+
+      1371 |   await expect(
+      1372 |     page.getByRole("button", { name: "文件夹菜单", exact: true }),
+    > 1373 |   ).toBeFocused();
+           |     ^
+      1374 |   expect((await row.boundingBox())!.y).toBeCloseTo(folderTop, 0);
+      1375 |   await page.setViewportSize({ width: 900, height: 700 });
+      1376 |   await expect(row).toBeInViewport();
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/workspace.spec.ts:1373:5
+
+    Error Context: test-results/workspace-桌面侧栏首屏优先展示文件，低频工具可键盘展开-repeat2/error-context.md
+
+  1 failed
+    tests/workspace.spec.ts:1334:1 › 桌面侧栏首屏优先展示文件，低频工具可键盘展开 ────────────────────────────────────────
+  9 passed (13.4s)

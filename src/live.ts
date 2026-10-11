@@ -349,6 +349,22 @@ function renderInlineHTMLPreview(
     .catch(() => {});
 }
 
+class BulletMarkerWidget extends WidgetType {
+  constructor(readonly depth: number) {
+    super();
+  }
+  eq(other: BulletMarkerWidget) {
+    return this.depth === other.depth;
+  }
+  toDOM() {
+    const marker = document.createElement("span");
+    marker.className = "md-bullet-marker";
+    marker.setAttribute("aria-hidden", "true");
+    marker.textContent = ["•", "◦", "▪"][(Math.max(1, this.depth) - 1) % 3];
+    return marker;
+  }
+}
+
 class FrontMatterWidget extends WidgetType {
   constructor(
     readonly source: string,
@@ -380,7 +396,17 @@ class FrontMatterWidget extends WidgetType {
     description.title = description.textContent;
     const count = document.createElement("small");
     count.textContent = `${Object.keys(metadata).length} 项 · 展开源码`;
-    button.append(label, description, count);
+    const sourcePreview = document.createElement("pre");
+    sourcePreview.className = "md-metadata-source";
+    // Display the original YAML body, never parsed HTML or reserialized fields.
+    sourcePreview.textContent =
+      this.source.match(
+        /^(?:\uFEFF)?---(?:\r\n?|\n)([\s\S]*?)(?:\r\n?|\n)(?:---|\.\.\.)(?:(?:\r\n?|\n)|$)/,
+      )?.[1] || "";
+    const accessibleSummary = document.createElement("span");
+    accessibleSummary.className = "sr-only";
+    accessibleSummary.append(label, description, count);
+    button.append(sourcePreview, accessibleSummary);
     button.addEventListener("mousedown", (event) => event.preventDefault());
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -864,6 +890,9 @@ function build(
           );
         }
         if (node.name === "Blockquote") {
+          let quoteDepth = 1;
+          for (let parent = node.node.parent; parent; parent = parent.parent)
+            if (parent.name === "Blockquote") quoteDepth++;
           for (
             let n = line.number;
             n <= state.doc.lineAt(node.to).number;
@@ -873,7 +902,13 @@ function build(
             add(
               quoteLine.from,
               quoteLine.from,
-              Decoration.line({ class: "md-quote" }),
+              Decoration.line({
+                class: "md-quote",
+                attributes: {
+                  "data-quote-depth": String(quoteDepth),
+                  style: `--md-quote-depth:${quoteDepth}`,
+                },
+              }),
             );
           }
         }
@@ -1147,7 +1182,9 @@ function build(
               add(
                 node.from,
                 node.to,
-                Decoration.replace({ widget: new TocWidget(node.from) }),
+                Decoration.replace({
+                  widget: new TocWidget(node.from, source),
+                }),
               );
               return false;
             }
@@ -1183,6 +1220,20 @@ function build(
             }
           }
           add(node.from, node.to, Decoration.mark({ class: "md-link" }));
+        }
+        if (
+          node.name === "ListMark" &&
+          !isActive &&
+          /^[-+*]$/.test(state.doc.sliceString(node.from, node.to))
+        ) {
+          let depth = 0;
+          for (let parent = node.node.parent; parent; parent = parent.parent)
+            if (parent.name === "BulletList") depth++;
+          add(
+            node.from,
+            node.to,
+            Decoration.replace({ widget: new BulletMarkerWidget(depth) }),
+          );
         }
         if (
           !isActive &&
@@ -1417,11 +1468,14 @@ class FootnoteWidget extends WidgetType {
 }
 
 class TocWidget extends WidgetType {
-  constructor(readonly from: number) {
+  constructor(
+    readonly from: number,
+    readonly source: string,
+  ) {
     super();
   }
   eq(other: TocWidget) {
-    return this.from === other.from;
+    return this.from === other.from && this.source === other.source;
   }
   toDOM(view: EditorView) {
     const details = document.createElement("details");
@@ -1430,31 +1484,25 @@ class TocWidget extends WidgetType {
     const summary = document.createElement("summary");
     summary.textContent = "目录";
     details.append(summary);
-    details.addEventListener("toggle", () => {
-      if (!details.open) return;
+    const populate = () => {
       const list = document.createElement("ol");
       const source = view.state.doc.toString();
       for (const heading of headings(source)) {
-        const normalizedBefore = source
-          .replace(/\r\n?/g, "\n")
-          .slice(0, heading.from);
-        const lineNumber = normalizedBefore.split("\n").length;
-        const line = view.state.doc.line(
-          Math.min(lineNumber, view.state.doc.lines),
+        const line = view.state.doc.lineAt(
+          Math.min(heading.from, view.state.doc.length),
         );
         const item = document.createElement("li");
         item.style.marginInlineStart = `${Math.max(0, heading.level - 1) * 14}px`;
         const button = document.createElement("button");
         button.type = "button";
         button.textContent = headingLabel(heading.title) || "（无标题）";
-        button.addEventListener("mousedown", (event) => {
-          event.preventDefault();
+        button.addEventListener("mousedown", (event) => event.preventDefault());
+        button.addEventListener("click", () => {
           view.dispatch({
             selection: { anchor: line.from },
             effects: EditorView.scrollIntoView(line.from, { y: "center" }),
           });
           view.focus();
-          details.open = false;
         });
         item.append(button);
         list.append(item);
@@ -1466,8 +1514,16 @@ class TocWidget extends WidgetType {
       }
       details.querySelector("ol")?.remove();
       details.append(list);
-    });
+    };
+    populate();
+    details.open = true;
     return details;
+  }
+  updateDOM(dom: HTMLElement, view: EditorView) {
+    if (!(dom instanceof HTMLDetailsElement)) return false;
+    const updated = this.toDOM(view);
+    dom.replaceChildren(...Array.from(updated.childNodes));
+    return true;
   }
   ignoreEvent() {
     return true;

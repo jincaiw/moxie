@@ -3344,7 +3344,6 @@ test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) 
   });
   const toc = page.locator(".md-toc");
   await expect(toc).toBeVisible();
-  await toc.locator("summary").click();
   const section = toc.getByRole("button", {
     name: "子章节 代码",
     exact: true,
@@ -3357,10 +3356,9 @@ test("[TOC] 预览生成分级目录并定位到对应标题", async ({ page }) 
   await expect(htmlHeading).toBeVisible();
   await section.click();
   await expect(page.locator(".cm-activeLine")).toContainText("子章节");
-  await toc.locator("summary").click();
   await htmlHeading.click();
   await expect(page.locator(".cm-activeLine")).toContainText("<h2>");
-  await expect(toc).not.toHaveAttribute("open", "");
+  await expect(toc).toHaveAttribute("open", "");
 
   const html = await page.evaluate(async () => {
     const module = (await new Function(
@@ -3390,7 +3388,6 @@ test("格式菜单可插入独立文档目录并立即预览", async ({ page }) 
   await page.getByRole("button", { name: "即时排版", exact: true }).click();
   const toc = page.locator(".md-toc");
   await expect(toc).toBeVisible();
-  await toc.locator("summary").click();
   await expect(toc.getByRole("button", { name: "第一章" })).toBeVisible();
   await expect(toc.getByRole("button", { name: "子章节" })).toBeVisible();
   await page.getByRole("button", { name: "源码", exact: true }).click();
@@ -4791,16 +4788,23 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
   await expect(page.locator(".md-front-matter.md-heading")).toHaveCount(0);
   await selectSidebarMode(page, "大纲");
   await expect(page.locator(".outline-row")).toHaveCount(34);
-  await page.getByRole("button", { name: "6. 表格", exact: true }).click();
+  await page
+    .locator(".outline-navigation")
+    .getByRole("button", { name: "6. 表格", exact: true })
+    .click();
   await expect(page.locator(".editable-table").first()).toBeVisible();
   await page
+    .locator(".outline-navigation")
     .getByRole("button", { name: "7. 链接、图片与自动链接", exact: true })
     .click();
   await expect(page.locator(".linked-image-status")).toContainText(
     "图片不可用：可点击图片的替代文本",
   );
   await expect(page.locator(".linked-image-preview")).not.toContainText("![");
-  await page.getByRole("button", { name: "9. 数学公式", exact: true }).click();
+  await page
+    .locator(".outline-navigation")
+    .getByRole("button", { name: "9. 数学公式", exact: true })
+    .click();
   await expect(page.locator(".formula .katex")).toHaveCount(2);
   await expect(page.locator(".formula .katex-error")).toHaveCount(0);
   expect(
@@ -4812,6 +4816,7 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
       ),
   ).toBeLessThan(25);
   await page
+    .locator(".outline-navigation")
     .getByRole("button", { name: "Mermaid 流程图", exact: true })
     .click();
   await expect(page.locator(".mermaid-preview svg").first()).toBeVisible();
@@ -4823,6 +4828,7 @@ test("用户综合样本在即时排版中显示表格公式与 Mermaid，正文
     "检查显示效果",
   );
   await page
+    .locator(".outline-navigation")
     .getByRole("button", { name: "11. HTML 与特殊字符", exact: true })
     .click();
   const details = page.locator(".html-block-preview details");
@@ -5035,7 +5041,9 @@ test("大纲右键与键盘菜单保持边界、导航和来源焦点", async ({
     .locator("..")
     .locator(".outline-row")
     .getAttribute("title");
-  const title = page.getByRole("button", { name: titleName!, exact: true });
+  const title = page
+    .locator(".outline-navigation")
+    .getByRole("button", { name: titleName!, exact: true });
   await toggle.focus();
   await page.keyboard.press("Shift+F10");
   await page.getByRole("button", { name: "平铺大纲", exact: true }).click();

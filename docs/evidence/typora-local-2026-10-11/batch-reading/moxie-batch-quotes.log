@@ -1,0 +1,10 @@
+[WebServer] (node:64348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:64358) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/typora-reading.spec.ts:98:1 › 嵌套引用保留各层边框和缩进，主题内边距按层递增 (538ms)
+
+  1 passed (1.5s)
