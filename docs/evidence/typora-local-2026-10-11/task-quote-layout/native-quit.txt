@@ -1,0 +1,15 @@
+Window: "Unknown", App: 墨写本机对照.
+0 sheet Description: alert, Secondary Actions: Raise
+	1 text 还有未保存的文档 保存到文件，或保留恢复副本后关闭。
+	2 button 保存全部, ID: action-button--998
+	3 button 保留恢复副本并关闭, ID: action-button--997
+	4 button 取消, ID: action-button--999
+5 menu bar
+	6 墨写本机对照
+	7 文件
+	8 编辑
+	9 格式
+	10 视图
+	11 窗口
+
+The focused UI element is 0 sheet Description: alert, Secondary Actions: Raise

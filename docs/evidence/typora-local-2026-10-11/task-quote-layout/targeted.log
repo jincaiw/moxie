@@ -1,0 +1,23 @@
+[WebServer] (node:84464) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 12 tests using 2 workers
+
+(node:84473) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:84472) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 tests/theme-typora.spec.ts:69:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 (713ms)
+  ✓   2 tests/theme-typora.spec.ts:4:1 › Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容 (877ms)
+  ✓   3 tests/theme-typora.spec.ts:112:1 › 只有真实 write 选择器启用映射，正文容器字体可覆盖 html 基础字号 (249ms)
+  ✓   4 tests/theme-typora.spec.ts:135:1 › Typora 引用与表格样式作用于正文，保留列对齐和表格工具 (346ms)
+  ✓   5 tests/typora-reading.spec.ts:4:1 › 带 YAML 与目录的主题文档定位后，列表文字点击对应实际源码行 (415ms)
+  ✓   6 tests/typora-reading.spec.ts:47:1 › 列表主题缩进按混合层级累加，长行悬挂对齐且编辑保留原始空格 (473ms)
+  ✓   7 tests/typora-reading.spec.ts:111:1 › YAML 阅读态保留原始字段、注释和安全文本，首段沿用正文大小 (434ms)
+  ✓   8 tests/typora-reading.spec.ts:145:1 › 无序列表按嵌套层级显示圆点，编辑标记和源码往返不改变内容 (530ms)
+  ✓   9 tests/typora-reading.spec.ts:173:1 › 目录默认展开且可用键盘定位，标题编辑后更新并保留折叠选择 (737ms)
+  ✓  10 tests/typora-reading.spec.ts:205:1 › 嵌套引用保留各层边框和缩进，主题内边距按层递增 (356ms)
+  ✓  12 tests/typora-reading.spec.ts:290:1 › 标题边框位于主题底部外间距之前，保留盒内测量和媒体级联 (405ms)
+  ✓  11 tests/typora-reading.spec.ts:237:1 › 任务和引用内列表继承主题缩进，切换任务及源码往返保持结构 (549ms)
+
+  12 passed (4.2s)

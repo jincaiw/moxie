@@ -233,3 +233,129 @@ test("嵌套引用保留各层边框和缩进，主题内边距按层递增", as
   expect(border.width).toBe("38px");
   expect(border.background).toContain("rgb(223, 226, 229)");
 });
+
+test("任务和引用内列表继承主题缩进，切换任务及源码往返保持结构", async ({
+  page,
+}) => {
+  const source =
+    "- [x] 根任务" +
+    "长任务内容".repeat(30) +
+    "\n  - [ ] 子任务\n    任务续行\n\n> - 引用项目\n>   - [ ] 引用任务\n>     引用续行\n>\n> > 1) 深层编号\n\n1) [ ] 有序任务\n\n结尾";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "tasks.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(
+      "#write{font-size:16px} ul{padding-left:30px} ol{padding-left:40px} blockquote{border-left:4px solid #dfe2e5;padding:0 15px}",
+    );
+    document.head.append(style);
+  });
+  const line = (text: string) =>
+    page.locator(".cm-line").filter({ hasText: text }).first();
+  for (const [text, padding] of [
+    ["根任务", "30px"],
+    ["子任务", "60px"],
+    ["任务续行", "60px"],
+    ["引用项目", "45px"],
+    ["引用任务", "75px"],
+    ["引用续行", "75px"],
+    ["深层编号", "74px"],
+    ["有序任务", "40px"],
+  ])
+    await expect(line(text)).toHaveCSS("padding-left", padding);
+  const wrapping = await line("根任务").evaluate((el) => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let text: Node | null;
+    while ((text = walker.nextNode())) {
+      if (!text.textContent?.includes("根任务")) continue;
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      return Array.from(range.getClientRects()).map(
+        (rect) => rect.left - el.getBoundingClientRect().left,
+      );
+    }
+    return [];
+  });
+  expect(wrapping.length).toBeGreaterThan(1);
+  for (const left of wrapping) expect(left).toBeCloseTo(30, 0);
+  await expect(page.locator(".md-task-line .task-checkbox")).toHaveCount(4);
+  await expect(line("有序任务").locator(".md-ordered-marker")).toHaveCount(0);
+  await page
+    .getByRole("checkbox", { name: "任务：引用任务", exact: true })
+    .check();
+  await expect(
+    page.getByRole("checkbox", { name: "任务：引用任务", exact: true }),
+  ).toBeChecked();
+  await page
+    .getByRole("textbox", { name: "Markdown 编辑区" })
+    .press("ControlOrMeta+z");
+  await expect(
+    page.getByRole("checkbox", { name: "任务：引用任务", exact: true }),
+  ).not.toBeChecked();
+  await page
+    .getByRole("textbox", { name: "Markdown 编辑区" })
+    .press("ControlOrMeta+Shift+z");
+  await expect(
+    page.getByRole("checkbox", { name: "任务：引用任务", exact: true }),
+  ).toBeChecked();
+  await line("引用项目").click();
+  await expect(page.locator(".cm-activeLine")).toContainText("> - 引用项目");
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  expect(
+    await page
+      .locator(".cm-line")
+      .evaluateAll((lines) => lines.map((el) => el.textContent).join("\n")),
+  ).toBe(source.replace(">   - [ ] 引用任务", ">   - [x] 引用任务"));
+});
+
+test("标题边框位于主题底部外间距之前，保留盒内测量和媒体级联", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "heading.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 标题\n\n正文\n\n结尾"),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(
+      "#write{font-size:16px} h1{margin:16px 0 24px;padding-bottom:5px;border-bottom:2px solid #abcdef} @media(max-width:1000px){h1{margin-bottom:12px;border-bottom-color:#fedcba}}",
+    );
+    document.head.append(style);
+  });
+  const heading = page.locator(".md-h1");
+  await expect(heading).toHaveCSS("padding-bottom", "29px");
+  await expect(heading).toHaveCSS("margin-bottom", "0px");
+  const border = () =>
+    heading.evaluate((el) => {
+      const style = getComputedStyle(el, "::after");
+      return {
+        bottom: style.bottom,
+        width: style.borderBottomWidth,
+        color: style.borderBottomColor,
+      };
+    });
+  expect(await border()).toEqual({
+    bottom: "22px",
+    width: "2px",
+    color: "rgb(171, 205, 239)",
+  });
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(heading).toHaveCSS("padding-bottom", "17px");
+  expect(await border()).toEqual({
+    bottom: "10px",
+    width: "2px",
+    color: "rgb(254, 220, 186)",
+  });
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(page.locator(".md-h1")).toHaveCount(0);
+});

@@ -94,13 +94,24 @@ export function typoraEditorCSS(css: string): string {
                   }),
                 )
                 .join("");
+              // Draw the bottom rule before the former outside margin while
+              // retaining its measured border width in the line box.
+              const bottomBorder = ["width", "style", "color"]
+                .map((part) => {
+                  const name = `border-bottom-${part}`;
+                  const value = rule.style.getPropertyValue(name);
+                  return value
+                    ? `--md-heading-${name}:${value}${rule.style.getPropertyPriority(name) ? " !important" : ""};`
+                    : "";
+                })
+                .join("");
               const horizontal = ["left", "right"]
                 .map((side) => {
                   const value = rule.style.getPropertyValue(`padding-${side}`);
                   return value ? `padding-${side}:${value};` : "";
                 })
                 .join("");
-              return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}}`;
+              return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}${bottomBorder}border-bottom-color:transparent !important;}`;
             }
             const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
             if (list) {
@@ -130,7 +141,7 @@ export function typoraEditorCSS(css: string): string {
                 rule.style.getPropertyValue("border-left-width");
               const borderColor =
                 rule.style.getPropertyValue("border-left-color");
-              const nested = `${inset ? `--md-quote-inset:${inset};padding-left:calc(var(--md-quote-inset)*var(--md-quote-depth,1) + var(--md-quote-border-width,4px)*(var(--md-quote-depth,1) - 1)) !important;` : ""}${borderWidth ? `--md-quote-border-width:${borderWidth};` : ""}${borderColor ? `--md-quote-border-color:${borderColor};` : ""}`;
+              const nested = `${inset ? `--md-quote-inset:${inset};padding-left:calc(var(--md-list-offset,0px) + var(--md-quote-inset)*var(--md-quote-depth,1) + var(--md-quote-border-width,4px)*(var(--md-quote-depth,1) - 1)) !important;` : ""}${borderWidth ? `--md-quote-border-width:${borderWidth};` : ""}${borderColor ? `--md-quote-border-color:${borderColor};` : ""}`;
               return `${host} .cm-content .md-quote{${declarations(
                 rule.style,
                 (name) => typography.test(name) || surface.test(name),
@@ -149,5 +160,5 @@ export function typoraEditorCSS(css: string): string {
           .join("");
       })
       .join("");
-  return `${host} .cm-line{min-height:1em;}\n${host} .md-heading{margin-top:0;margin-bottom:0;padding-top:calc(var(--md-heading-margin-top,0px) + var(--md-heading-padding-top,0px));padding-bottom:calc(var(--md-heading-margin-bottom,0px) + var(--md-heading-padding-bottom,0px));}\n${walk(sheet.cssRules)}`;
+  return `${host} .cm-line{min-height:1em;}\n${host} .md-heading{position:relative;margin-top:0;margin-bottom:0;padding-top:calc(var(--md-heading-margin-top,0px) + var(--md-heading-padding-top,0px));padding-bottom:calc(var(--md-heading-margin-bottom,0px) + var(--md-heading-padding-bottom,0px));}\n${host} .md-heading::after{content:"";position:absolute;pointer-events:none;left:0;right:0;bottom:calc(var(--md-heading-margin-bottom,0px) - var(--md-heading-border-bottom-width,0px));border-bottom:var(--md-heading-border-bottom-width,0px) var(--md-heading-border-bottom-style,none) var(--md-heading-border-bottom-color,currentColor);}\n${walk(sheet.cssRules)}`;
 }

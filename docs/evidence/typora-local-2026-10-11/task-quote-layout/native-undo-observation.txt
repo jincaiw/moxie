@@ -1,0 +1,210 @@
+Window: "墨写 · Markdown 编辑器", App: 墨写本机对照.
+0 standard window 墨写 · Markdown 编辑器, Secondary Actions: Raise
+	1 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 大纲
+				7 button 搜索大纲标题
+					8 image
+			9 container 文档大纲
+				10 container 大纲
+					11 button Description: 折叠 任务与引用对照, Help: 折叠子标题
+					12 button 任务与引用对照
+					13 button 任务列表
+					14 button 引用内列表
+			15 container
+				16 button 新建文件
+					17 image
+				18 button Description: 文件夹菜单, Help: /private/tmp
+					19 text tmp
+					20 image
+				21 button 大纲显示选项
+					22 image
+			23 splitter Description: 调整侧栏宽度, Value: 260
+			24 container
+				25 button 切换侧栏
+					26 image
+				27 text native.md
+				28 container 文档未保存
+				29 button 即时排版
+				30 button 源码
+					31 image
+					32 text 源码
+				33 pop up button 格式
+					34 image
+				35 button 插入图片
+					36 image
+				37 button 设置图片尺寸
+					38 image
+				39 button 查找与替换
+					40 image
+				41 button 跨文档搜索
+					42 image
+				43 button 快速打开
+					44 image
+				45 pop up button 导出
+					46 image
+					47 text 导出
+					48 image
+				49 button 专注模式
+					50 image
+				51 button 切换深色主题
+					52 image
+				53 button 偏好设置
+					54 image
+			55 container 文档分组
+				56 button 全部 10
+					57 text 全部
+					58 text 10
+				59 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			60 tab group 打开的文档
+				61 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				62 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					63 (selected) 未分组
+				64 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					65 image
+				66 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				67 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					68 (selected) 未分组
+				69 button Description: 关闭 写作指南.md, Help: 关闭文档
+					70 image
+				71 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				72 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
+					73 (selected) 未分组
+				74 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
+					75 image
+				76 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				77 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
+					78 (selected) 未分组
+				79 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
+					80 image
+				81 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					82 container 未保存
+					83 text 未命名.md
+				84 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					85 (selected) 未分组
+				86 button Description: 关闭 未命名.md, Help: 关闭文档
+					87 image
+				88 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				89 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
+					90 (selected) 未分组
+				91 button Description: 关闭 recovered-copy.md, Help: 关闭文档
+					92 image
+				93 tab (settable, integer) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				94 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
+					95 (selected) 未分组
+				96 button Description: 关闭 image-copy.md, Help: 关闭文档
+					97 image
+				98 tab (settable, integer) moxie-theme-blocks.md, Help: moxie-theme-blocks.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				99 pop up button Description: moxie-theme-blocks.md所属分组, Help: 所属分组, Value: 未分组
+					100 (selected) 未分组
+				101 button Description: 关闭 moxie-theme-blocks.md, Help: 关闭文档
+					102 image
+				103 tab (settable, integer) parity.md, Help: parity.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				104 pop up button Description: parity.md所属分组, Help: 所属分组, Value: 未分组
+					105 (selected) 未分组
+				106 button Description: 关闭 parity.md, Help: 关闭文档
+					107 image
+				108 tab (selected) 未保存 native.md, Help: native.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+					109 container 未保存
+					110 text native.md
+				111 pop up button Description: native.md所属分组, Help: 所属分组, Value: 未分组
+					112 (selected) 未分组
+				113 button Description: 关闭 native.md, Help: 关闭文档
+					114 image
+			115 text 已恢复上次会话的未保存文档。请保存到文件。
+			116 button 关闭恢复提示
+				117 image
+			118 container 未保存 native.md
+				119 container
+					120 text entry area (settable) Description: Markdown 编辑区, Value: title: 任务与引用对照
+author: 本机自建样本
+文档属性任务与引用对照 · 本机自建样本2 项 · 展开源码
+ 任务与引用对照
+标题边框应紧随标题和内边距，留白位于边框之后。
+## 任务列表
+根任务
+
+子任务
+任务续行
+有序任务
+ 引用内列表
+ 引用项目 
+
+引用任务 
+引用续行
+  
+1)深层编号
+结尾。
+
+						121 button Description: 展开文档属性源码, Help: 点击直接编辑 YAML；离开属性区域后自动收起
+							122 text title: 任务与引用对照
+author: 本机自建样本
+							123 text 文档属性
+							124 text 任务与引用对照 · 本机自建样本
+							125 text 2 项 · 展开源码
+						126 text  任务与引用对照
+						127 text 标题边框应紧随标题和内边距，留白位于边框之后。
+						128 container
+							129 text ##  任务列表
+						130 container
+							131 checkbox Description: 任务：根任务, Value: 1
+							132 text 根任务
+						133 container
+							134 checkbox Description: 任务：子任务, Value: 0
+							135 text 子任务
+						136 text 任务续行
+						137 container
+							138 checkbox Description: 任务：有序任务, Value: 0
+							139 text 有序任务
+						140 text  引用内列表
+						141 container
+							142 text 引用项目
+						143 container
+							144 checkbox Description: 任务：引用任务, Value: 1
+							145 text 引用任务
+						146 container
+							147 text 引用续行
+						148 container
+							149 text 1) 深层编号
+						150 text 结尾。
+			151 container
+				152 button 未保存 · 点击保存
+					153 image
+					154 text 未保存 · 点击保存
+				155 text 恢复副本已更新 Markdown UTF-8 行  10 , 列  8
+				156 button 字数统计
+					157 text 119
+					158 text  字符
+	159 close button
+	160 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	161 minimize button
+162 menu bar
+	163 墨写本机对照
+	164 文件
+	165 编辑
+	166 格式
+	167 视图
+	168 窗口
+
+The focused UI element is 120 text entry area (settable) Description: Markdown 编辑区, Value: title: 任务与引用对照
+author: 本机自建样本
+文档属性任务与引用对照 · 本机自建样本2 项 · 展开源码
+ 任务与引用对照
+标题边框应紧随标题和内边距，留白位于边框之后。
+## 任务列表
+根任务
+
+子任务
+任务续行
+有序任务
+ 引用内列表
+ 引用项目 
+
+引用任务 
+引用续行
+  
+1)深层编号
+结尾。

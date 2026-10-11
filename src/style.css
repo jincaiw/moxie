@@ -2677,6 +2677,17 @@ p {
 .md-list-line {
   padding-left: var(--md-list-offset) !important;
 }
+.md-quote.md-list-line {
+  padding-left: calc(
+    var(--md-list-offset) + var(--md-quote-inset, 24px) *
+      var(--md-quote-depth, 1) + var(--md-quote-border-width, 4px) *
+      (var(--md-quote-depth, 1) - 1)
+  ) !important;
+}
+.md-task-line .task-checkbox {
+  margin-left: -20px;
+  margin-right: 5px;
+}
 .md-bullet-marker,
 .md-ordered-marker {
   display: inline-block;

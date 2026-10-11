@@ -736,8 +736,6 @@ function build(
     let ordered = 0;
     let kind = "";
     for (let parent: SyntaxNode | null = node; parent; parent = parent.parent) {
-      // Quote prefixes and task controls keep their existing editing layout.
-      if (parent.name === "Blockquote") return null;
       if (!item && parent.name === "ListItem") item = parent;
       if (parent.name === "BulletList") {
         bullets++;
@@ -748,11 +746,7 @@ function build(
         kind ||= "ordered";
       }
     }
-    if (
-      !item ||
-      /^\s*(?:[-+*]|\d+[.)])\s+\[[ xX]\]/.test(state.doc.lineAt(item.from).text)
-    )
-      return null;
+    if (!item) return null;
     return { item, bullets, ordered, kind };
   };
   const listLine = (
@@ -769,6 +763,17 @@ function build(
         },
       }),
     );
+  };
+  const hideListIndent = (from: number, to: number) => {
+    const prefix = state.doc.sliceString(from, to);
+    // QuoteMark decorations own each > and its optional following space.
+    const lastQuote = prefix.lastIndexOf(">");
+    const start =
+      lastQuote < 0
+        ? 0
+        : lastQuote + 1 + (prefix[lastQuote + 1] === " " ? 1 : 0);
+    if (/^[ \t]+$/.test(prefix.slice(start)))
+      add(from + start, to, Decoration.replace({}));
   };
   const regions: { from: number; to: number }[] = [];
   for (const visible of visibleRanges) {
@@ -908,7 +913,7 @@ function build(
         }
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
-        if (node.name === "Paragraph") {
+        if (node.name === "Paragraph" || node.name === "Task") {
           const layout = listLayout(node.node);
           if (layout) {
             const first = state.doc.lineAt(layout.item.from).number;
@@ -921,12 +926,11 @@ function build(
               if (n === first || active(continuation.from, continuation.to))
                 continue;
               listLine(continuation.from, layout);
-              const indent = /^[ \t]+/.exec(continuation.text)?.[0];
-              if (indent)
-                add(
+              const prefix = /^(?:[ \t]|>)+/.exec(continuation.text)?.[0];
+              if (prefix)
+                hideListIndent(
                   continuation.from,
-                  continuation.from + indent.length,
-                  Decoration.replace({}),
+                  continuation.from + prefix.length,
                 );
             }
           }
@@ -1059,15 +1063,32 @@ function build(
         }
         if (
           node.name === "ListMark" &&
-          /^\s*[-*+]\s+\[[ xX]\]/.test(line.text)
+          node.node.nextSibling?.name === "Task"
         ) {
-          add(node.from, node.to, Decoration.replace({}));
-          return false;
+          const task = node.node.nextSibling.firstChild;
+          if (task?.name === "TaskMarker") {
+            const layout = listLayout(node.node);
+            if (layout && !active(line.from, line.to)) {
+              listLine(line.from, layout);
+              add(
+                line.from,
+                line.from,
+                Decoration.line({ class: "md-task-line" }),
+              );
+              hideListIndent(line.from, node.from);
+            }
+            add(node.from, task.from, Decoration.replace({}));
+            return false;
+          }
         }
         if (node.name === "TaskMarker") {
           add(
             node.from,
-            node.to,
+            active(line.from, line.to)
+              ? node.to
+              : node.to +
+                  (/^[ \t]*/.exec(state.doc.sliceString(node.to, line.to))?.[0]
+                    .length || 0),
             Decoration.replace({
               widget: new TaskWidget(
                 state.doc.sliceString(node.from, node.to).includes("x") ||
@@ -1296,11 +1317,7 @@ function build(
           const marker = state.doc.sliceString(node.from, node.to);
           if (layout && /^(?:[-+*]|\d+[.)])$/.test(marker)) {
             listLine(line.from, layout);
-            if (
-              node.from > line.from &&
-              /^[ \t]+$/.test(state.doc.sliceString(line.from, node.from))
-            )
-              add(line.from, node.from, Decoration.replace({}));
+            hideListIndent(line.from, node.from);
             const gap = /^[ \t]*/.exec(
               state.doc.sliceString(node.to, line.to),
             )![0].length;
