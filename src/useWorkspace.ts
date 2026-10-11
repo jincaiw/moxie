@@ -721,14 +721,14 @@ export function useWorkspace(
     updateDocuments(next);
   }, []);
   const updateDocumentPath = useCallback(
-    (from: string, to: string, version: string) => {
+    (from: string, to: string, version?: string) => {
       const next = docsRef.current.map((document) =>
         document.path === from
           ? {
               ...document,
               path: to,
               name: to.split(/[\\/]/).at(-1) || document.name,
-              diskVersion: version,
+              diskVersion: version ?? document.diskVersion,
             }
           : document,
       );

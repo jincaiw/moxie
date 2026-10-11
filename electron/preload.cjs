@@ -44,6 +44,8 @@ contextBridge.exposeInMainWorld("desktop", {
   openLink: (input) => ipcRenderer.invoke("link:open", input),
   openInNewWindow: (file) => ipcRenderer.invoke("file:open-new-window", file),
   initialFile: () => ipcRenderer.invoke("file:initial"),
+  resolveDocumentPaths: (files) =>
+    ipcRenderer.invoke("file:resolve-paths", files),
   inspect: (files) => ipcRenderer.invoke("file:inspect", files),
   recent: () => ipcRenderer.invoke("file:recent"),
   reopen: (file) => ipcRenderer.invoke("file:reopen", file),

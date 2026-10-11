@@ -1,0 +1,25 @@
+{
+  "baseCommit": "4f2cc05",
+  "sources": {
+    "electron/files.cjs": {
+      "sha256": "d523a87e91d67b55a087baf8d0ff270ef747adea73eca29ecd170adf4be28381",
+      "matchesBundle": true
+    },
+    "electron/main.cjs": {
+      "sha256": "c86784121c9c6051bf174e9917dc0c911f9f9d52495c36846431ab220fbd96c0",
+      "matchesBundle": true
+    },
+    "electron/preload.cjs": {
+      "sha256": "084d57c07ebbaaff606eec6cf0c27b6077a84ac0187edfbf27e61c003f8d469b",
+      "matchesBundle": true
+    }
+  },
+  "asarSHA256": "7b3d752cb35a030198d42ce8380b57aed6b5f8db0ee2d2935d415d54d754280b",
+  "qaMetadata": true,
+  "fixtureSHA256": "d51c479830f5832455a540d22b8aa57aacf61762ebdf29d2b8cf3debd7fbf4b0",
+  "desktopPassed": 55,
+  "uiPassed": 237,
+  "uiPerformanceSkipped": 3,
+  "uiWorkers": 2,
+  "uiRetries": 0
+}

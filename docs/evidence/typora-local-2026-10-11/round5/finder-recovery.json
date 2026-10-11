@@ -1,0 +1,10 @@
+{
+  "sample": "readonly-copy.md",
+  "observedTrashURL": "file:///System/Volumes/Data/.Trashes/502/readonly-copy.md",
+  "finderPutBack": "disabled",
+  "recovery": "Finder Cmd+C, navigate original temporary directory, Cmd+Option+V",
+  "recoveredText": "# 只读验收\n\n原件必须保留。\n\n只读修改应另存为副本。",
+  "recoveredSHA256": "3536dc29d190a2dfee78e3187264790b6d4c7d8fd3bfa252a44552e4560e2550",
+  "otherTrashItems": "No operations performed on other items",
+  "quitObservation": "Before final build: twice chose keep recovery copy and quit, but window remained. Saved generated untitled content as quit-recovery-evidence.md, then quit succeeded. Cause not established; do not count as passed quit acceptance."
+}

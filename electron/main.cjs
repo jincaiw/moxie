@@ -258,6 +258,7 @@ function setupIPC() {
   handle("folder:reopen", (input) =>
     store.reopenFolder(input.path, input.options),
   );
+  handle("file:resolve-paths", (files) => store.resolveDocumentPaths(files));
   handle("file:operation", async (input, { window }) => {
     if (input?.action !== "move" || input.directory)
       return store.fileOperation(input);

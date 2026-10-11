@@ -2475,3 +2475,81 @@ test("无标题文档的已打开列表忽略左右键，不触发大纲操作",
   await expect(page.locator(".cm-content")).toContainText("没有标题的纯文本");
   expect(errors).toEqual([]);
 });
+
+for (const saveFails of [false, true]) {
+  test(`路径别名文档移入废纸篓前保存检查：${saveFails ? "失败保留文档" : "成功关闭标签"}`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ saveFails }) => {
+        const state = window as any;
+        state.operations = [];
+        state.desktop.open = async () => ({
+          path: "/notes-alias/章节/note.md",
+          name: "note.md",
+          text: "# 原件\n",
+          version: "v1",
+        });
+        state.desktop.resolveDocumentPaths = async (paths: string[]) =>
+          paths.map((from) => ({
+            from,
+            to: from.replace("/notes-alias/", "/notes/"),
+          }));
+        state.desktop.save = async (input: any) => {
+          state.saves.push(input);
+          if (saveFails) return null;
+          return {
+            path: input.path,
+            name: "note.md",
+            text: input.text,
+            version: "saved",
+          };
+        };
+        state.desktop.fileOperation = async (input: any) => {
+          state.operations.push(input);
+          return { action: "trash", path: input.target, kind: "file" };
+        };
+      },
+      { saveFails },
+    );
+    await page.goto("/");
+    await expect(page.locator(".cm-content")).toBeVisible();
+    await page.keyboard.press(shortcut("o"));
+    await expect(
+      page.getByRole("tab", { name: "note.md", exact: true }),
+    ).toBeVisible();
+    await page.locator(".cm-content").click();
+    await page.keyboard.press(documentEnd);
+    await page.keyboard.insertText("必须先保存的编辑");
+    await openSidebarFolder(page);
+    await page.getByRole("button", { name: "文件夹 章节" }).click();
+    await page.getByRole("button", { name: "文件操作：note.md" }).click();
+    await page.getByRole("button", { name: "移入废纸篓", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "移入废纸篓", exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).saves.length))
+      .toBe(1);
+    const saved = await page.evaluate(() => (window as any).saves[0]);
+    expect(saved.path).toBe("/notes/章节/note.md");
+    expect(saved.text).toContain("必须先保存的编辑");
+    if (saveFails) {
+      await expect(page.getByRole("tab", { name: /note.md/ })).toBeVisible();
+      await expect(
+        page
+          .getByRole("dialog", { name: "移入系统废纸篓" })
+          .getByText("文档未能保存，文件操作已取消。", { exact: true }),
+      ).toBeVisible();
+      expect(await page.evaluate(() => (window as any).operations.length)).toBe(
+        0,
+      );
+    } else {
+      await expect(page.getByRole("tab", { name: /note.md/ })).toHaveCount(0);
+      expect(await page.evaluate(() => (window as any).operations.length)).toBe(
+        1,
+      );
+    }
+  });
+}

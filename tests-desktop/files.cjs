@@ -1324,6 +1324,61 @@ test("文件夹授权重启恢复，目录版本随内容与时间信息变化�
   }
 });
 
+test("文件操作前统一旧路径别名，保留保存权限并拒绝未授权或越界文档", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-operation-alias-"),
+  );
+  const alias = `${root}-alias`;
+  try {
+    await fs.symlink(root, alias, "dir");
+    const source = path.join(alias, "note.md");
+    await fs.writeFile(source, "original");
+    const store = new FileStore();
+    const opened = await store.read(source);
+    const canonical = path.join(await fs.realpath(root), "note.md");
+    assert.deepEqual(await store.resolveDocumentPaths([source]), [
+      { from: source, to: canonical },
+    ]);
+    assert.equal(store.authorized.has(source), false);
+    assert.equal(store.authorized.has(canonical), true);
+    const failed = new FileStore();
+    await failed.read(source);
+    failed.stateFile = root;
+    await assert.rejects(failed.resolveDocumentPaths([source]));
+    assert.equal(failed.authorized.has(source), true);
+    assert.equal(failed.authorized.has(canonical), false);
+    let dialogs = 0;
+    await store.save(
+      {
+        path: canonical,
+        name: "note.md",
+        text: "edited",
+        expected: opened.text,
+      },
+      async () => {
+        dialogs++;
+        return null;
+      },
+      async () => false,
+    );
+    assert.equal(dialogs, 0);
+    assert.equal(await fs.readFile(canonical, "utf8"), "edited");
+    await assert.rejects(
+      store.resolveDocumentPaths([path.join(root, "secret.md")]),
+      /未获授权/,
+    );
+    await assert.rejects(
+      store.resolveDocumentPaths(new Array(101).fill(source)),
+      /请求无效/,
+    );
+    store.treeRoots.set(source, path.join(root, "other-root"));
+    await assert.rejects(store.resolveDocumentPaths([source]), /文件夹之外/);
+  } finally {
+    await fs.rm(alias, { force: true });
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
 test("目录规范路径与文件选择器路径别名共享授权且保留边界检查", async () => {
   const { FileStore } = require("../electron/files.cjs");
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-path-identity-"));

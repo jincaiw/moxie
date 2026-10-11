@@ -1263,6 +1263,49 @@ class FileStore {
     if (this.fileOperationHistory.length > 50)
       this.fileOperationHistory.shift();
   }
+  async resolveDocumentPaths(files) {
+    if (!Array.isArray(files) || files.length > 100)
+      throw Error("文档路径请求无效");
+    const mappings = [];
+    for (const file of files) {
+      if (typeof file !== "string" || !path.isAbsolute(file))
+        throw Error("文档未获授权");
+      const entry = await this.entryPath(file).catch((error) => {
+        if (error.code === "ENOENT") return file;
+        throw error;
+      });
+      if (!this.authorized.has(file) && !this.authorized.has(entry))
+        throw Error("文档未获授权");
+      const root = this.treeRoots.get(file) || this.treeRoots.get(entry);
+      if (root && !inside(root, entry)) throw Error("文档不能指向文件夹之外");
+      mappings.push({ from: file, to: entry });
+    }
+    const changed = mappings.filter(({ from, to }) => from !== to);
+    if (changed.length) {
+      const previous = {
+        authorized: new Set(this.authorized),
+        treeRoots: new Map(this.treeRoots),
+        recent: this.recent,
+      };
+      try {
+        for (const { from, to } of changed) {
+          const root = this.treeRoots.get(from);
+          this.authorized.delete(from);
+          this.authorized.add(to);
+          this.treeRoots.delete(from);
+          if (root) this.treeRoots.set(to, root);
+          this.recent = [
+            ...new Set(this.recent.map((file) => (file === from ? to : file))),
+          ];
+        }
+        await this.persist();
+      } catch (error) {
+        Object.assign(this, previous);
+        throw error;
+      }
+    }
+    return mappings;
+  }
   async inspect(files) {
     if (!Array.isArray(files) || files.length > 100)
       throw Error("文件检查请求无效");

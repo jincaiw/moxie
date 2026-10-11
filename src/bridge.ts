@@ -159,6 +159,9 @@ declare global {
         folder?: string;
         reveal?: string;
       }>;
+      resolveDocumentPaths?: (
+        files: string[],
+      ) => Promise<{ from: string; to: string }[]>;
       inspect: (
         files: { path: string; version?: string }[],
       ) => Promise<FileChange[]>;

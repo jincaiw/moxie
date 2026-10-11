@@ -576,18 +576,6 @@ export default function App() {
       setMessage(error);
       return { ok: false, error };
     }
-    editor.current?.flush();
-    if (
-      request.action === "undo" &&
-      workspace.docsRef.current.some(
-        (document) =>
-          document.dirty && document.path && isWithinPath(root, document.path),
-      )
-    ) {
-      const error = "当前文件夹有未保存的文档，请先保存，再撤销文件操作。";
-      setMessage(error);
-      return { ok: false, error };
-    }
     fileOperationInFlight.current = true;
     setFileOperationBusy(true);
     const affectedTarget = ["copy", "rename", "move", "trash"].includes(
@@ -595,17 +583,39 @@ export default function App() {
     )
       ? request.target
       : undefined;
-    const opened = affectedTarget
-      ? workspace.docsRef.current.filter(
-          (document) =>
-            document.path && isWithinPath(affectedTarget, document.path),
-        )
-      : [];
-    const savedTexts = new Map(
-      opened.map((document) => [document.id, document.text]),
-    );
     let applied = false;
     try {
+      editor.current?.flush();
+      if (window.desktop.resolveDocumentPaths) {
+        const paths = workspace.docsRef.current.flatMap((document) =>
+          document.path ? [document.path] : [],
+        );
+        const mappings = await window.desktop.resolveDocumentPaths([
+          ...new Set(paths),
+        ]);
+        for (const { from, to } of mappings) {
+          if (from !== to) workspace.updateDocumentPath(from, to);
+        }
+      }
+      if (
+        request.action === "undo" &&
+        workspace.docsRef.current.some(
+          (document) =>
+            document.dirty &&
+            document.path &&
+            isWithinPath(root, document.path),
+        )
+      )
+        throw Error("当前文件夹有未保存的文档，请先保存，再撤销文件操作。");
+      const opened = affectedTarget
+        ? workspace.docsRef.current.filter(
+            (document) =>
+              document.path && isWithinPath(affectedTarget, document.path),
+          )
+        : [];
+      const savedTexts = new Map(
+        opened.map((document) => [document.id, document.text]),
+      );
       for (const document of opened) {
         if (document.dirty && !(await workspace.save(document)))
           throw Error("文档未能保存，文件操作已取消。");

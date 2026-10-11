@@ -1,0 +1,125 @@
+Window: "墨写 · Markdown 编辑器", App: 墨写本机对照.
+0 standard window 墨写 · Markdown 编辑器, Secondary Actions: Raise
+	1 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 文件
+				7 button 搜索项目文件夹
+					8 image
+			9 container 文档列表
+				10 container 文件
+					11 container 文件夹浏览
+						12 container /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ
+							13 image
+							14 text moxie-readonly-native-jvkAXZ
+						15 text 文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home 和 End 跳到列表首尾。Shift+F10 打开文件操作，上下方向键循环切换操作，Home/End 跳到首尾，Tab 切换操作，Enter 执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
+						16 content list 文件列表
+							17 container
+								18 button Description: 打开 readonly.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ/readonly.md
+									19 image
+									20 text readonly.md
+								21 button 文件操作：readonly.md
+									22 image
+			23 container
+				24 button 新建文件
+					25 image
+				26 button Description: 文件夹菜单, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-readonly-native-jvkAXZ
+					27 text moxie-readonly-native-jvkAXZ
+					28 image
+				29 button 切换到文件列表
+					30 image
+			31 splitter Description: 调整侧栏宽度, Value: 260
+			32 container
+				33 button 切换侧栏
+					34 image
+				35 text readonly-copy.md
+				36 button 即时排版
+				37 button 源码
+					38 image
+					39 text 源码
+				40 pop up button 格式
+					41 image
+				42 button 插入图片
+					43 image
+				44 button 设置图片尺寸
+					45 image
+				46 button 查找与替换
+					47 image
+				48 button 跨文档搜索
+					49 image
+				50 button 快速打开
+					51 image
+				52 pop up button 导出
+					53 image
+					54 text 导出
+					55 image
+				56 button 专注模式
+					57 image
+				58 button 切换深色主题
+					59 image
+				60 button 偏好设置
+					61 image
+			62 container 文档分组
+				63 button 全部 4
+					64 text 全部
+					65 text 4
+				66 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			67 tab group 打开的文档
+				68 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				69 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					70 (selected) 未分组
+				71 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					72 image
+				73 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				74 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					75 (selected) 未分组
+				76 button Description: 关闭 写作指南.md, Help: 关闭文档
+					77 image
+				78 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					79 container 未保存
+					80 text 未命名.md
+				81 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					82 (selected) 未分组
+				83 button Description: 关闭 未命名.md, Help: 关闭文档
+					84 image
+				85 tab (selected) readonly-copy.md, Help: readonly-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+				86 pop up button Description: readonly-copy.md所属分组, Help: 所属分组, Value: 未分组
+					87 (selected) 未分组
+				88 button Description: 关闭 readonly-copy.md, Help: 关闭文档
+					89 image
+			90 text 已恢复上次会话的未保存文档。请保存到文件。
+			91 button 关闭恢复提示
+				92 image
+			93 container
+				94 text 磁盘文件已删除或无法读取。当前编辑已保留。
+				95 button 另存为保留编辑
+			96 container readonly-copy.md
+				97 container
+					98 text entry area (settable) Description: Markdown 编辑区, Value:  只读验收
+原件必须保留。
+只读修改应另存为副本。
+						99 text  只读验收
+						100 text 原件必须保留。
+						101 text 只读修改应另存为副本。
+			102 container
+				103 button 已保存
+					104 image
+					105 text 已保存
+				106 text 恢复副本已更新 Markdown UTF-8 行  5 , 列  12
+				107 button 字数统计
+					108 text 22
+					109 text  字符
+	110 close button
+	111 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	112 minimize button
+113 menu bar
+	114 墨写本机对照
+	115 文件
+	116 编辑
+	117 格式
+	118 视图
+	119 窗口
+
+The focused UI element is 1 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
