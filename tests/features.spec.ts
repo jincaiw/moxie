@@ -10,6 +10,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { validateThemeCatalog } from "../src/theme-gallery";
 import {
   parseClipboardTable,
@@ -849,6 +850,21 @@ test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async (
   await expect(previewImages.nth(1)).not.toHaveAttribute("width", /.+/);
   await expect(previewImages.nth(2)).toHaveAttribute("width", "320");
   await expect(previewImages.nth(2)).toHaveAttribute("height", "180");
+  const expectedSizes = [
+    { width: 240, height: 240 },
+    { width: 120, height: 120 },
+    { width: 320, height: 180 },
+  ];
+  await expect
+    .poll(() =>
+      previewImages.evaluateAll((images) =>
+        images.map((image) => {
+          const { width, height } = image.getBoundingClientRect();
+          return { width, height };
+        }),
+      ),
+    )
+    .toEqual(expectedSizes);
   const html = await page.evaluate(async (markdown) => {
     const module = (await new Function(
       "return import('/src/export.ts')",
@@ -858,6 +874,38 @@ test("Typora 图片尺寸语法在即时预览和 HTML 导出中保留", async (
   expect(html).toContain('width="240"');
   expect(html).toContain('height="120"');
   expect(html).toContain('width="320" height="180"');
+  // Check real layout, rather than attributes that CSS may override.
+  const renderedSizes = await page.evaluate(async (html) => {
+    const frame = document.createElement("iframe");
+    frame.style.width = "1000px";
+    const loaded = new Promise<void>((resolve) => {
+      frame.onload = () => resolve();
+    });
+    frame.srcdoc = html;
+    document.body.append(frame);
+    await loaded;
+    const images = [...frame.contentDocument!.querySelectorAll("img")];
+    await Promise.all(images.map((image) => image.decode()));
+    const sizes = images.map((image) => {
+      const { width, height } = image.getBoundingClientRect();
+      return { width, height };
+    });
+    frame.remove();
+    return sizes;
+  }, html);
+  expect(renderedSizes).toEqual(expectedSizes);
+  // Exercise the actual Word converter with the renderer's exported HTML.
+  const require = createRequire(import.meta.url);
+  const buffer = await require("html-to-docx")(html);
+  const zip = await require("jszip").loadAsync(buffer);
+  const xml = await zip.file("word/document.xml").async("string");
+  const dimensions = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"/g)].map(
+    (match) => ({
+      width: Number(match[1]) / 9525,
+      height: Number(match[2]) / 9525,
+    }),
+  );
+  expect(dimensions).toEqual(expectedSizes);
 });
 
 test("图片尺寸工具可修改宽高并恢复原始比例", async ({ page }) => {

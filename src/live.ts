@@ -1721,8 +1721,14 @@ class ImageWidget extends WidgetType {
       .then((src) => {
         const img = document.createElement("img");
         img.alt = this.alt;
-        if (this.width) img.width = this.width;
-        if (this.height) img.height = this.height;
+        if (this.width) {
+          img.width = this.width;
+          img.style.width = `${this.width}px`;
+        }
+        if (this.height) {
+          img.height = this.height;
+          img.style.height = `${this.height}px`;
+        }
         img.src = src;
         img.addEventListener("load", () => {
           view.requestMeasure();

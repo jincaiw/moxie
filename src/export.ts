@@ -614,6 +614,13 @@ const imageExtensions: NonNullable<MarkedExtension["extensions"]> = [
       const attributes = [
         image.width && `width="${image.width}"`,
         image.height && `height="${image.height}"`,
+        (image.width || image.height) &&
+          `style="${[
+            image.width && `width:${image.width}px`,
+            image.height && `height:${image.height}px`,
+          ]
+            .filter(Boolean)
+            .join(";")}"`,
       ]
         .filter(Boolean)
         .join(" ");
