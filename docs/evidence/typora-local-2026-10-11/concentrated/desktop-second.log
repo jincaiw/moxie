@@ -1,0 +1,386 @@
+
+> moxie-editor@0.16.249 test:desktop
+> node tests-desktop/files.cjs
+
+TAP version 13
+# Subtest: 精选主题网络入口仅允许官方目录和版本化 Release 资源
+ok 1 - 精选主题网络入口仅允许官方目录和版本化 Release 资源
+  ---
+  duration_ms: 0.670792
+  type: 'test'
+  ...
+# Subtest: Pandoc 导出只开放固定格式，并从 PATH 查找可执行文件
+ok 2 - Pandoc 导出只开放固定格式，并从 PATH 查找可执行文件
+  ---
+  duration_ms: 0.4195
+  type: 'test'
+  ...
+# Subtest: LaTeX 图片宏兼容只去掉真实图片包装，保留注释和代码示例
+ok 3 - LaTeX 图片宏兼容只去掉真实图片包装，保留注释和代码示例
+  ---
+  duration_ms: 0.154292
+  type: 'test'
+  ...
+# Subtest: Pandoc 导出无响应时超时，临时输出清理后仍可再次转换
+not ok 4 - Pandoc 导出无响应时超时，临时输出清理后仍可再次转换
+  ---
+  duration_ms: 511.737417
+  type: 'test'
+  location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/files.cjs:98:1'
+  failureType: 'testCodeFailure'
+  error: "ENOENT: no such file or directory, open '/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-pandoc-timeout-lM4hlB/working-directory'"
+  code: 'ENOENT'
+  stack: |-
+    async open (node:internal/fs/promises:639:25)
+    async Object.readFile (node:internal/fs/promises:1252:14)
+    async TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/files.cjs:122:31)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Pandoc 导出隔离远程图片并保留本地资源
+ok 5 - Pandoc 导出隔离远程图片并保留本地资源
+  ---
+  duration_ms: 1373.052125
+  type: 'test'
+  ...
+# Subtest: Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文档
+ok 6 - Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文档
+  ---
+  duration_ms: 723.712916
+  type: 'test'
+  ...
+# Subtest: 整篇长图按有界切片导出 SVG，失败或取消不留下半成品
+ok 7 - 整篇长图按有界切片导出 SVG，失败或取消不留下半成品
+  ---
+  duration_ms: 4.0455
+  type: 'test'
+  ...
+# Subtest: 发布前主题目录校验 CSS 摘要、预览资源和应用版本
+ok 8 - 发布前主题目录校验 CSS 摘要、预览资源和应用版本
+  ---
+  duration_ms: 2.674792
+  type: 'test'
+  ...
+# Subtest: 精选主题下载限制重定向主机和响应大小
+ok 9 - 精选主题下载限制重定向主机和响应大小
+  ---
+  duration_ms: 12.989708
+  type: 'test'
+  ...
+# Subtest: 富文本剪贴板 IPC 同时写入 HTML 与纯文本并限制大小
+ok 10 - 富文本剪贴板 IPC 同时写入 HTML 与纯文本并限制大小
+  ---
+  duration_ms: 3.534625
+  type: 'test'
+  ...
+# Subtest: 打开、原子保存、外部修改取消和明确覆盖
+ok 11 - 打开、原子保存、外部修改取消和明确覆盖
+  ---
+  duration_ms: 6.288666
+  type: 'test'
+  ...
+# Subtest: PDF 导出等待图片与字体就绪后再生成并原子写入
+ok 12 - PDF 导出等待图片与字体就绪后再生成并原子写入
+  ---
+  duration_ms: 2.126875
+  type: 'test'
+  ...
+# Subtest: DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG
+ok 13 - DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG
+  ---
+  duration_ms: 99.496541
+  type: 'test'
+  ...
+# Subtest: PDF 分页预览使用最终打印流程且不创建导出文件
+ok 14 - PDF 分页预览使用最终打印流程且不创建导出文件
+  ---
+  duration_ms: 1.375542
+  type: 'test'
+  ...
+# Subtest: 未知窗口被拒绝，未授权路径必须通过另存为对话框
+ok 15 - 未知窗口被拒绝，未授权路径必须通过另存为对话框
+  ---
+  duration_ms: 3.771458
+  type: 'test'
+  ...
+# Subtest: 只有明确的本机 QA 包使用独立配置目录，正式包不改用户路径
+ok 16 - 只有明确的本机 QA 包使用独立配置目录，正式包不改用户路径
+  ---
+  duration_ms: 1.680333
+  type: 'test'
+  ...
+# Subtest: 关闭脏文档时取消有效，保留副本先通知渲染层
+ok 17 - 关闭脏文档时取消有效，保留副本先通知渲染层
+  ---
+  duration_ms: 1.212292
+  type: 'test'
+  ...
+# Subtest: 退出逐一准备所有窗口，后一个取消时不关闭任何窗口
+ok 18 - 退出逐一准备所有窗口，后一个取消时不关闭任何窗口
+  ---
+  duration_ms: 12.094708
+  type: 'test'
+  ...
+# Subtest: 保存或恢复失败终止退出，重复退出不叠加请求，可重试正常关闭
+ok 19 - 保存或恢复失败终止退出，重复退出不叠加请求，可重试正常关闭
+  ---
+  duration_ms: 1.174
+  type: 'test'
+  ...
+准备退出失败 Error: 退出准备期间文档发生了变化，请重试。
+    at prepareQuit (evalmachine.<anonymous>:614:13)
+# Subtest: 准备完成后文档变化或渲染进程消失会终止退出
+ok 20 - 准备完成后文档变化或渲染进程消失会终止退出
+  ---
+  duration_ms: 11.389
+  type: 'test'
+  ...
+# Subtest: 新建窗口独立恢复工作区和未保存状态，并在关闭时清理恢复项
+ok 21 - 新建窗口独立恢复工作区和未保存状态，并在关闭时清理恢复项
+  ---
+  duration_ms: 40.242292
+  type: 'test'
+  ...
+# Subtest: 保存目录移动或变为文件时保留原件，另存为可恢复最新编辑
+ok 22 - 保存目录移动或变为文件时保留原件，另存为可恢复最新编辑
+  ---
+  duration_ms: 2.443083
+  type: 'test'
+  ...
+# Subtest: 磁盘替换失败给出恢复提示并清理临时文件，原件保持不变
+ok 23 - 磁盘替换失败给出恢复提示并清理临时文件，原件保持不变
+  ---
+  duration_ms: 2.487958
+  type: 'test'
+  ...
+# Subtest: 保存桥接去除 Electron 包装，保留失败原因和取消结果
+ok 24 - 保存桥接去除 Electron 包装，保留失败原因和取消结果
+  ---
+  duration_ms: 0.850083
+  type: 'test'
+  ...
+# Subtest: 只读原件拒绝手动/自动保存及同路径另存为，新副本可保存
+ok 25 - 只读原件拒绝手动/自动保存及同路径另存为，新副本可保存
+  ---
+  duration_ms: 2.131416
+  type: 'test'
+  ...
+# Subtest: 写入期间目标转为只读时拒绝替换并清理临时文件
+ok 26 - 写入期间目标转为只读时拒绝替换并清理临时文件
+  ---
+  duration_ms: 1.0175
+  type: 'test'
+  ...
+# Subtest: 图片资源写入、读取、非法格式、越界与符号链接检查
+ok 27 - 图片资源写入、读取、非法格式、越界与符号链接检查
+  ---
+  duration_ms: 5.232667
+  type: 'test'
+  ...
+# Subtest: 自动保存不弹出路径或冲突对话框，不覆盖外部修改
+ok 28 - 自动保存不弹出路径或冲突对话框，不覆盖外部修改
+  ---
+  duration_ms: 1.24425
+  type: 'test'
+  ...
+# Subtest: 重启后保留最近文件与已选定文件权限
+ok 29 - 重启后保留最近文件与已选定文件权限
+  ---
+  duration_ms: 2.212
+  type: 'test'
+  ...
+# Subtest: 递归目录按需授权、刷新和符号链接隔离
+ok 30 - 递归目录按需授权、刷新和符号链接隔离
+  ---
+  duration_ms: 11.827375
+  type: 'test'
+  ...
+# Subtest: 文件夹搜索为 LF、CR 和 CRLF 文档生成单行摘录
+ok 31 - 文件夹搜索为 LF、CR 和 CRLF 文档生成单行摘录
+  ---
+  duration_ms: 1.775084
+  type: 'test'
+  ...
+# Subtest: 版本检查识别修改、删除、重建且不会消费未处理事件
+ok 32 - 版本检查识别修改、删除、重建且不会消费未处理事件
+  ---
+  duration_ms: 2.948584
+  type: 'test'
+  ...
+# Subtest: 文件夹授权重启恢复，目录版本随内容与时间信息变化更新
+ok 33 - 文件夹授权重启恢复，目录版本随内容与时间信息变化更新
+  ---
+  duration_ms: 17.614167
+  type: 'test'
+  ...
+# Subtest: 文件操作前统一旧路径别名，保留保存权限并拒绝未授权或越界文档
+ok 34 - 文件操作前统一旧路径别名，保留保存权限并拒绝未授权或越界文档
+  ---
+  duration_ms: 2.81625
+  type: 'test'
+  ...
+# Subtest: 目录规范路径与文件选择器路径别名共享授权且保留边界检查
+ok 35 - 目录规范路径与文件选择器路径别名共享授权且保留边界检查
+  ---
+  duration_ms: 2.745
+  type: 'test'
+  ...
+# Subtest: 自动更新检查、下载进度、未保存拦截和安装流程
+ok 36 - 自动更新检查、下载进度、未保存拦截和安装流程
+  ---
+  duration_ms: 0.210209
+  type: 'test'
+  ...
+# Subtest: 多窗口同时请求时合并自动更新检查与下载
+ok 37 - 多窗口同时请求时合并自动更新检查与下载
+  ---
+  duration_ms: 0.102625
+  type: 'test'
+  ...
+# Subtest: 目录测试构建缺少更新配置时不调用更新服务
+ok 38 - 目录测试构建缺少更新配置时不调用更新服务
+  ---
+  duration_ms: 0.973125
+  type: 'test'
+  ...
+# Subtest: 系统打开在启动前排队且去重，打开到独立窗口并保留当前文档
+ok 39 - 系统打开在启动前排队且去重，打开到独立窗口并保留当前文档
+  ---
+  duration_ms: 12.786917
+  type: 'test'
+  ...
+# Subtest: 自动更新只对正式支持的安装格式启用
+ok 40 - 自动更新只对正式支持的安装格式启用
+  ---
+  duration_ms: 0.195833
+  type: 'test'
+  ...
+# Subtest: Windows 与 Linux 发布目标及平台图标已配置
+ok 41 - Windows 与 Linux 发布目标及平台图标已配置
+  ---
+  duration_ms: 0.04925
+  type: 'test'
+  ...
+# Subtest: macOS 发布只接受完整签名凭据，并验证签名与公证票据
+ok 42 - macOS 发布只接受完整签名凭据，并验证签名与公证票据
+  ---
+  duration_ms: 17.828958
+  type: 'test'
+  ...
+# Subtest: arm64 与 x64 更新清单合并并拒绝缺失架构
+ok 43 - arm64 与 x64 更新清单合并并拒绝缺失架构
+  ---
+  duration_ms: 0.493584
+  type: 'test'
+  ...
+# Subtest: 链接打开关联文档及锚点，限制目录边界和协议
+ok 44 - 链接打开关联文档及锚点，限制目录边界和协议
+  ---
+  duration_ms: 4.874417
+  type: 'test'
+  ...
+# Subtest: 重启后仍阻止已授权目录文档被替换为外部符号链接
+ok 45 - 重启后仍阻止已授权目录文档被替换为外部符号链接
+  ---
+  duration_ms: 1.8585
+  type: 'test'
+  ...
+# Subtest: 目录文件操作限制授权范围、拒绝覆盖并安全撤销
+ok 46 - 目录文件操作限制授权范围、拒绝覆盖并安全撤销
+  ---
+  duration_ms: 8.250583
+  type: 'test'
+  ...
+# Subtest: 整目录复制、重命名、移动和撤销会同步文档授权路径
+ok 47 - 整目录复制、重命名、移动和撤销会同步文档授权路径
+  ---
+  duration_ms: 6.873083
+  type: 'test'
+  ...
+# Subtest: 整目录操作拒绝符号链接且废纸篓撤销授权路径
+ok 48 - 整目录操作拒绝符号链接且废纸篓撤销授权路径
+  ---
+  duration_ms: 1.694542
+  type: 'test'
+  ...
+# Subtest: 文件夹显示筛选可显示隐藏项和其他文件但不授予其文档读取权限
+ok 49 - 文件夹显示筛选可显示隐藏项和其他文件但不授予其文档读取权限
+  ---
+  duration_ms: 2.741459
+  type: 'test'
+  ...
+# Subtest: 自定义文件过滤与时间信息参与刷新和搜索且不改变已有授权
+ok 50 - 自定义文件过滤与时间信息参与刷新和搜索且不改变已有授权
+  ---
+  duration_ms: 2.023417
+  type: 'test'
+  ...
+# Subtest: 关联文档缺失只提示，明确创建时不覆盖已有内容并隔离目录逃逸
+ok 51 - 关联文档缺失只提示，明确创建时不覆盖已有内容并隔离目录逃逸
+  ---
+  duration_ms: 2.232709
+  type: 'test'
+  ...
+# Subtest: 已授权文件可在隔离窗口打开，初始文档只由该窗口读取一次
+ok 52 - 已授权文件可在隔离窗口打开，初始文档只由该窗口读取一次
+  ---
+  duration_ms: 2.088625
+  type: 'test'
+  ...
+# Subtest: 路径复制与文件管理器显示只允许授权目录中的真实路径
+ok 53 - 路径复制与文件管理器显示只允许授权目录中的真实路径
+  ---
+  duration_ms: 1.121084
+  type: 'test'
+  ...
+# Subtest: 最近文件夹固定清除与指定启动目录在历史淘汰后仍持久化
+ok 54 - 最近文件夹固定清除与指定启动目录在历史淘汰后仍持久化
+  ---
+  duration_ms: 11.585916
+  type: 'test'
+  ...
+# Subtest: 仅已授权普通文档可以自动加载父目录，目录切换不扩展任意路径权限
+ok 55 - 仅已授权普通文档可以自动加载父目录，目录切换不扩展任意路径权限
+  ---
+  duration_ms: 3.640791
+  type: 'test'
+  ...
+# Subtest: 原生视图菜单侧栏命令发给当前窗口
+ok 56 - 原生视图菜单侧栏命令发给当前窗口
+  ---
+  duration_ms: 0.883458
+  type: 'test'
+  ...
+# Subtest: 大纲偏好跨独立窗口广播、重启恢复并拒绝非法请求
+ok 57 - 大纲偏好跨独立窗口广播、重启恢复并拒绝非法请求
+  ---
+  duration_ms: 2.397083
+  type: 'test'
+  ...
+# Subtest: 大纲偏好写盘失败保持已提交值，重试和连续写入可恢复
+ok 58 - 大纲偏好写盘失败保持已提交值，重试和连续写入可恢复
+  ---
+  duration_ms: 2.216209
+  type: 'test'
+  ...
+# Subtest: 最近菜单实时更新、编码路径、保留固定目录并拒绝陌生窗口
+ok 59 - 最近菜单实时更新、编码路径、保留固定目录并拒绝陌生窗口
+  ---
+  duration_ms: 3.206083
+  type: 'test'
+  ...
+# Subtest: 历史写盘失败不改变已提交记录，队列重试恢复且清除保留授权
+ok 60 - 历史写盘失败不改变已提交记录，队列重试恢复且清除保留授权
+  ---
+  duration_ms: 2.810375
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 59
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2974.884042

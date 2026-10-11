@@ -25,6 +25,7 @@ const {
   exportWithPandoc,
   importReaders,
   importWithPandoc,
+  readablePandocLatexImages,
 } = require("../electron/pandoc.cjs");
 const { exportDocumentAsSVG } = require("../electron/image-export.cjs");
 const harnessDirectories = [];
@@ -73,6 +74,68 @@ test("Pandoc 导出只开放固定格式，并从 PATH 查找可执行文件", (
   );
   assert.ok(candidates.includes(path.join("/custom/bin", "pandoc")));
   assert.ok(candidates.includes(path.join("/usr/bin", "pandoc")));
+});
+
+test("LaTeX 图片宏兼容只去掉真实图片包装，保留注释和代码示例", () => {
+  const wrapped = String.raw`\pandocbounded{\includegraphics[width=2cm]{图.png}}`;
+  const literal = [
+    `% ${wrapped}`,
+    String.raw`\verb|${wrapped}|`,
+    ...["verbatim", "verbatim*", "Verbatim", "lstlisting", "minted"].map(
+      (environment) =>
+        `\\begin{${environment}}\n${wrapped}\n\\end{${environment}}`,
+    ),
+    String.raw`\newcommand*\pandocbounded[1]{#1}`,
+    String.raw`\pandocbounded{ordinary text}`,
+  ].join("\n");
+  assert.equal(readablePandocLatexImages(literal), literal);
+  assert.equal(
+    readablePandocLatexImages(`${literal}\n${wrapped}`),
+    `${literal}\n{\\includegraphics[width=2cm]{图.png}}`,
+  );
+});
+
+test("Pandoc 导出无响应时超时，临时输出清理后仍可再次转换", async (t) => {
+  if (process.platform === "win32")
+    return t.skip("测试桩使用 POSIX 可执行脚本");
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-pandoc-timeout-"),
+  );
+  try {
+    const executable = path.join(root, "converter");
+    const marker = path.join(root, "working-directory");
+    await fs.writeFile(
+      executable,
+      `#!/bin/sh\npwd > '${marker.replaceAll("'", "'\\''")}'\nexec node -e 'process.stdin.resume(); setTimeout(() => {}, 10000)'\n`,
+      { mode: 0o755 },
+    );
+    await assert.rejects(
+      exportWithPandoc({
+        html: "<p>保留正文</p>",
+        format: "rtf",
+        name: "样本.md",
+        executable,
+        timeoutMs: 3000,
+      }),
+      /导出超时.*未覆盖目标文件/,
+    );
+    const workingDirectory = (await fs.readFile(marker, "utf8")).trim();
+    await assert.rejects(fs.stat(workingDirectory), { code: "ENOENT" });
+    await fs.writeFile(
+      executable,
+      "#!/usr/bin/env node\nconst fs=require('node:fs');const args=process.argv;process.stdin.resume();process.stdin.on('end',()=>fs.writeFileSync(args[args.indexOf('--output')+1], 'converted'));\n",
+    );
+    const result = await exportWithPandoc({
+      html: "<p>保留正文</p>",
+      format: "rtf",
+      name: "样本.md",
+      executable,
+      timeoutMs: 5000,
+    });
+    assert.equal(result.data.toString(), "converted");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
 
 test("Pandoc 导出隔离远程图片并保留本地资源", async (t) => {

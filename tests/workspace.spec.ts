@@ -101,6 +101,49 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test("长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 900, height: 500 });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "长大纲.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      Array.from(
+        { length: 60 },
+        (_, i) => `## 章节 ${i + 1}\n\n正文 ${i + 1}\n`,
+      ).join("\n"),
+    ),
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(documentEnd);
+  await selectSidebarMode(page, "大纲", false);
+  const active = page.locator(".outline-row.active");
+  await expect(active).toHaveText("章节 60");
+  const visible = () =>
+    active.evaluate((row) => {
+      const panel = row.closest(".file-list")!.getBoundingClientRect();
+      const bounds = row.getBoundingClientRect();
+      return bounds.top >= panel.top && bounds.bottom <= panel.bottom;
+    });
+  await expect.poll(visible).toBe(true);
+  await page.getByRole("button", { name: "搜索大纲标题", exact: true }).click();
+  const query = page.getByRole("searchbox", { name: "搜索大纲标题" });
+  await query.fill("章节 1");
+  await expect(active).toHaveCount(0);
+  await query.fill("");
+  await expect(active).toHaveText("章节 60");
+  await expect.poll(visible).toBe(true);
+  await page.setViewportSize({ width: 760, height: 380 });
+  await expect.poll(visible).toBe(true);
+  await expect(query).toBeFocused();
+  await page.screenshot({ path: "/tmp/moxie-batch-outline-after.png" });
+  expect(errors).toEqual([]);
+});
+
 test("原生文件树与文档列表命令从大纲和专注切换，保留排序与展开状态", async ({
   page,
 }) => {

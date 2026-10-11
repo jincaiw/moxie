@@ -6,11 +6,12 @@ export function useRevealSelection(
   key: string,
   axis: "vertical" | "horizontal",
   enabled: boolean,
+  selector = ".selected",
 ) {
   useEffect(() => {
     const list = ref.current;
     if (!enabled || !list) return;
-    const selected = list.querySelector<HTMLElement>(".selected");
+    const selected = list.querySelector<HTMLElement>(selector);
     if (!selected) return;
     let frame = 0;
     const reveal = () => {
@@ -43,5 +44,5 @@ export function useRevealSelection(
       observer.disconnect();
       window.removeEventListener("resize", schedule);
     };
-  }, [ref, key, axis, enabled]);
+  }, [ref, key, axis, enabled, selector]);
 }

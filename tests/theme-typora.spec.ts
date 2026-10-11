@@ -1,5 +1,52 @@
 import { test, expect } from "@playwright/test";
-import { documentEnd } from "./keyboard";
+import { documentEnd, documentStart } from "./keyboard";
+
+test("主题长标题文档的文末光标保持在正文视口内", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "long-headings.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(
+      Array.from(
+        { length: 60 },
+        (_, i) => `## 章节 ${i + 1}\n\n正文 ${i + 1}\n`,
+      ).join("\n"),
+    ),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(
+      "#write{font-size:16px;line-height:1.6;max-width:860px;margin:0 auto;padding:30px;padding-bottom:100px}h2{font-size:1.75em;line-height:1.225;margin:1rem 0;border-bottom:1px solid #eee}p{margin:.8em 0}",
+    );
+    document.head.append(style);
+  });
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(documentEnd);
+  const caretVisible = () =>
+    page.locator(".cm-activeLine").evaluate((line) => {
+      const bounds = line.getBoundingClientRect();
+      const viewport = line.closest(".document-area")!.getBoundingClientRect();
+      return bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
+    });
+  await expect.poll(caretVisible).toBe(true);
+  await page.screenshot({ path: "/tmp/moxie-heading-end-fixed.png" });
+  await page.keyboard.press(documentStart);
+  await expect.poll(caretVisible).toBe(true);
+  await page.setViewportSize({ width: 760, height: 560 });
+  await page.keyboard.press(documentEnd);
+  await expect.poll(caretVisible).toBe(true);
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await page.locator(".cm-content").click();
+  await page.keyboard.press(documentEnd);
+  await expect.poll(caretVisible).toBe(true);
+  await page.screenshot({ path: "/tmp/moxie-heading-end-source-narrow.png" });
+  expect(errors).toEqual([]);
+});
 
 test("Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容", async ({
   page,

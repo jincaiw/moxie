@@ -1,0 +1,40 @@
+[WebServer] (node:20941) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:20943) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (5.1s)
+(node:21038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/theme-typora.spec.ts:246:1 › 主题段落间距按连续空行成对保留，媒体级联和点击定位不改变原文 (552ms)
+  ✓  3 tests/workspace.spec.ts:104:1 › 长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见 (782ms)
+  ✓  4 tests/workspace.spec.ts:147:1 › 原生文件树与文档列表命令从大纲和专注切换，保留排序与展开状态 (665ms)
+  ✓  5 tests/workspace.spec.ts:2474:1 › 大纲左右方向键折叠、展开并在父子标题之间移动焦点 (431ms)
+
+
+  1) tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ─────────────────────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      42 |   await page.locator(".cm-content").click();
+      43 |   await page.keyboard.press(documentEnd);
+    > 44 |   await expect.poll(caretVisible).toBe(true);
+         |                                   ^
+      45 | });
+      46 |
+      47 | test("Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/theme-typora.spec.ts:44:35
+
+    Error Context: test-results/theme-typora-主题长标题文档的文末光标保持在正文视口内/error-context.md
+
+  1 failed
+    tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ──────────────────────────────────────────
+  4 passed (9.0s)

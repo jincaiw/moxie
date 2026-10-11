@@ -12,7 +12,7 @@ const {
 } = require("../electron/pandoc.cjs");
 
 // Explicit local integration suite: never substitute a fake converter or silently skip.
-test("真实 Pandoc：五种格式内容、四种图片往返及 LaTeX 图片导出", async (t) => {
+test("真实 Pandoc：五种格式中文、列表、表格和图片往返", async (t) => {
   const executable = await findPandoc();
   assert.ok(executable, "此专项需要已安装的 Pandoc");
   t.diagnostic(
@@ -53,6 +53,11 @@ test("真实 Pandoc：五种格式内容、四种图片往返及 LaTeX 图片导
           inputPath: outputPath,
           executable,
         });
+        assert.deepEqual(
+          await fs.readFile(outputPath),
+          output.data,
+          "导入不得改写源文件",
+        );
         for (const text of [
           "中文验收标题",
           "正文保留检查",
@@ -74,15 +79,12 @@ test("真实 Pandoc：五种格式内容、四种图片往返及 LaTeX 图片导
             output.data.toString(),
             /\\includegraphics[^\n]*样本\.tex_assets\/image-1\.png/,
           );
-          t.diagnostic(
-            "LaTeX 导出图片及伴随资源通过；Pandoc 3.11 的 reader 丢弃其 pandocbounded 包裹图片，图片往返仍待修复。",
-          );
-        } else
-          assert.match(
-            imported.text,
-            /data:image\/png;base64,/,
-            `${format}: 导入后应保留内嵌图片`,
-          );
+        }
+        assert.match(
+          imported.text,
+          /data:image\/png;base64,/,
+          `${format}: 导入后应保留内嵌图片`,
+        );
       });
     }
   } finally {

@@ -1,0 +1,33 @@
+[WebServer] (node:13796) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:13809) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/workspace.spec.ts:104:1 › 长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见 (5.8s)
+
+
+  1) tests/workspace.spec.ts:104:1 › 长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见 ──────────────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      121 |     return bounds.top >= panel.top && bounds.bottom <= panel.bottom;
+      122 |   });
+    > 123 |   await expect.poll(visible).toBe(true);
+          |                              ^
+      124 |   await page.getByRole("button", { name: "搜索大纲标题", exact: true }).click();
+      125 |   const query = page.getByRole("searchbox", { name: "搜索大纲标题" });
+      126 |   await query.fill("章节 1");
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/workspace.spec.ts:123:30
+
+    Error Context: test-results/workspace-长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见/error-context.md
+
+  1 failed
+    tests/workspace.spec.ts:104:1 › 长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见 ───────────────────────────────────

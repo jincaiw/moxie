@@ -176,7 +176,7 @@ async function prepareHTML(html, directory) {
   return prepared;
 }
 
-function runPandoc(executable, args, input, cwd) {
+function runPandoc(executable, args, input, cwd, timeoutMs) {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
       windowsHide: true,
@@ -184,22 +184,38 @@ function runPandoc(executable, args, input, cwd) {
       stdio: ["pipe", "ignore", "pipe"],
     });
     let stderr = "";
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      finish(
+        Error(
+          `Pandoc 导出超时（${Math.ceil(timeoutMs / 1000)} 秒），未覆盖目标文件`,
+        ),
+      );
+    }, timeoutMs);
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
       if (stderr.length < 8192) stderr += chunk.slice(0, 8192 - stderr.length);
     });
-    child.once("error", reject);
+    child.once("error", finish);
     child.once("close", (code) => {
-      if (code === 0) resolve();
+      if (code === 0) finish();
       else
-        reject(
+        finish(
           Error(
             `Pandoc 导出失败${stderr.trim() ? `：${stderr.trim()}` : `（退出码 ${code}）`}`,
           ),
         );
     });
     child.stdin.once("error", (error) => {
-      if (error.code !== "EPIPE") reject(error);
+      if (error.code !== "EPIPE") finish(error);
     });
     child.stdin.end(input);
   });
@@ -211,6 +227,7 @@ async function exportWithPandoc({
   name,
   executable,
   assetsDirectoryName,
+  timeoutMs = 60000,
 }) {
   const definition = Object.hasOwn(pandocFormats, format)
     ? pandocFormats[format]
@@ -242,6 +259,7 @@ async function exportWithPandoc({
       ],
       input,
       directory,
+      timeoutMs,
     );
     let data = await fs.readFile(output);
     if (!data.length) throw Error("Pandoc 没有生成导出文件");
@@ -270,6 +288,15 @@ async function exportWithPandoc({
   }
 }
 
+// Pandoc's LaTeX writer wraps images in this sizing macro, which its reader
+// cannot expand. Keep the TeX group and image command; leave literal examples alone.
+function readablePandocLatexImages(text) {
+  return text.replace(
+    /\\begin\{(verbatim\*?|Verbatim|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^a-zA-Z\s])[^\r\n]*?\2|\\[%\\]|%[^\r\n]*|\\pandocbounded(?=\{\s*\\includegraphics\b)/g,
+    (match) => (match === "\\pandocbounded" ? "" : match),
+  );
+}
+
 async function importWithPandoc({ inputPath, executable, timeoutMs = 60000 }) {
   if (typeof inputPath !== "string" || !path.isAbsolute(inputPath))
     throw Error("导入文件路径无效");
@@ -289,6 +316,10 @@ async function importWithPandoc({ inputPath, executable, timeoutMs = 60000 }) {
   const mediaDirectory = path.join(directory, "media");
   try {
     await fs.mkdir(mediaDirectory);
+    const latexInput =
+      reader === "latex"
+        ? readablePandocLatexImages(await fs.readFile(source, "utf8"))
+        : null;
     const output = await new Promise((resolve, reject) => {
       const child = spawn(
         binary,
@@ -298,12 +329,12 @@ async function importWithPandoc({ inputPath, executable, timeoutMs = 60000 }) {
           "--to=gfm",
           `--resource-path=${path.dirname(source)}`,
           "--extract-media=media",
-          source,
+          ...(latexInput === null ? [source] : []),
         ],
         {
           windowsHide: true,
           cwd: directory,
-          stdio: ["ignore", "pipe", "pipe"],
+          stdio: [latexInput === null ? "ignore" : "pipe", "pipe", "pipe"],
         },
       );
       let stdout = Buffer.alloc(0);
@@ -357,6 +388,12 @@ async function importWithPandoc({ inputPath, executable, timeoutMs = 60000 }) {
           stderr += chunk.slice(0, 8192 - stderr.length);
       });
       child.once("error", (error) => finish(reject, error));
+      if (latexInput !== null) {
+        child.stdin.once("error", (error) => {
+          if (error.code !== "EPIPE") finish(reject, error);
+        });
+        child.stdin.end(latexInput);
+      }
       child.once("close", async (code) => {
         if (mediaLimitError) finish(reject, mediaLimitError);
         else if (code === 0) {
@@ -473,4 +510,5 @@ module.exports = {
   exportWithPandoc,
   importReaders,
   importWithPandoc,
+  readablePandocLatexImages,
 };

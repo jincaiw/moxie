@@ -1,0 +1,619 @@
+Window: "long-outline.md", App: Typora.
+0 标准窗口 long-outline.md, URL: file:///private/tmp/moxie-concentrated-20261011/long-outline.md, Secondary Actions: Raise
+	1 滚动区
+		2 HTML内容 Description: Typora, URL: file:///Applications/Typora.app/Contents/Resources/TypeMark/index.html
+			3 文本输入区 (settable) Placeholder: Start writing..., Secondary Actions: 显示写作工具, Value: **章节 1
+**
+正文 1
+
+**章节 2
+**
+正文 2
+
+**章节 3
+**
+正文 3
+
+**章节 4
+**
+正文 4
+
+**章节 5
+**
+正文 5
+
+**章节 6
+**
+正文 6
+
+**章节 7
+**
+正文 7
+
+**章节 8
+**
+正文 8
+
+**章节 9
+**
+正文 9
+
+**章节 10
+**
+正文 10
+
+**章节 11
+**
+正文 11
+
+**章节 12
+**
+正文 12
+
+**章节 13
+**
+正文 13
+
+**章节 14
+**
+正文 14
+
+**章节 15
+**
+正文 15
+
+**章节 16
+**
+正文 16
+
+**章节 17
+**
+正文 17
+
+**章节 18
+**
+正文 18
+
+**章节 19
+**
+正文 19
+
+**章节 20
+**
+正文 20
+
+**章节 21
+**
+正文 21
+
+**章节 22
+**
+正文 22
+
+**章节 23
+**
+正文 23
+
+**章节 24
+**
+正文 24
+
+**章节 25
+**
+正文 25
+
+**章节 26
+**
+正文 26
+
+**章节 27
+**
+正文 27
+
+**章节 28
+**
+正文 28
+
+**章节 29
+**
+正文 29
+
+**章节 30
+**
+正文 30
+
+**章节 31
+**
+正文 31
+
+**章节 32
+**
+正文 32
+
+**章节 33
+**
+正文 33
+
+**章节 34
+**
+正文 34
+
+**章节 35
+**
+正文 35
+
+**章节 36
+**
+正文 36
+
+**章节 37
+**
+正文 37
+
+**章节 38
+**
+正文 38
+
+**章节 39
+**
+正文 39
+
+**章节 40
+**
+正文 40
+
+**章节 41
+**
+正文 41
+
+**章节 42
+**
+正文 42
+
+**章节 43
+**
+正文 43
+
+**章节 44
+**
+正文 44
+
+**章节 45
+**
+正文 45
+
+**章节 46
+**
+正文 46
+
+**章节 47
+**
+正文 47
+
+**章节 48
+**
+正文 48
+
+**章节 49
+**
+正文 49
+
+**章节 50
+**
+正文 50
+
+**章节 51
+**
+正文 51
+
+**章节 52
+**
+正文 52
+
+**章节 53
+**
+正文 53
+
+**章节 54
+**
+正文 54
+
+**章节 55
+**
+正文 55
+
+**章节 56
+**
+正文 56
+
+**章节 57
+**
+正文 57
+
+**章节 58
+**
+正文 58
+
+**章节 59
+**
+正文 59
+
+**章节 60
+**
+正文 60
+				4 文本输入区 (settable) Value: **章节 1**, Secondary Actions: 显示写作工具
+				5 文本输入区 (settable) Value: 正文 1, Secondary Actions: 显示写作工具
+				6 文本输入区 (settable) Value: **章节 2**, Secondary Actions: 显示写作工具
+				7 文本输入区 (settable) Value: 正文 2, Secondary Actions: 显示写作工具
+				8 文本输入区 (settable) Value: **章节 3**, Secondary Actions: 显示写作工具
+				9 文本输入区 (settable) Value: 正文 3, Secondary Actions: 显示写作工具
+				10 文本输入区 (settable) Value: **章节 4**, Secondary Actions: 显示写作工具
+				11 文本输入区 (settable) Value: 正文 4, Secondary Actions: 显示写作工具
+				12 文本输入区 (settable) Value: **章节 5**, Secondary Actions: 显示写作工具
+				13 文本输入区 (settable) Value: 正文 5, Secondary Actions: 显示写作工具
+				14 文本输入区 (settable) Value: **章节 6**, Secondary Actions: 显示写作工具
+				15 文本输入区 (settable) Value: 正文 6, Secondary Actions: 显示写作工具
+				16 文本输入区 (settable) Value: **章节 7**, Secondary Actions: 显示写作工具
+				17 文本输入区 (settable) Value: 正文 7, Secondary Actions: 显示写作工具
+				18 文本输入区 (settable) Value: **章节 8**, Secondary Actions: 显示写作工具
+				19 文本输入区 (settable) Value: 正文 8, Secondary Actions: 显示写作工具
+				20 文本输入区 (settable) Value: **章节 9**, Secondary Actions: 显示写作工具
+				21 文本输入区 (settable) Value: 正文 9, Secondary Actions: 显示写作工具
+				22 文本输入区 (settable) Value: **章节 10**, Secondary Actions: 显示写作工具
+				23 文本输入区 (settable) Value: 正文 10, Secondary Actions: 显示写作工具
+				24 文本输入区 (settable) Value: **章节 11**, Secondary Actions: 显示写作工具
+				25 文本输入区 (settable) Value: 正文 11, Secondary Actions: 显示写作工具
+				26 文本输入区 (settable) Value: **章节 12**, Secondary Actions: 显示写作工具
+				27 文本输入区 (settable) Value: 正文 12, Secondary Actions: 显示写作工具
+				28 文本输入区 (settable) Value: **章节 13**, Secondary Actions: 显示写作工具
+				29 文本输入区 (settable) Value: 正文 13, Secondary Actions: 显示写作工具
+				30 文本输入区 (settable) Value: **章节 14**, Secondary Actions: 显示写作工具
+				31 文本输入区 (settable) Value: 正文 14, Secondary Actions: 显示写作工具
+				32 文本输入区 (settable) Value: **章节 15**, Secondary Actions: 显示写作工具
+				33 文本输入区 (settable) Value: 正文 15, Secondary Actions: 显示写作工具
+				34 文本输入区 (settable) Value: **章节 16**, Secondary Actions: 显示写作工具
+				35 文本输入区 (settable) Value: 正文 16, Secondary Actions: 显示写作工具
+				36 文本输入区 (settable) Value: **章节 17**, Secondary Actions: 显示写作工具
+				37 文本输入区 (settable) Value: 正文 17, Secondary Actions: 显示写作工具
+				38 文本输入区 (settable) Value: **章节 18**, Secondary Actions: 显示写作工具
+				39 文本输入区 (settable) Value: 正文 18, Secondary Actions: 显示写作工具
+				40 文本输入区 (settable) Value: **章节 19**, Secondary Actions: 显示写作工具
+				41 文本输入区 (settable) Value: 正文 19, Secondary Actions: 显示写作工具
+				42 文本输入区 (settable) Value: **章节 20**, Secondary Actions: 显示写作工具
+				43 文本输入区 (settable) Value: 正文 20, Secondary Actions: 显示写作工具
+				44 文本输入区 (settable) Value: **章节 21**, Secondary Actions: 显示写作工具
+				45 文本输入区 (settable) Value: 正文 21, Secondary Actions: 显示写作工具
+				46 文本输入区 (settable) Value: **章节 22**, Secondary Actions: 显示写作工具
+				47 文本输入区 (settable) Value: 正文 22, Secondary Actions: 显示写作工具
+				48 文本输入区 (settable) Value: **章节 23**, Secondary Actions: 显示写作工具
+				49 文本输入区 (settable) Value: 正文 23, Secondary Actions: 显示写作工具
+				50 文本输入区 (settable) Value: **章节 24**, Secondary Actions: 显示写作工具
+				51 文本输入区 (settable) Value: 正文 24, Secondary Actions: 显示写作工具
+				52 文本输入区 (settable) Value: **章节 25**, Secondary Actions: 显示写作工具
+				53 文本输入区 (settable) Value: 正文 25, Secondary Actions: 显示写作工具
+				54 文本输入区 (settable) Value: **章节 26**, Secondary Actions: 显示写作工具
+				55 文本输入区 (settable) Value: 正文 26, Secondary Actions: 显示写作工具
+				56 文本输入区 (settable) Value: **章节 27**, Secondary Actions: 显示写作工具
+				57 文本输入区 (settable) Value: 正文 27, Secondary Actions: 显示写作工具
+				58 文本输入区 (settable) Value: **章节 28**, Secondary Actions: 显示写作工具
+				59 文本输入区 (settable) Value: 正文 28, Secondary Actions: 显示写作工具
+				60 文本输入区 (settable) Value: **章节 29**, Secondary Actions: 显示写作工具
+				61 文本输入区 (settable) Value: 正文 29, Secondary Actions: 显示写作工具
+				62 文本输入区 (settable) Value: **章节 30**, Secondary Actions: 显示写作工具
+				63 文本输入区 (settable) Value: 正文 30, Secondary Actions: 显示写作工具
+				64 文本输入区 (settable) Value: **章节 31**, Secondary Actions: 显示写作工具
+				65 文本输入区 (settable) Value: 正文 31, Secondary Actions: 显示写作工具
+				66 文本输入区 (settable) Value: **章节 32**, Secondary Actions: 显示写作工具
+				67 文本输入区 (settable) Value: 正文 32, Secondary Actions: 显示写作工具
+				68 文本输入区 (settable) Value: **章节 33**, Secondary Actions: 显示写作工具
+				69 文本输入区 (settable) Value: 正文 33, Secondary Actions: 显示写作工具
+				70 文本输入区 (settable) Value: **章节 34**, Secondary Actions: 显示写作工具
+				71 文本输入区 (settable) Value: 正文 34, Secondary Actions: 显示写作工具
+				72 文本输入区 (settable) Value: **章节 35**, Secondary Actions: 显示写作工具
+				73 文本输入区 (settable) Value: 正文 35, Secondary Actions: 显示写作工具
+				74 文本输入区 (settable) Value: **章节 36**, Secondary Actions: 显示写作工具
+				75 文本输入区 (settable) Value: 正文 36, Secondary Actions: 显示写作工具
+				76 文本输入区 (settable) Value: **章节 37**, Secondary Actions: 显示写作工具
+				77 文本输入区 (settable) Value: 正文 37, Secondary Actions: 显示写作工具
+				78 文本输入区 (settable) Value: **章节 38**, Secondary Actions: 显示写作工具
+				79 文本输入区 (settable) Value: 正文 38, Secondary Actions: 显示写作工具
+				80 文本输入区 (settable) Value: **章节 39**, Secondary Actions: 显示写作工具
+				81 文本输入区 (settable) Value: 正文 39, Secondary Actions: 显示写作工具
+				82 文本输入区 (settable) Value: **章节 40**, Secondary Actions: 显示写作工具
+				83 文本输入区 (settable) Value: 正文 40, Secondary Actions: 显示写作工具
+				84 文本输入区 (settable) Value: **章节 41**, Secondary Actions: 显示写作工具
+				85 文本输入区 (settable) Value: 正文 41, Secondary Actions: 显示写作工具
+				86 文本输入区 (settable) Value: **章节 42**, Secondary Actions: 显示写作工具
+				87 文本输入区 (settable) Value: 正文 42, Secondary Actions: 显示写作工具
+				88 文本输入区 (settable) Value: **章节 43**, Secondary Actions: 显示写作工具
+				89 文本输入区 (settable) Value: 正文 43, Secondary Actions: 显示写作工具
+				90 文本输入区 (settable) Value: **章节 44**, Secondary Actions: 显示写作工具
+				91 文本输入区 (settable) Value: 正文 44, Secondary Actions: 显示写作工具
+				92 文本输入区 (settable) Value: **章节 45**, Secondary Actions: 显示写作工具
+				93 文本输入区 (settable) Value: 正文 45, Secondary Actions: 显示写作工具
+				94 文本输入区 (settable) Value: **章节 46**, Secondary Actions: 显示写作工具
+				95 文本输入区 (settable) Value: 正文 46, Secondary Actions: 显示写作工具
+				96 文本输入区 (settable) Value: **章节 47**, Secondary Actions: 显示写作工具
+				97 文本输入区 (settable) Value: 正文 47, Secondary Actions: 显示写作工具
+				98 文本输入区 (settable) Value: **章节 48**, Secondary Actions: 显示写作工具
+				99 文本输入区 (settable) Value: 正文 48, Secondary Actions: 显示写作工具
+				100 文本输入区 (settable) Value: **章节 49**, Secondary Actions: 显示写作工具
+				101 文本输入区 (settable) Value: 正文 49, Secondary Actions: 显示写作工具
+				102 文本输入区 (settable) Value: **章节 50**, Secondary Actions: 显示写作工具
+				103 文本输入区 (settable) Value: 正文 50, Secondary Actions: 显示写作工具
+				104 文本输入区 (settable) Value: **章节 51**, Secondary Actions: 显示写作工具
+				105 文本输入区 (settable) Value: 正文 51, Secondary Actions: 显示写作工具
+				106 文本输入区 (settable) Value: **章节 52**, Secondary Actions: 显示写作工具
+				107 文本输入区 (settable) Value: 正文 52, Secondary Actions: 显示写作工具
+				108 文本输入区 (settable) Value: **章节 53**, Secondary Actions: 显示写作工具
+				109 文本输入区 (settable) Value: 正文 53, Secondary Actions: 显示写作工具
+				110 文本输入区 (settable) Value: **章节 54**, Secondary Actions: 显示写作工具
+				111 文本输入区 (settable) Value: 正文 54, Secondary Actions: 显示写作工具
+				112 文本输入区 (settable) Value: **章节 55**, Secondary Actions: 显示写作工具
+				113 文本输入区 (settable) Value: 正文 55, Secondary Actions: 显示写作工具
+				114 文本输入区 (settable) Value: **章节 56**, Secondary Actions: 显示写作工具
+				115 文本输入区 (settable) Value: 正文 56, Secondary Actions: 显示写作工具
+				116 文本输入区 (settable) Value: **章节 57**, Secondary Actions: 显示写作工具
+				117 文本输入区 (settable) Value: 正文 57, Secondary Actions: 显示写作工具
+				118 文本输入区 (settable) Value: **章节 58**, Secondary Actions: 显示写作工具
+				119 文本输入区 (settable) Value: 正文 58, Secondary Actions: 显示写作工具
+				120 文本输入区 (settable) Value: **章节 59**, Secondary Actions: 显示写作工具
+				121 文本输入区 (settable) Value: 正文 59, Secondary Actions: 显示写作工具
+				122 文本输入区 (settable) Value: **章节 60**, Secondary Actions: 显示写作工具
+				123 文本输入区 (settable) Value: 正文 60, Secondary Actions: 显示写作工具
+	124 关闭按钮
+	125 全屏幕按钮 Help: 此按钮也可以执行缩放窗口的操作, Secondary Actions: 缩放窗口
+	126 最小化按钮
+	127 菜单按钮 (disabled) 文稿操作
+	128 图像 long-outline.md
+	129 文本 long-outline.md
+130 menu bar
+	131 Typora
+	132 文件
+	133 编辑
+	134 段落
+	135 格式
+	136 显示
+	137 主题
+	138 窗口
+	139 帮助
+
+The focused UI element is 3 文本输入区 (settable) Placeholder: Start writing..., Secondary Actions: 显示写作工具, Value: **章节 1
+**
+正文 1
+
+**章节 2
+**
+正文 2
+
+**章节 3
+**
+正文 3
+
+**章节 4
+**
+正文 4
+
+**章节 5
+**
+正文 5
+
+**章节 6
+**
+正文 6
+
+**章节 7
+**
+正文 7
+
+**章节 8
+**
+正文 8
+
+**章节 9
+**
+正文 9
+
+**章节 10
+**
+正文 10
+
+**章节 11
+**
+正文 11
+
+**章节 12
+**
+正文 12
+
+**章节 13
+**
+正文 13
+
+**章节 14
+**
+正文 14
+
+**章节 15
+**
+正文 15
+
+**章节 16
+**
+正文 16
+
+**章节 17
+**
+正文 17
+
+**章节 18
+**
+正文 18
+
+**章节 19
+**
+正文 19
+
+**章节 20
+**
+正文 20
+
+**章节 21
+**
+正文 21
+
+**章节 22
+**
+正文 22
+
+**章节 23
+**
+正文 23
+
+**章节 24
+**
+正文 24
+
+**章节 25
+**
+正文 25
+
+**章节 26
+**
+正文 26
+
+**章节 27
+**
+正文 27
+
+**章节 28
+**
+正文 28
+
+**章节 29
+**
+正文 29
+
+**章节 30
+**
+正文 30
+
+**章节 31
+**
+正文 31
+
+**章节 32
+**
+正文 32
+
+**章节 33
+**
+正文 33
+
+**章节 34
+**
+正文 34
+
+**章节 35
+**
+正文 35
+
+**章节 36
+**
+正文 36
+
+**章节 37
+**
+正文 37
+
+**章节 38
+**
+正文 38
+
+**章节 39
+**
+正文 39
+
+**章节 40
+**
+正文 40
+
+**章节 41
+**
+正文 41
+
+**章节 42
+**
+正文 42
+
+**章节 43
+**
+正文 43
+
+**章节 44
+**
+正文 44
+
+**章节 45
+**
+正文 45
+
+**章节 46
+**
+正文 46
+
+**章节 47
+**
+正文 47
+
+**章节 48
+**
+正文 48
+
+**章节 49
+**
+正文 49
+
+**章节 50
+**
+正文 50
+
+**章节 51
+**
+正文 51
+
+**章节 52
+**
+正文 52
+
+**章节 53
+**
+正文 53
+
+**章节 54
+**
+正文 54
+
+**章节 55
+**
+正文 55
+
+**章节 56
+**
+正文 56
+
+**章节 57
+**
+正文 57
+
+**章节 58
+**
+正文 58
+
+**章节 59
+**
+正文 59
+
+**章节 60
+**
+正文 60

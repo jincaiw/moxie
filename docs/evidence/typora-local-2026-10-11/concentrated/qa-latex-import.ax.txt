@@ -1,0 +1,171 @@
+Window: "native-image.md — 墨写", App: 墨写本机对照.
+0 standard window native-image.md — 墨写, Secondary Actions: Raise
+	1 HTML content native-image.md — 墨写, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 大纲
+				7 button 搜索大纲标题
+					8 image
+			9 container 文档大纲
+				10 container 大纲
+					11 button LaTeX 图片往返验收
+			12 container
+				13 button 新建文件
+					14 image
+				15 button Description: 文件夹菜单, Help: /private/tmp
+					16 text tmp
+					17 image
+				18 button 大纲显示选项
+					19 image
+			20 splitter Description: 调整侧栏宽度, Value: 260
+			21 container
+				22 button 切换侧栏
+					23 image
+				24 text native-image.md
+				25 button 即时排版
+				26 button 源码
+					27 image
+					28 text 源码
+				29 pop up button 格式
+					30 image
+				31 button 插入图片
+					32 image
+				33 button 设置图片尺寸
+					34 image
+				35 button 查找与替换
+					36 image
+				37 button 跨文档搜索
+					38 image
+				39 button 快速打开
+					40 image
+				41 pop up button 导出
+					42 image
+					43 text 导出
+					44 image
+				45 button 专注模式
+					46 image
+				47 button 切换深色主题
+					48 image
+				49 button 偏好设置
+					50 image
+			51 container 文档分组
+				52 button 全部 15
+					53 text 全部
+					54 text 15
+				55 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			56 tab group 打开的文档
+				57 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				58 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					59 (selected) 未分组
+				60 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					61 image
+				62 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				63 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					64 (selected) 未分组
+				65 button Description: 关闭 写作指南.md, Help: 关闭文档
+					66 image
+				67 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				68 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
+					69 (selected) 未分组
+				70 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
+					71 image
+				72 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				73 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
+					74 (selected) 未分组
+				75 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
+					76 image
+				77 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					78 container 未保存
+					79 text 未命名.md
+				80 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					81 (selected) 未分组
+				82 button Description: 关闭 未命名.md, Help: 关闭文档
+					83 image
+				84 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				85 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
+					86 (selected) 未分组
+				87 button Description: 关闭 recovered-copy.md, Help: 关闭文档
+					88 image
+				89 tab (settable, integer) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				90 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
+					91 (selected) 未分组
+				92 button Description: 关闭 image-copy.md, Help: 关闭文档
+					93 image
+				94 tab (settable, integer) moxie-theme-blocks.md, Help: moxie-theme-blocks.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				95 pop up button Description: moxie-theme-blocks.md所属分组, Help: 所属分组, Value: 未分组
+					96 (selected) 未分组
+				97 button Description: 关闭 moxie-theme-blocks.md, Help: 关闭文档
+					98 image
+				99 tab (settable, integer) parity.md, Help: parity.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				100 pop up button Description: parity.md所属分组, Help: 所属分组, Value: 未分组
+					101 (selected) 未分组
+				102 button Description: 关闭 parity.md, Help: 关闭文档
+					103 image
+				104 tab (settable, integer) native.md, Help: native.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				105 pop up button Description: native.md所属分组, Help: 所属分组, Value: 未分组
+					106 (selected) 未分组
+				107 button Description: 关闭 native.md, Help: 关闭文档
+					108 image
+				109 tab (settable, integer) paragraphs.md, Help: paragraphs.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				110 pop up button Description: paragraphs.md所属分组, Help: 所属分组, Value: 未分组
+					111 (selected) 未分组
+				112 button Description: 关闭 paragraphs.md, Help: 关闭文档
+					113 image
+				114 tab (settable, integer) blank-counts.md, Help: blank-counts.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				115 pop up button Description: blank-counts.md所属分组, Help: 所属分组, Value: 未分组
+					116 (selected) 未分组
+				117 button Description: 关闭 blank-counts.md, Help: 关闭文档
+					118 image
+				119 tab (settable, integer) 未保存 未命名 2.md, Help: 未命名 2.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					120 container 未保存
+					121 text 未命名 2.md
+				122 pop up button Description: 未命名 2.md所属分组, Help: 所属分组, Value: 未分组
+					123 (selected) 未分组
+				124 button Description: 关闭 未命名 2.md, Help: 关闭文档
+					125 image
+				126 tab (settable, integer) long-outline.md, Help: long-outline.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				127 pop up button Description: long-outline.md所属分组, Help: 所属分组, Value: 未分组
+					128 (selected) 未分组
+				129 button Description: 关闭 long-outline.md, Help: 关闭文档
+					130 image
+				131 tab (selected) native-image.md, Help: native-image.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+				132 pop up button Description: native-image.md所属分组, Help: 所属分组, Value: 未分组
+					133 (selected) 未分组
+				134 button Description: 关闭 native-image.md, Help: 关闭文档
+					135 image
+			136 text 已恢复上次会话的未保存文档。请保存到文件。
+			137 button 关闭恢复提示
+				138 image
+			139 container native-image.md
+				140 container
+					141 text entry area (settable) Description: Markdown 编辑区, Value:  LaTeX 图片往返验收
+中文正文与图片保留。
+
+
+						142 text  LaTeX 图片往返验收
+						143 text 中文正文与图片保留。
+						144 button Description: 图片预览：本地应用图标样本；Enter 编辑路径，Shift+F10 打开图片操作菜单, Help: 点击编辑图片路径
+							145 image 本地应用图标样本
+			146 container
+				147 button 会话副本
+					148 image
+					149 text 会话副本
+				150 text 恢复副本已更新 Markdown UTF-8 行  6 , 列  1
+				151 button 字数统计
+					152 text 29
+					153 text  字符
+			154 text 文档已导入为未保存的 Markdown 副本；保存时选择目标文件。
+	155 close button
+	156 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	157 minimize button
+158 menu bar
+	159 墨写本机对照
+	160 文件
+	161 编辑
+	162 格式
+	163 视图
+	164 窗口
+
+The focused UI element is 1 HTML content native-image.md — 墨写, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html

@@ -1,0 +1,56 @@
+[WebServer] (node:19511) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:19519) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  line: {
+    x: 370,
+    y: 1023.84375,
+    width: 800,
+    height: 18,
+    top: 1023.84375,
+    right: 1170,
+    bottom: 1041.84375,
+    left: 370
+  },
+  area: {
+    x: 260,
+    y: 126,
+    width: 1020,
+    height: 742,
+    top: 126,
+    right: 1280,
+    bottom: 868,
+    left: 260
+  },
+  scrollTop: 5844
+}
+  ✘  1 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (4.5s)
+
+
+  1) tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ─────────────────────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      23 |     const viewport = line.closest(".document-area")!.getBoundingClientRect();
+      24 |     return bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
+    > 25 |   })).toBe(true);
+         |       ^
+      26 | });
+      27 |
+      28 | test("Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/theme-typora.spec.ts:25:7
+
+    Error Context: test-results/theme-typora-主题长标题文档的文末光标保持在正文视口内/error-context.md
+
+  1 failed
+    tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ──────────────────────────────────────────

@@ -1,0 +1,12 @@
+[WebServer] (node:13925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:13933) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/workspace.spec.ts:104:1 › 长大纲跟随正文定位并在窄窗口和筛选恢复后保持当前标题可见 (1.1s)
+  ✓  2 tests/workspace.spec.ts:138:1 › 原生文件树与文档列表命令从大纲和专注切换，保留排序与展开状态 (718ms)
+  ✓  3 tests/workspace.spec.ts:2465:1 › 大纲左右方向键折叠、展开并在父子标题之间移动焦点 (418ms)
+
+  3 passed (3.3s)

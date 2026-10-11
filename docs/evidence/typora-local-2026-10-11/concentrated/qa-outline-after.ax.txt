@@ -1,0 +1,285 @@
+Window: "long-outline.md — /private/tmp/moxie-concentrated-20261011 — 墨写", App: 墨写本机对照.
+0 standard window long-outline.md — /private/tmp/moxie-concentrated-20261011 — 墨写, Secondary Actions: Raise
+	1 HTML content long-outline.md — /private/tmp/moxie-concentrated-20261011 — 墨写, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 大纲
+				7 button 搜索大纲标题
+					8 image
+			9 container 文档大纲
+				10 container 大纲
+					11 button 章节 1
+					12 button 章节 2
+					13 button 章节 3
+					14 button 章节 4
+					15 button 章节 5
+					16 button 章节 6
+					17 button 章节 7
+					18 button 章节 8
+					19 button 章节 9
+					20 button 章节 10
+					21 button 章节 11
+					22 button 章节 12
+					23 button 章节 13
+					24 button 章节 14
+					25 button 章节 15
+					26 button 章节 16
+					27 button 章节 17
+					28 button 章节 18
+					29 button 章节 19
+					30 button 章节 20
+					31 button 章节 21
+					32 button 章节 22
+					33 button 章节 23
+					34 button 章节 24
+					35 button 章节 25
+					36 button 章节 26
+					37 button 章节 27
+					38 button 章节 28
+					39 button 章节 29
+					40 button 章节 30
+					41 button 章节 31
+					42 button 章节 32
+					43 button 章节 33
+					44 button 章节 34
+					45 button 章节 35
+					46 button 章节 36
+					47 button 章节 37
+					48 button 章节 38
+					49 button 章节 39
+					50 button 章节 40
+					51 button 章节 41
+					52 button 章节 42
+					53 button 章节 43
+					54 button 章节 44
+					55 button 章节 45
+					56 button 章节 46
+					57 button 章节 47
+					58 button 章节 48
+					59 button 章节 49
+					60 button 章节 50
+					61 button 章节 51
+					62 button 章节 52
+					63 button 章节 53
+					64 button 章节 54
+					65 button 章节 55
+					66 button 章节 56
+					67 button 章节 57
+					68 button 章节 58
+					69 button 章节 59
+					70 button 章节 60
+			71 container
+				72 button 新建文件
+					73 image
+				74 button Description: 文件夹菜单, Help: /private/tmp
+					75 text tmp
+					76 image
+				77 button 大纲显示选项
+					78 image
+			79 splitter Description: 调整侧栏宽度, Value: 260
+			80 container
+				81 button 切换侧栏
+					82 image
+				83 text long-outline.md
+				84 button 即时排版
+				85 button 源码
+					86 image
+					87 text 源码
+				88 pop up button 格式
+					89 image
+				90 button 插入图片
+					91 image
+				92 button 设置图片尺寸
+					93 image
+				94 button 查找与替换
+					95 image
+				96 button 跨文档搜索
+					97 image
+				98 button 快速打开
+					99 image
+				100 pop up button 导出
+					101 image
+					102 text 导出
+					103 image
+				104 button 专注模式
+					105 image
+				106 button 切换深色主题
+					107 image
+				108 button 偏好设置
+					109 image
+			110 container 文档分组
+				111 button 全部 14
+					112 text 全部
+					113 text 14
+				114 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			115 tab group 打开的文档
+				116 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				117 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					118 (selected) 未分组
+				119 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					120 image
+				121 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				122 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					123 (selected) 未分组
+				124 button Description: 关闭 写作指南.md, Help: 关闭文档
+					125 image
+				126 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				127 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
+					128 (selected) 未分组
+				129 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
+					130 image
+				131 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				132 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
+					133 (selected) 未分组
+				134 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
+					135 image
+				136 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					137 container 未保存
+					138 text 未命名.md
+				139 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					140 (selected) 未分组
+				141 button Description: 关闭 未命名.md, Help: 关闭文档
+					142 image
+				143 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				144 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
+					145 (selected) 未分组
+				146 button Description: 关闭 recovered-copy.md, Help: 关闭文档
+					147 image
+				148 tab (settable, integer) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				149 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
+					150 (selected) 未分组
+				151 button Description: 关闭 image-copy.md, Help: 关闭文档
+					152 image
+				153 tab (settable, integer) moxie-theme-blocks.md, Help: moxie-theme-blocks.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				154 pop up button Description: moxie-theme-blocks.md所属分组, Help: 所属分组, Value: 未分组
+					155 (selected) 未分组
+				156 button Description: 关闭 moxie-theme-blocks.md, Help: 关闭文档
+					157 image
+				158 tab (settable, integer) parity.md, Help: parity.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				159 pop up button Description: parity.md所属分组, Help: 所属分组, Value: 未分组
+					160 (selected) 未分组
+				161 button Description: 关闭 parity.md, Help: 关闭文档
+					162 image
+				163 tab (settable, integer) native.md, Help: native.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				164 pop up button Description: native.md所属分组, Help: 所属分组, Value: 未分组
+					165 (selected) 未分组
+				166 button Description: 关闭 native.md, Help: 关闭文档
+					167 image
+				168 tab (settable, integer) paragraphs.md, Help: paragraphs.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				169 pop up button Description: paragraphs.md所属分组, Help: 所属分组, Value: 未分组
+					170 (selected) 未分组
+				171 button Description: 关闭 paragraphs.md, Help: 关闭文档
+					172 image
+				173 tab (settable, integer) blank-counts.md, Help: blank-counts.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				174 pop up button Description: blank-counts.md所属分组, Help: 所属分组, Value: 未分组
+					175 (selected) 未分组
+				176 button Description: 关闭 blank-counts.md, Help: 关闭文档
+					177 image
+				178 tab (settable, integer) 未保存 未命名 2.md, Help: 未命名 2.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					179 container 未保存
+					180 text 未命名 2.md
+				181 pop up button Description: 未命名 2.md所属分组, Help: 所属分组, Value: 未分组
+					182 (selected) 未分组
+				183 button Description: 关闭 未命名 2.md, Help: 关闭文档
+					184 image
+				185 tab (selected) long-outline.md, Help: long-outline.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+				186 pop up button Description: long-outline.md所属分组, Help: 所属分组, Value: 未分组
+					187 (selected) 未分组
+				188 button Description: 关闭 long-outline.md, Help: 关闭文档
+					189 image
+			190 text 已恢复上次会话的未保存文档。请保存到文件。
+			191 button 关闭恢复提示
+				192 image
+			193 container long-outline.md
+				194 container
+					195 text entry area (settable) Description: Markdown 编辑区, Value: 正文 49
+ 章节 50
+正文 50
+ 章节 51
+正文 51
+ 章节 52
+正文 52
+ 章节 53
+正文 53
+ 章节 54
+正文 54
+ 章节 55
+正文 55
+ 章节 56
+正文 56
+ 章节 57
+正文 57
+ 章节 58
+正文 58
+ 章节 59
+正文 59
+ 章节 60
+正文 60
+
+						196 text 正文 49
+						197 text  章节 50
+						198 text 正文 50
+						199 text  章节 51
+						200 text 正文 51
+						201 text  章节 52
+						202 text 正文 52
+						203 text  章节 53
+						204 text 正文 53
+						205 text  章节 54
+						206 text 正文 54
+						207 text  章节 55
+						208 text 正文 55
+						209 text  章节 56
+						210 text 正文 56
+						211 text  章节 57
+						212 text 正文 57
+						213 text  章节 58
+						214 text 正文 58
+						215 text  章节 59
+						216 text 正文 59
+						217 text  章节 60
+						218 text 正文 60
+			219 container
+				220 button 已保存
+					221 image
+					222 text 已保存
+				223 text 恢复副本已更新 Markdown UTF-8 行  240 , 列  1
+				224 button 字数统计
+					225 text 462
+					226 text  字符
+	227 close button
+	228 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	229 minimize button
+230 menu bar
+	231 墨写本机对照
+	232 文件
+	233 编辑
+	234 格式
+	235 视图
+	236 窗口
+
+The focused UI element is 195 text entry area (settable) Description: Markdown 编辑区, Value: 正文 49
+ 章节 50
+正文 50
+ 章节 51
+正文 51
+ 章节 52
+正文 52
+ 章节 53
+正文 53
+ 章节 54
+正文 54
+ 章节 55
+正文 55
+ 章节 56
+正文 56
+ 章节 57
+正文 57
+ 章节 58
+正文 58
+ 章节 59
+正文 59
+ 章节 60
+正文 60

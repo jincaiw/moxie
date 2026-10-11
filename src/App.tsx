@@ -1066,6 +1066,13 @@ export default function App() {
     "horizontal",
     workspace.recoveryReady,
   );
+  useRevealSelection(
+    sidebarNavigation,
+    `${current.id}\n${activeHeading?.from}\n${outlineQuery}\n${outlineRows.map((row) => row.heading.from).join(",")}`,
+    "vertical",
+    visibleSidebar && tab === "outline" && workspace.recoveryReady,
+    ".outline-row.active",
+  );
   const autoError = workspace.autoErrors[current.id];
   const editImageSize = () => {
     const size = editor.current?.imageSize();

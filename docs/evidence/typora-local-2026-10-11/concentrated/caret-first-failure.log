@@ -1,0 +1,33 @@
+[WebServer] (node:18502) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:18510) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (5.7s)
+
+
+  1) tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ─────────────────────────────────────────
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      22 |     const viewport = line.closest(".document-area")!.getBoundingClientRect();
+      23 |     return bounds.top >= viewport.top && bounds.bottom <= viewport.bottom;
+    > 24 |   })).toBe(true);
+         |       ^
+      25 | });
+      26 |
+      27 | test("Typora 代码主题区分行内与整块表面，复制、编辑和源码往返保留内容", async ({
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/theme-typora.spec.ts:24:7
+
+    Error Context: test-results/theme-typora-主题长标题文档的文末光标保持在正文视口内/error-context.md
+
+  1 failed
+    tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 ──────────────────────────────────────────

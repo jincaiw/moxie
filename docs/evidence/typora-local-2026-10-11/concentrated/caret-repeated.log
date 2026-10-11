@@ -1,0 +1,22 @@
+[WebServer] (node:22478) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:22506) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (1.1s)
+(node:22542) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (733ms)
+(node:22600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  3 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (724ms)
+(node:22615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  4 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (744ms)
+(node:22654) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  5 tests/theme-typora.spec.ts:4:1 › 主题长标题文档的文末光标保持在正文视口内 (746ms)
+
+  5 passed (6.3s)

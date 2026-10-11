@@ -1129,6 +1129,42 @@ export const Editor = forwardRef<EditorHandle, Props>(
                   },
                 }),
                 EditorView.updateListener.of((update) => {
+                  if (
+                    !latest.current.typewriter &&
+                    update.transactions.some(
+                      (transaction) => transaction.scrollIntoView,
+                    )
+                  ) {
+                    // Preview line heights settle during measurement. Correct only
+                    // the outer document viewport after that layout, so keyboard
+                    // movement cannot leave the caret clipped below its boundary.
+                    requestAnimationFrame(() => {
+                      if (view.current !== update.view) return;
+                      update.view.requestMeasure({
+                        key: latest,
+                        read(instance) {
+                          const area =
+                            instance.dom.closest<HTMLElement>(".document-area");
+                          const caret = instance.coordsAtPos(
+                            instance.state.selection.main.head,
+                          );
+                          if (!area || !caret) return null;
+                          const bounds = area.getBoundingClientRect();
+                          const delta =
+                            caret.top < bounds.top + 8
+                              ? caret.top - bounds.top - 8
+                              : caret.bottom > bounds.bottom - 8
+                                ? caret.bottom - bounds.bottom + 8
+                                : 0;
+                          return { area, delta };
+                        },
+                        write(result) {
+                          if (result?.delta)
+                            result.area.scrollTop += result.delta;
+                        },
+                      });
+                    });
+                  }
                   if (update.selectionSet || update.docChanged) {
                     const position = update.state.selection.main.head;
                     const line = update.state.doc.lineAt(position);
