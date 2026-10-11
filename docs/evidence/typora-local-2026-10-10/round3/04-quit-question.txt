@@ -1,0 +1,8 @@
+The following is a diff from the previous accessibility tree for Window: "Unknown" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 0-80, 131-132, 134-141, 149-168
++149 sheet Description: alert, Secondary Actions: Raise
++	150 text 还有未保存的文档 保存到文件，或保留恢复副本后关闭。
++	151 button 保存全部, ID: action-button--998
++	152 button 保留恢复副本并关闭, ID: action-button--997
++	153 button 取消, ID: action-button--999
+The focused UI element is 149 sheet Description: alert, Secondary Actions: Raise

@@ -312,10 +312,16 @@ export default function App() {
       localStorage.setItem("moxie.sidebar-width.v1", String(width));
     } catch {}
   }, []);
+  const sidebarRestoreFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (sidebarPopup || !sidebarRestoreFocus.current) return;
+    const origin = sidebarRestoreFocus.current;
+    sidebarRestoreFocus.current = null;
+    if (origin.isConnected) origin.focus({ preventScroll: true });
+  }, [sidebarPopup]);
   const dismissSidebarPopup = (restore = false) => {
+    sidebarRestoreFocus.current = restore ? sidebarPopupOrigin.current : null;
     setSidebarPopup(null);
-    if (restore)
-      requestAnimationFrame(() => sidebarPopupOrigin.current?.focus());
   };
   const toggleSidebarPopup = (
     kind: "mode" | "actions" | "outline",
@@ -336,8 +342,7 @@ export default function App() {
     const key = (event: globalThis.KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setSidebarPopup(null);
-        sidebarPopupOrigin.current?.focus();
+        dismissSidebarPopup(true);
       }
     };
     const frame = requestAnimationFrame(() => {
@@ -494,6 +499,8 @@ export default function App() {
   useEffect(() => {
     if (current.path) folderWorkspace.reveal(current.path);
   }, [current.path, folderWorkspace.root, Boolean(folderWorkspace.tree)]);
+  const [preparingClose, setPreparingClose] = useState(false);
+  const preparingCloseRef = useRef(false);
   const [readOnly, setReadOnly] = useState(false);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
@@ -1045,7 +1052,7 @@ export default function App() {
     setImageSizeDialog(size);
   };
   const downloadDocumentImages = async () => {
-    if (readOnlyRef.current) {
+    if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，请先恢复编辑。");
       return;
     }
@@ -1059,6 +1066,7 @@ export default function App() {
       );
       if (
         readOnlyRef.current ||
+        preparingCloseRef.current ||
         !latest ||
         latest.text !== originalText ||
         latest.path !== originalPath
@@ -1082,7 +1090,7 @@ export default function App() {
     mode: "copy" | "move",
     targetDirectory: string,
   ) => {
-    if (readOnlyRef.current) {
+    if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，请先恢复编辑。");
       return;
     }
@@ -1101,6 +1109,7 @@ export default function App() {
       );
       if (
         readOnlyRef.current ||
+        preparingCloseRef.current ||
         !latest ||
         latest.text !== originalText ||
         latest.path !== originalPath
@@ -1148,7 +1157,7 @@ export default function App() {
     setGroupDialog(null);
   };
   const openMetadataDialog = () => {
-    if (readOnlyRef.current) {
+    if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，请先恢复编辑。");
       return;
     }
@@ -1166,7 +1175,7 @@ export default function App() {
   };
   const saveMetadataDialog = () => {
     if (!metadataDialog) return;
-    if (readOnlyRef.current) {
+    if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，未修改文档属性。");
       return;
     }
@@ -1846,7 +1855,13 @@ export default function App() {
       );
     }
   };
-  const handleAction = (action: string) => {
+  const handleAction = (action: string, requestId?: number) => {
+    if (action === "close-cancelled") {
+      preparingCloseRef.current = false;
+      setPreparingClose(false);
+      return;
+    }
+    if (preparingCloseRef.current) return;
     if (action === "read-only") {
       editor.current?.flush();
       setReadOnly((value) => !value);
@@ -1948,36 +1963,56 @@ export default function App() {
         );
       }
     }
-    if (action === "keep-close") {
+    if (action === "keep-close" || action === "close-request") {
+      preparingCloseRef.current = true;
+      setPreparingClose(true);
       void (async () => {
-        editor.current?.flush();
-        if (await workspace.flushAsync()) window.desktop?.closeReady();
+        let ready = false;
+        try {
+          editor.current?.flush();
+          if (workspace.saving.current || folderBusy || busy) {
+            setMessage("正在执行文件操作，请完成后再关闭。");
+            return;
+          }
+          if (action === "close-request") {
+            for (const document of workspace.docsRef.current.filter(
+              (d) => d.dirty,
+            ))
+              if (!(await workspace.save(document))) return;
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() => resolve()),
+            );
+            if (workspace.docsRef.current.some((d) => d.dirty)) {
+              setMessage("保存期间文档发生了变化，请再次保存后关闭。");
+              return;
+            }
+          }
+          const closingDocs = workspace.docsRef.current;
+          ready = await workspace.flushAsync();
+          if (ready && workspace.docsRef.current !== closingDocs) {
+            ready = false;
+            setMessage("写入恢复副本期间文档发生了变化，请再次关闭。");
+          }
+          if (ready) window.desktop?.closeReady(requestId);
+        } catch (error) {
+          setMessage(
+            error instanceof Error ? error.message : "准备关闭失败，请重试。",
+          );
+        } finally {
+          if (!ready) {
+            preparingCloseRef.current = false;
+            setPreparingClose(false);
+            window.desktop?.closeCancelled?.(requestId);
+          }
+        }
       })();
     }
-    if (action === "close-request")
-      void (async () => {
-        editor.current?.flush();
-        if (workspace.saving.current) {
-          setMessage("正在保存，请完成后再关闭。");
-          return;
-        }
-        for (const document of workspace.docsRef.current.filter((d) => d.dirty))
-          if (!(await workspace.save(document))) return;
-        await new Promise<void>((resolve) =>
-          requestAnimationFrame(() => resolve()),
-        );
-        if (workspace.docsRef.current.some((d) => d.dirty)) {
-          setMessage("保存期间文档发生了变化，请再次保存后关闭。");
-          return;
-        }
-        if (await workspace.flushAsync()) window.desktop?.closeReady();
-      })();
   };
   const actionRef = useRef(handleAction);
   actionRef.current = handleAction;
   useEffect(() => {
-    const dispose = window.desktop?.onAction((action) =>
-      actionRef.current(action),
+    const dispose = window.desktop?.onAction((action, requestId) =>
+      actionRef.current(action, requestId),
     );
     const key = (event: KeyboardEvent) => {
       if (
@@ -2168,6 +2203,8 @@ export default function App() {
     return <div className="recovery-loading">正在载入恢复副本…</div>;
   return (
     <div
+      inert={preparingClose || undefined}
+      aria-busy={preparingClose || undefined}
       className={
         "app " +
         (!visibleSidebar ? "sidebar-hidden " : "") +
@@ -3629,7 +3666,7 @@ export default function App() {
             text={current.text}
             path={current.path}
             source={source}
-            readOnly={fileOperationBusy || readOnly}
+            readOnly={fileOperationBusy || readOnly || preparingClose}
             typewriter={preferences.typewriter}
             smartQuotes={preferences.smartQuotes}
             smartDashes={preferences.smartDashes}
@@ -3673,7 +3710,7 @@ export default function App() {
               return window.desktop.makeFileLink(saved.path, target, label);
             }}
             onImages={async (files) => {
-              if (readOnlyRef.current)
+              if (readOnlyRef.current || preparingCloseRef.current)
                 throw Error("当前为只读模式，请先恢复编辑。");
               return withImages(current)(files);
             }}

@@ -1,0 +1,5 @@
+			95 text 已恢复上次会话的未保存文档。请保存到文件。
+					100 text entry area (settable) Description: Markdown 编辑区, Value:  隔离配置退出验收
+取消后应可编辑，重启后保留这段内容。 已恢复编辑。
+						101 text  隔离配置退出验收
+						102 text 取消后应可编辑，重启后保留这段内容。 已恢复编辑。

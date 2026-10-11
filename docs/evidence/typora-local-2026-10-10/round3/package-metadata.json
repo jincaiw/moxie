@@ -1,0 +1,15 @@
+{
+  "completedDate": "2026-10-11",
+  "version": "0.16.249",
+  "moxieLocalQA": true,
+  "bundleId": "studio.moxie.editor.localqa",
+  "userDataName": "moxie-editor-localqa",
+  "appAsarSHA256": "fd928ad4836a3ac386ddf56ec6ad584cac10f210fb6f7d21fa24c56dce310c7f",
+  "sourceSHA256": {
+    "electron/main.cjs": "b6419e99e139a97b87d9035241a4ac2a65c068232e8e9d71e38d5f78350c9a0b",
+    "electron/preload.cjs": "1c4387a84beddeb569e4f9edf84335dd6d7f1020719e59ad036ecb1d8b292d48",
+    "src/App.tsx": "abc13176077e1b5e61079ecd587099da2f9cca87fdb60108eba788836e9e8799",
+    "src/preferences.ts": "e372b118cfdb873707b9be461d6929423cfdbc26bcd36e0edf0ff3e344f61921",
+    "src/theme-css.ts": "4e7cf28eccd7a43a179055a927f86e1c2935b3481a9bb4d47193e21552461dbb"
+  }
+}

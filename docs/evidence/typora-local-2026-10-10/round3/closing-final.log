@@ -1,0 +1,12 @@
+[WebServer] (node:21792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:22138) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 tests/closing.spec.ts:33:1 › 取消另存为会通知主进程并恢复交互，恢复副本成功后冻结直到退出取消 (966ms)
+  ✓  2 tests/closing.spec.ts:63:1 › 恢复副本两种存储都失败时禁止关闭并恢复编辑 (242ms)
+  ✓  3 tests/closing.spec.ts:83:1 › 恢复写入期间外部文档变化时不确认关闭，保留最新编辑 (427ms)
+
+  3 passed (5.6s)

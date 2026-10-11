@@ -1,0 +1,3 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 121-136
+The focused UI element is 35 button 文件夹菜单

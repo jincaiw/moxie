@@ -1,0 +1,2 @@
+[59043:1010/212603.653010:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[59039:1010/212607.717249:ERROR:quota_database.cc(1080)] Could not open the quota database, resetting.

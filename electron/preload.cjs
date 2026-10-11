@@ -73,9 +73,10 @@ contextBridge.exposeInMainWorld("desktop", {
       ipcRenderer.removeListener("preferences:outline-changed", listener);
   },
   dirty: (value) => ipcRenderer.send("document:dirty", Boolean(value)),
-  closeReady: () => ipcRenderer.send("window:close-ready"),
+  closeReady: (id) => ipcRenderer.send("window:close-ready", id),
+  closeCancelled: (id) => ipcRenderer.send("window:close-cancelled", id),
   onAction: (fn) => {
-    const listener = (_event, action) => fn(action);
+    const listener = (_event, action, id) => fn(action, id);
     ipcRenderer.on("menu:action", listener);
     return () => ipcRenderer.removeListener("menu:action", listener);
   },

@@ -1,0 +1,6 @@
++					247 text entry area (settable) Description: Markdown 编辑区, Value:  隔离配置退出验收
+取消后应可编辑，重启后保留这段内容。
++						248 text  隔离配置退出验收
++						249 text 取消后应可编辑，重启后保留这段内容。
+The focused UI element is 247 text entry area (settable) Description: Markdown 编辑区, Value:  隔离配置退出验收
+取消后应可编辑，重启后保留这段内容。

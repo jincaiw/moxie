@@ -1,0 +1,32 @@
+[WebServer] (node:57875) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:57879) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✘  1 tests/theme-typora.spec.ts:3:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 (30.0s)
+
+
+  1) tests/theme-typora.spec.ts:3:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 ───────────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.evaluate: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('.topbar')
+
+
+      20 |   const toolbarFont = await page
+      21 |     .locator(".toolbar")
+    > 22 |     .evaluate((element) => getComputedStyle(element).fontSize);
+         |      ^
+      23 |   // The adapter relies on the browser CSS parser, so exercise it inside the page.
+      24 |   await page.evaluate(async () => {
+      25 |     const modulePath = "/src/theme-css.ts";
+        at /Volumes/My-Data/jason.wa/codebase/moxie/tests/theme-typora.spec.ts:22:6
+
+    Error Context: test-results/theme-typora-Typora-主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样/error-context.md
+
+  1 failed
+    tests/theme-typora.spec.ts:3:1 › Typora 主题的正文与标题映射遵循媒体宽度，源码和工具栏保持原样 ────────────────────────────

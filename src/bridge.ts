@@ -228,9 +228,12 @@ declare global {
       getOutlinePreference?: () => Promise<boolean | null>;
       setOutlinePreference?: (value: boolean) => Promise<boolean>;
       onOutlinePreference?: (fn: (value: boolean) => void) => () => void;
-      onAction: (fn: (action: string) => void) => () => void;
+      onAction: (
+        fn: (action: string, requestId?: number) => void,
+      ) => () => void;
       dirty: (dirty: boolean) => void;
-      closeReady: () => void;
+      closeReady: (requestId?: number) => void;
+      closeCancelled?: (requestId?: number) => void;
     };
   }
 }

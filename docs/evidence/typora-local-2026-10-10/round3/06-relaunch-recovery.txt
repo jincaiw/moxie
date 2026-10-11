@@ -1,0 +1,17 @@
+							26 button 未命名.md
+								28 text 未命名.md
+							30 button Description: 关闭 未命名.md, Help: 关闭文档
+				44 text 未命名.md
+				88 tab (selected) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+					90 text 未命名.md
+				91 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+				93 button Description: 关闭 未命名.md, Help: 关闭文档
+			95 text 已恢复上次会话的未保存文档。请保存到文件。
+			98 container 未保存 未命名.md
+					100 text entry area (settable) Description: Markdown 编辑区, Value:  退出验收 
+取消后可继续编辑。
+只用于测试取消退出与恢复副本。
+						101 text  退出验收
+						102 text  取消后可继续编辑。
+						103 text 只用于测试取消退出与恢复副本。
+				108 text 恢复副本已更新 Markdown UTF-8 行  3 , 列  16

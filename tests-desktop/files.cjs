@@ -309,7 +309,12 @@ test("精选主题下载限制重定向主机和响应大小", async () => {
     /超过 256 KB/,
   );
 });
-async function harness(userData, startupFiles = [], updateConfig = true) {
+async function harness(
+  userData,
+  startupFiles = [],
+  updateConfig = true,
+  localQA = false,
+) {
   if (!userData) {
     userData = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-main-test-"));
     harnessDirectories.push(userData);
@@ -343,8 +348,9 @@ async function harness(userData, startupFiles = [], updateConfig = true) {
       this.webContents = new EventEmitter();
       this.webContents.mainFrame = {};
       this.webContents.setWindowOpenHandler = () => {};
-      this.webContents.send = (channel, action) => {
+      this.webContents.send = (channel, action, requestId) => {
         this.messages.push([channel, action]);
+        this.lastRequestId = requestId;
         this.lastAction = action;
       };
       this.webContents.executeJavaScript = async (script) => {
@@ -386,6 +392,9 @@ async function harness(userData, startupFiles = [], updateConfig = true) {
     app: {
       isPackaged: true,
       getPath: () => userData,
+      setPath: (name, value) => {
+        electron.app.qaPath = [name, value];
+      },
       whenReady: () => {
         for (const file of startupFiles)
           appEvents.emit("open-file", { preventDefault() {} }, file);
@@ -397,7 +406,9 @@ async function harness(userData, startupFiles = [], updateConfig = true) {
         };
       },
       on: (...args) => appEvents.on(...args),
-      quit: () => {},
+      quit: () => {
+        electron.app.quitCalled = true;
+      },
     },
     BrowserWindow: Window,
     Menu: {
@@ -447,15 +458,17 @@ async function harness(userData, startupFiles = [], updateConfig = true) {
   );
   vm.runInNewContext(source, {
     require: (name) =>
-      name === "electron"
-        ? electron
-        : name === "electron-updater"
-          ? { autoUpdater: mockUpdater }
-          : require(
-              name.startsWith(".")
-                ? path.join(__dirname, "../electron", name)
-                : name,
-            ),
+      name === "../package.json"
+        ? { moxieLocalQA: localQA }
+        : name === "electron"
+          ? electron
+          : name === "electron-updater"
+            ? { autoUpdater: mockUpdater }
+            : require(
+                name.startsWith(".")
+                  ? path.join(__dirname, "../electron", name)
+                  : name,
+              ),
     process: { env: {}, platform: "darwin", resourcesPath: userData },
     __dirname: path.join(__dirname, "../electron"),
     Buffer,
@@ -492,6 +505,7 @@ async function harness(userData, startupFiles = [], updateConfig = true) {
     window,
     windows,
     appEvents,
+    app: electron.app,
     userData,
     waitForProfiles: async (count) => {
       for (let attempt = 0; attempt < 50; attempt++) {
@@ -699,6 +713,15 @@ test("未知窗口被拒绝，未授权路径必须通过另存为对话框", as
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+test("只有明确的本机 QA 包使用独立配置目录，正式包不改用户路径", async () => {
+  const formal = await harness();
+  assert.equal(formal.app.qaPath, undefined);
+  const qa = await harness(undefined, [], false, true);
+  assert.deepEqual(
+    [...qa.app.qaPath],
+    ["userData", path.join(qa.userData, "moxie-editor-localqa")],
+  );
+});
 test("关闭脏文档时取消有效，保留副本先通知渲染层", async () => {
   const h = await harness();
   h.events.get("document:dirty")(h.event, true);
@@ -716,8 +739,103 @@ test("关闭脏文档时取消有效，保留副本先通知渲染层", async ()
   await new Promise((r) => setImmediate(r));
   assert.equal(h.window.lastAction, "keep-close");
   assert.equal(h.window.closed, undefined);
-  h.events.get("window:close-ready")(h.event);
+  h.events.get("window:close-ready")(h.event, h.window.lastRequestId);
+  await new Promise((r) => setImmediate(r));
   assert.equal(h.window.closed, true);
+});
+const tick = () => new Promise((resolve) => setImmediate(resolve));
+const windowEvent = (target) => ({
+  sender: target.webContents,
+  senderFrame: target.webContents.mainFrame,
+});
+const beginQuit = (h) => {
+  let prevented = false;
+  h.appEvents.emit("before-quit", {
+    preventDefault() {
+      prevented = true;
+    },
+  });
+  assert.equal(prevented, true);
+};
+test("退出逐一准备所有窗口，后一个取消时不关闭任何窗口", async () => {
+  const h = await harness();
+  h.menuTemplate
+    .find((menu) => menu.label === "文件")
+    .submenu.find((item) => item.label === "新建窗口")
+    .click();
+  const [first, second] = h.windows;
+  h.events.get("document:dirty")(windowEvent(second), true);
+  beginQuit(h);
+  await tick();
+  assert.equal(first.lastAction, "keep-close");
+  const staleId = first.lastRequestId;
+  h.events.get("window:close-ready")(windowEvent(first), staleId);
+  await tick();
+  assert.equal(h.app.quitCalled, undefined);
+  assert.equal(first.closed, undefined);
+  assert.equal(second.closed, undefined);
+  assert.equal(first.lastAction, "close-cancelled");
+  // A late acknowledgement cannot finish a subsequent close request.
+  h.response(2);
+  beginQuit(h);
+  await tick();
+  h.events.get("window:close-ready")(windowEvent(first), staleId);
+  await tick();
+  assert.equal(second.lastAction, "close-cancelled");
+  h.events.get("window:close-ready")(windowEvent(first), first.lastRequestId);
+  await tick();
+  assert.equal(second.lastAction, "keep-close");
+  h.events.get("window:close-ready")(windowEvent(second), second.lastRequestId);
+  for (let i = 0; i < 30 && !h.app.quitCalled; i++)
+    await new Promise((r) => setTimeout(r, 10));
+  assert.equal(h.app.quitCalled, true);
+});
+test("保存或恢复失败终止退出，重复退出不叠加请求，可重试正常关闭", async () => {
+  const h = await harness();
+  h.events.get("document:dirty")(h.event, true);
+  h.response(1);
+  beginQuit(h);
+  await tick();
+  const id = h.window.lastRequestId;
+  assert.equal(h.window.lastAction, "close-request");
+  beginQuit(h);
+  await tick();
+  assert.equal(h.window.lastRequestId, id);
+  h.events.get("window:close-cancelled")(h.event, id);
+  await tick();
+  assert.equal(h.app.quitCalled, undefined);
+  assert.equal(h.window.closed, undefined);
+  h.response(2);
+  h.window.emit("close", { preventDefault() {} });
+  await tick();
+  h.events.get("window:close-ready")(h.event, h.window.lastRequestId);
+  await tick();
+  assert.equal(h.window.closed, true);
+});
+test("准备完成后文档变化或渲染进程消失会终止退出", async () => {
+  const h = await harness();
+  h.menuTemplate
+    .find((menu) => menu.label === "文件")
+    .submenu.find((item) => item.label === "新建窗口")
+    .click();
+  const [first, second] = h.windows;
+  beginQuit(h);
+  await tick();
+  h.events.get("window:close-ready")(windowEvent(first), first.lastRequestId);
+  await tick();
+  h.events.get("document:dirty")(windowEvent(first), true);
+  h.events.get("window:close-ready")(windowEvent(second), second.lastRequestId);
+  for (let i = 0; i < 30 && first.lastAction !== "close-cancelled"; i++)
+    await new Promise((r) => setTimeout(r, 10));
+  assert.equal(h.app.quitCalled, undefined);
+  assert.equal(first.lastAction, "close-cancelled");
+  h.response(2);
+  beginQuit(h);
+  await tick();
+  first.webContents.emit("render-process-gone");
+  await tick();
+  assert.equal(h.app.quitCalled, undefined);
+  assert.equal(first.closed, undefined);
 });
 test("新建窗口独立恢复工作区和未保存状态，并在关闭时清理恢复项", async () => {
   const h = await harness();

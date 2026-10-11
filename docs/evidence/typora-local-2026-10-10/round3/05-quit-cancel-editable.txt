@@ -1,0 +1,9 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+~					246 text entry area (settable) Description: Markdown 编辑区, Value:  退出验收 
+取消后可继续编辑。
+只用于测试取消退出与恢复副本。
++						260 text  取消后可继续编辑。
+~				253 text 恢复副本已更新 Markdown UTF-8 行  2 , 列  11
+The focused UI element is 246 text entry area (settable) Description: Markdown 编辑区, Value:  退出验收 
+取消后可继续编辑。
+只用于测试取消退出与恢复副本。

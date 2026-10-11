@@ -1,0 +1,2 @@
+[58309:1010/212419.295615:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[58273:1010/212648.432069:ERROR:backing_store.cc(195)] Failed to open LevelDB database from /Volumes/My-Data/jason.wa/Library/Application Support/moxie-editor/IndexedDB/file__0.indexeddb.leveldb,IO error: /Volumes/My-Data/jason.wa/Library/Application Support/moxie-editor/IndexedDB/file__0.indexeddb.leveldb/LOCK: No further details. (ChromeMethodBFE: 15::LockFile::1)

@@ -24,12 +24,20 @@ const { autoUpdater } = require("electron-updater");
 const { exportDocumentAsSVG } = require("./image-export.cjs");
 const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
+// Set only by the local QA packaging command, never by release configuration.
+if (require("../package.json").moxieLocalQA === true)
+  app.setPath(
+    "userData",
+    path.join(app.getPath("appData"), "moxie-editor-localqa"),
+  );
 let store,
   updates,
   windowSequence = 0,
   windowProfileFile,
   windowProfileWrites = Promise.resolve(),
-  isQuitting = false;
+  isQuitting = false,
+  quitPreparation,
+  closeSequence = 0;
 
 function writerCompatibleImages(html) {
   return html.replace(
@@ -84,13 +92,13 @@ function saveWindowProfiles() {
     .then(() => atomicWrite(windowProfileFile, contents));
   return windowProfileWrites;
 }
-function action(name, target) {
+function action(name, target, requestId) {
   const window =
     target ||
     BrowserWindow.getFocusedWindow?.() ||
     [...windowStates.values()].at(-1)?.window;
   if (window && !window.isDestroyed?.())
-    window.webContents.send("menu:action", name);
+    window.webContents.send("menu:action", name, requestId);
 }
 function verify(event) {
   const state = windowStates.get(event.sender);
@@ -541,14 +549,84 @@ function setupIPC() {
   );
   ipcMain.on("document:dirty", (event, value) => {
     const state = verify(event);
+    state.prepared = false;
     state.dirty = Boolean(value);
     state.window.setDocumentEdited(state.dirty);
   });
-  ipcMain.on("window:close-ready", (event) => {
+  const finishClose = (event, requestId, ready) => {
     const state = verify(event);
-    state.allowClose = true;
-    state.window.close();
-  });
+    const pending = state.closeRequest;
+    if (!pending || pending.id !== requestId) return;
+    state.closeRequest = undefined;
+    state.prepared = ready;
+    pending.resolve(ready);
+    if (!ready) action("close-cancelled", state.window);
+  };
+  ipcMain.on("window:close-ready", (event, requestId) =>
+    finishClose(event, requestId, true),
+  );
+  ipcMain.on("window:close-cancelled", (event, requestId) =>
+    finishClose(event, requestId, false),
+  );
+}
+// Quit uses a preparation phase: no window closes until every workspace is safe.
+async function prepareWindowClose(state) {
+  if (state.closeRequest || state.askingClose) return false;
+  if (state.copyJob) {
+    state.copyJob.controller.abort();
+    await state.copyJob.done;
+  }
+  if (state.window.isDestroyed()) return true;
+  state.askingClose = true;
+  try {
+    let response = 2;
+    if (state.dirty) {
+      ({ response } = await dialog.showMessageBox(state.window, {
+        type: "question",
+        message: "还有未保存的文档",
+        detail: "保存到文件，或保留恢复副本后关闭。",
+        buttons: ["取消", "保存全部", "保留恢复副本并关闭"],
+        defaultId: 1,
+        cancelId: 0,
+      }));
+    }
+    if (response === 0 || state.window.isDestroyed()) return false;
+    return await new Promise((resolve) => {
+      const id = ++closeSequence;
+      state.closeRequest = { id, resolve };
+      action(response === 1 ? "close-request" : "keep-close", state.window, id);
+    });
+  } catch (error) {
+    console.error("准备关闭窗口失败", error);
+    return false;
+  } finally {
+    state.askingClose = false;
+  }
+}
+async function prepareQuit() {
+  try {
+    for (const state of windowStates.values()) {
+      if (!(await prepareWindowClose(state))) return;
+    }
+    await saveWindowProfiles();
+    if ([...windowStates.values()].some((state) => !state.prepared))
+      throw Error("退出准备期间文档发生了变化，请重试。");
+    isQuitting = true;
+    app.quit();
+  } catch (error) {
+    console.error("准备退出失败", error);
+  } finally {
+    if (!isQuitting) {
+      for (const state of windowStates.values()) {
+        const pending = state.closeRequest;
+        state.closeRequest = undefined;
+        pending?.resolve(false);
+        state.prepared = false;
+        action("close-cancelled", state.window);
+      }
+    }
+    quitPreparation = undefined;
+  }
 }
 function createWindow(primary = false, restoredProfile, initialFile) {
   if (!primary && !restoredProfile && windowProfiles.size >= 16) {
@@ -610,6 +688,12 @@ function createWindow(primary = false, restoredProfile, initialFile) {
     if (!contents.isDestroyed())
       contents.send("update:status", updates.getStatus());
   });
+  contents.on("render-process-gone", () => {
+    const pending = state.closeRequest;
+    state.closeRequest = undefined;
+    pending?.resolve(false);
+    state.prepared = false;
+  });
   contents.on("will-navigate", (event, url) => {
     const expected = isDev
       ? "http://127.0.0.1:5173/"
@@ -637,28 +721,19 @@ function createWindow(primary = false, restoredProfile, initialFile) {
       }
       return;
     }
-    if (!state.dirty || state.allowClose) return;
+    if (isQuitting || state.allowClose) return;
+    if (!state.dirty && !quitPreparation) return;
     event.preventDefault();
-    if (state.askingClose) return;
-    state.askingClose = true;
-    void dialog
-      .showMessageBox(window, {
-        type: "question",
-        message: "还有未保存的文档",
-        detail: "保存到文件，或保留恢复副本后关闭。",
-        buttons: ["取消", "保存全部", "保留恢复副本并关闭"],
-        defaultId: 1,
-        cancelId: 0,
-      })
-      .then((result) => {
-        if (result.response === 1) action("close-request", window);
-        if (result.response === 2) action("keep-close", window);
-      })
-      .finally(() => {
-        state.askingClose = false;
-      });
+    if (quitPreparation || state.askingClose) return;
+    void prepareWindowClose(state).then((ready) => {
+      if (ready && !window.isDestroyed()) {
+        state.allowClose = true;
+        window.close();
+      }
+    });
   });
   window.on("closed", () => {
+    state.closeRequest?.resolve(false);
     state.copyJob?.controller.abort();
     windowStates.delete(contents);
     if (
@@ -918,9 +993,10 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) restoreWindows();
   });
 });
-app.on("before-quit", () => {
-  isQuitting = true;
-  void saveWindowProfiles();
+app.on("before-quit", (event) => {
+  if (isQuitting) return;
+  event.preventDefault();
+  if (!quitPreparation) quitPreparation = prepareQuit();
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

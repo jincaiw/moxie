@@ -3,6 +3,7 @@ import {
   THEME_CSS_LIMIT,
   THEME_LIBRARY_CSS_LIMIT,
   themeCSSError,
+  typoraEditorCSS,
 } from "./theme-css";
 export { themeCSSError } from "./theme-css";
 export type ThemePreset =
@@ -267,7 +268,7 @@ export function usePreferences(reportError?: (message: string) => void) {
     }
     customStyle.textContent = themeCSSError(preferences.customCSS)
       ? ""
-      : preferences.customCSS;
+      : preferences.customCSS + "\n" + typoraEditorCSS(preferences.customCSS);
     try {
       const serialized = JSON.stringify(preferences);
       if (

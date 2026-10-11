@@ -1,0 +1,26 @@
+{
+  "environment": "Chromium / Vite development server, macOS arm64, Node 22.23.3, single worker; not production Electron",
+  "runs": [
+    {
+      "sizeMB": 1,
+      "payloadBytes": 1048576,
+      "openMs": 526,
+      "scroll20Ms": 392,
+      "endOfDocumentInputMs": 38
+    },
+    {
+      "sizeMB": 5,
+      "payloadBytes": 5242880,
+      "openMs": 1472,
+      "scroll20Ms": 313,
+      "endOfDocumentInputMs": 69
+    },
+    {
+      "sizeMB": 10,
+      "payloadBytes": 10485760,
+      "openMs": 2832,
+      "scroll20Ms": 1155,
+      "endOfDocumentInputMs": 96
+    }
+  ]
+}
