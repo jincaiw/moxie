@@ -2562,13 +2562,11 @@ test("只读任务框保持禁用与原状态，恢复编辑后可勾选", async
     };
   });
   await page.goto("/");
-  await page
-    .locator(".md-input")
-    .setInputFiles({
-      name: "readonly-task.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from("- [ ] 受保护任务\n\n结尾"),
-    });
+  await page.locator(".md-input").setInputFiles({
+    name: "readonly-task.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("- [ ] 受保护任务\n\n结尾"),
+  });
   const task = page.getByRole("checkbox", {
     name: "任务：受保护任务",
     exact: true,

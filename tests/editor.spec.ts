@@ -132,23 +132,19 @@ test("窗口标题随当前文件与未保存状态变化，独立窗口互不�
   context,
 }) => {
   await page.goto("/");
-  await page
-    .locator(".md-input")
-    .setInputFiles({
-      name: "第一份<&>.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from("# 第一份\n\n正文"),
-    });
+  await page.locator(".md-input").setInputFiles({
+    name: "第一份<&>.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 第一份\n\n正文"),
+  });
   await expect(page).toHaveTitle("第一份<&>.md — 墨写");
   const other = await context.newPage();
   await other.goto("/");
-  await other
-    .locator(".md-input")
-    .setInputFiles({
-      name: "第二份.md",
-      mimeType: "text/markdown",
-      buffer: Buffer.from("# 第二份\n\n正文"),
-    });
+  await other.locator(".md-input").setInputFiles({
+    name: "第二份.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 第二份\n\n正文"),
+  });
   await expect(other).toHaveTitle("第二份.md — 墨写");
   await page.getByRole("button", { name: "源码", exact: true }).click();
   const editor = page.getByRole("textbox", { name: "Markdown 编辑区" });
