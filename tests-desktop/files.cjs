@@ -145,7 +145,7 @@ test("Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文
     await fs.writeFile(path.join(root, "local.png"), "LOCALPNG");
     await fs.writeFile(
       executable,
-      "#!/bin/sh\nmkdir -p media\nprintf 'PNGDATA' > media/image-1.png\nprintf '## Imported\\n\\n![image](media/image-1.png)\\n\\n![local](local.png)\\n'\n",
+      "#!/bin/sh\nmkdir -p media/Pictures\nprintf 'PNGDATA' > media/image-1.png\nprintf 'NESTEDPNG' > media/Pictures/hash-name.png\nprintf '## Imported\\n\\n![image](media/image-1.png)\\n\\n<img src=\"media/Pictures/hash-name.png\">\\n\\n![local](local.png)\\n'\n",
     );
     await fs.chmod(executable, 0o755);
     const imported = await importWithPandoc({ inputPath: source, executable });
@@ -153,12 +153,26 @@ test("Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文
     assert.match(imported.text, /^## Imported/);
     assert.match(imported.text, /data:image\/png;base64,UE5HREFUQQ==/);
     assert.match(imported.text, /data:image\/png;base64,TE9DQUxQTkc=/);
+    assert.ok(
+      imported.text.includes(
+        `data:image/png;base64,${Buffer.from("NESTEDPNG").toString("base64")}`,
+      ),
+    );
+    assert.ok(!imported.text.includes("media/Pictures/"));
     await assert.rejects(
       importWithPandoc({
         inputPath: path.join(root, "unsupported.bin"),
         executable,
       }),
       /不支持此导入格式/,
+    );
+    await fs.writeFile(
+      executable,
+      "#!/bin/sh\nmkdir -p media/Pictures\nln -s /etc/hosts media/Pictures/linked.png\nprintf '![image](media/Pictures/linked.png)'\n",
+    );
+    await assert.rejects(
+      importWithPandoc({ inputPath: source, executable }),
+      /媒体目录包含符号链接/,
     );
   } finally {
     await fs.rm(root, { recursive: true, force: true });

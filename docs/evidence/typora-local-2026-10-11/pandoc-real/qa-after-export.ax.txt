@@ -1,0 +1,232 @@
+Window: "parity.md — /private/tmp/moxie-parity-batch — 墨写", App: 墨写本机对照.
+0 standard window parity.md — /private/tmp/moxie-parity-batch — 墨写, Secondary Actions: Raise
+	1 HTML content parity.md — /private/tmp/moxie-parity-batch — 墨写, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+		2 container
+			3 container
+				4 button 切换侧栏导航模式
+					5 image
+				6 text 大纲
+				7 button 搜索大纲标题
+					8 image
+			9 container 文档大纲
+				10 container 大纲
+					11 button Description: 折叠 标题一, Help: 折叠子标题
+					12 button 标题一
+					13 button 列表与引用
+					14 button 行内与代码
+					15 button 表格
+			16 container
+				17 button 新建文件
+					18 image
+				19 button Description: 文件夹菜单, Help: /private/tmp
+					20 text tmp
+					21 image
+				22 button 大纲显示选项
+					23 image
+			24 splitter Description: 调整侧栏宽度, Value: 260
+			25 container
+				26 button 切换侧栏
+					27 image
+				28 text parity.md
+				29 button 即时排版
+				30 button 源码
+					31 image
+					32 text 源码
+				33 pop up button 格式
+					34 image
+				35 button 插入图片
+					36 image
+				37 button 设置图片尺寸
+					38 image
+				39 button 查找与替换
+					40 image
+				41 button 跨文档搜索
+					42 image
+				43 button 快速打开
+					44 image
+				45 pop up button 导出
+					46 image
+					47 text 导出
+					48 image
+				49 button 专注模式
+					50 image
+				51 button 切换深色主题
+					52 image
+				53 button 偏好设置
+					54 image
+			55 container 文档分组
+				56 button 全部 13
+					57 text 全部
+					58 text 13
+				59 button Description: 新建标签分组, Help: 将当前文档加入新分组
+			60 tab group 打开的文档
+				61 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				62 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
+					63 (selected) 未分组
+				64 button Description: 关闭 欢迎使用.md, Help: 关闭文档
+					65 image
+				66 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				67 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
+					68 (selected) 未分组
+				69 button Description: 关闭 写作指南.md, Help: 关闭文档
+					70 image
+				71 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				72 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
+					73 (selected) 未分组
+				74 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
+					75 image
+				76 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				77 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
+					78 (selected) 未分组
+				79 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
+					80 image
+				81 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					82 container 未保存
+					83 text 未命名.md
+				84 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
+					85 (selected) 未分组
+				86 button Description: 关闭 未命名.md, Help: 关闭文档
+					87 image
+				88 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				89 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
+					90 (selected) 未分组
+				91 button Description: 关闭 recovered-copy.md, Help: 关闭文档
+					92 image
+				93 tab (settable, integer) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				94 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
+					95 (selected) 未分组
+				96 button Description: 关闭 image-copy.md, Help: 关闭文档
+					97 image
+				98 tab (settable, integer) moxie-theme-blocks.md, Help: moxie-theme-blocks.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				99 pop up button Description: moxie-theme-blocks.md所属分组, Help: 所属分组, Value: 未分组
+					100 (selected) 未分组
+				101 button Description: 关闭 moxie-theme-blocks.md, Help: 关闭文档
+					102 image
+				103 tab (selected) parity.md, Help: parity.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
+				104 pop up button Description: parity.md所属分组, Help: 所属分组, Value: 未分组
+					105 (selected) 未分组
+				106 button Description: 关闭 parity.md, Help: 关闭文档
+					107 image
+				108 tab (settable, integer) native.md, Help: native.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				109 pop up button Description: native.md所属分组, Help: 所属分组, Value: 未分组
+					110 (selected) 未分组
+				111 button Description: 关闭 native.md, Help: 关闭文档
+					112 image
+				113 tab (settable, integer) paragraphs.md, Help: paragraphs.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				114 pop up button Description: paragraphs.md所属分组, Help: 所属分组, Value: 未分组
+					115 (selected) 未分组
+				116 button Description: 关闭 paragraphs.md, Help: 关闭文档
+					117 image
+				118 tab (settable, integer) blank-counts.md, Help: blank-counts.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+				119 pop up button Description: blank-counts.md所属分组, Help: 所属分组, Value: 未分组
+					120 (selected) 未分组
+				121 button Description: 关闭 blank-counts.md, Help: 关闭文档
+					122 image
+				123 tab (settable, integer) 未保存 未命名 2.md, Help: 未命名 2.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
+					124 container 未保存
+					125 text 未命名 2.md
+				126 pop up button Description: 未命名 2.md所属分组, Help: 所属分组, Value: 未分组
+					127 (selected) 未分组
+				128 button Description: 关闭 未命名 2.md, Help: 关闭文档
+					129 image
+			130 text 已恢复上次会话的未保存文档。请保存到文件。
+			131 button 关闭恢复提示
+				132 image
+			133 container parity.md
+				134 container
+					135 text entry area (settable) Description: Markdown 编辑区, Value: title: 对照验收
+author: 本机样本
+tags: [Markdown, 写作]
+文档属性对照验收 · 本机样本3 项 · 展开源码
+目录
+标题一
+列表与引用
+行内与代码
+表格
+ 标题一
+普通段落第一行
+普通段落第二行
+第二个段落。
+ 列表与引用
+第一项
+第二项
+嵌套子项
+1.有序第一项
+2.有序第二项
+ 引用第一行
+ 引用第二行
+ 
+ 嵌套引用
+ 行内与代码
+粗体、强调、删除、inline code 和 链接。
+js
+复制
+const message = "hello"
+;
+console.log(message);
+ 表格
+
+
+						136 button Description: 展开文档属性源码, Help: 点击直接编辑 YAML；离开属性区域后自动收起
+							137 text title: 对照验收
+author: 本机样本
+tags: [Markdown, 写作]
+							138 text 文档属性
+							139 text 对照验收 · 本机样本
+							140 text 3 项 · 展开源码
+						141 container 文档目录
+							142 disclosure triangle 目录
+								143 text 目录
+							144 content list
+								145 button 标题一
+								146 button 列表与引用
+								147 button 行内与代码
+								148 button 表格
+						149 text  标题一
+						150 text 普通段落第一行
+						151 text 普通段落第二行
+						152 text 第二个段落。
+						153 text  列表与引用
+						154 text 第一项
+						155 text 第二项
+						156 text 嵌套子项
+						157 container
+							158 text 1. 有序第一项
+						159 container
+							160 text 2. 有序第二项
+						161 text  引用第一行
+						162 text  引用第二行
+						163 container
+							164 text  嵌套引用
+						165 text  行内与代码
+						166 container
+							167 text 粗体 、 强调 、 删除 、 inline code  和 
+							168 link Description: 链接, Help: https://example.com ⌘/Ctrl + 单击打开，单击编辑, Value: example.com/
+							169 text 。
+						170 container
+							171 text js
+							172 button 复制代码
+							173 container
+								174 text const message  =  "hello" ;
+console.log(message);
+						175 text  表格
+			176 container
+				177 button 已保存
+					178 image
+					179 text 已保存
+				180 text 恢复副本已更新 Markdown UTF-8 行  47 , 列  1
+				181 button 字数统计
+					182 text 219
+					183 text  字符
+	184 close button
+	185 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	186 minimize button
+187 menu bar
+	188 墨写本机对照
+	189 文件
+	190 编辑
+	191 格式
+	192 视图
+	193 窗口
+
+The focused UI element is 1 HTML content parity.md — /private/tmp/moxie-parity-batch — 墨写, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html

@@ -1,0 +1,180 @@
+
+> moxie-editor@0.16.249 test:pandoc:real
+> node --test tests-desktop/pandoc-real.cjs
+
+TAP version 13
+# Subtest: 真实 Pandoc：五种格式保留中文、列表、表格和本地图片
+    # Subtest: rtf
+    not ok 1 - rtf
+      ---
+      duration_ms: 188.171583
+      type: 'test'
+      location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:15'
+      failureType: 'testCodeFailure'
+      error: 'rtf: 导入后应保留内嵌图片'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: |-
+        - 列表首项
+        
+          - 嵌套项
+        
+        **样本**
+        
+        # 中文验收标题
+        
+        正文保留检查。
+        
+        |      |      |
+        |------|------|
+        | 左列 | 右列 |
+        | 甲   | 乙   |
+        
+        ![image](media/fe91ffaa9c014ed5ad2cdcb7729961af03382420.png)\[图片：未嵌入远程图\]
+        
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:36:16)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:7)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: epub
+    not ok 2 - epub
+      ---
+      duration_ms: 157.495209
+      type: 'test'
+      location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:15'
+      failureType: 'testCodeFailure'
+      error: 'epub: 导入后应保留内嵌图片'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: |-
+        <span id="title_page.xhtml"></span>
+        
+        <span id="ch001.xhtml"></span>
+        
+        <div id="ch001.xhtml_中文验收标题" class="section level1">
+        
+        # 中文验收标题
+        
+        正文保留检查。
+        
+        - 列表首项
+          - 嵌套项
+        
+        | 左列 | 右列 |
+        |------|------|
+        | 甲   | 乙   |
+        
+        ![本地像素](media/media/file0.png)\[图片：未嵌入远程图\]
+        
+        </div>
+        
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:36:16)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:7)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: odt
+    not ok 3 - odt
+      ---
+      duration_ms: 138.438709
+      type: 'test'
+      location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:15'
+      failureType: 'testCodeFailure'
+      error: 'odt: 导入后应保留内嵌图片'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: |-
+        样本
+        
+        # <span id="anchor"></span>中文验收标题
+        
+        正文保留检查。
+        
+        - 列表首项
+        
+          - 嵌套项
+        
+        | 左列 | 右列 |
+        |------|------|
+        | 甲   | 乙   |
+        
+        <img src="media/Pictures/0.png" style="width:100pt;height:100pt" />\[图片：未嵌入远程图\]
+        
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:36:16)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:7)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: latex
+    not ok 4 - latex
+      ---
+      duration_ms: 343.252708
+      type: 'test'
+      location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:15'
+      failureType: 'testCodeFailure'
+      error: 'latex: 导入后应保留内嵌图片'
+      code: 'ERR_ASSERTION'
+      name: 'AssertionError'
+      expected:
+      actual: |-
+        # 中文验收标题
+        
+        正文保留检查。
+        
+        - 列表首项
+        
+          - 嵌套项
+        
+        | 左列 | 右列 |
+        |:-----|:-----|
+        | 甲   | 乙   |
+        
+        \[图片：未嵌入远程图\]
+        
+      operator: 'match'
+      stack: |-
+        TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:36:16)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async TestContext.<anonymous> (/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:19:7)
+        async Test.run (node:internal/test_runner/test:1054:7)
+        async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+      ...
+    # Subtest: mediawiki
+    ok 5 - mediawiki
+      ---
+      duration_ms: 74.794375
+      type: 'test'
+      ...
+    1..5
+not ok 1 - 真实 Pandoc：五种格式保留中文、列表、表格和本地图片
+  ---
+  duration_ms: 1025.633375
+  type: 'test'
+  location: '/Volumes/My-Data/jason.wa/codebase/moxie/tests-desktop/pandoc-real.cjs:10:1'
+  failureType: 'subtestsFailed'
+  error: '4 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# pandoc 3.11
+1..1
+# tests 6
+# suites 0
+# pass 1
+# fail 5
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1072.412208

@@ -381,22 +381,38 @@ async function importWithPandoc({ inputPath, executable, timeoutMs = 60000 }) {
     let mediaBytes = 0;
     let mediaCount = 0;
     try {
-      for (const entry of await fs.readdir(mediaDirectory, {
-        withFileTypes: true,
-      })) {
-        const match = /^image-\d+\.([a-z\d]+)$/i.exec(entry.name);
-        if (!entry.isFile() || !match) continue;
-        const mime = importImageTypes[match[1].toLowerCase()];
-        if (!mime) continue;
-        const image = await fs.readFile(path.join(mediaDirectory, entry.name));
-        mediaBytes += image.length;
-        if (mediaBytes > 10 * 1024 * 1024 || ++mediaCount > 100)
-          throw Error("导入图片总量超出 10 MB 或 100 张限制");
-        text = text.replaceAll(
-          `media/${entry.name}`,
-          `data:${mime};base64,${image.toString("base64")}`,
-        );
-      }
+      const extracted = [];
+      const visit = async (directory) => {
+        for (const entry of await fs.readdir(directory, {
+          withFileTypes: true,
+        })) {
+          const target = path.join(directory, entry.name);
+          const metadata = await fs.lstat(target);
+          if (metadata.isSymbolicLink())
+            throw Error("Pandoc 导入媒体目录包含符号链接");
+          if (metadata.isDirectory()) await visit(target);
+          else if (metadata.isFile()) {
+            const mime =
+              importImageTypes[path.extname(entry.name).slice(1).toLowerCase()];
+            if (!mime) continue;
+            const image = await fs.readFile(target);
+            mediaBytes += image.length;
+            if (mediaBytes > 10 * 1024 * 1024 || ++mediaCount > 100)
+              throw Error("导入图片总量超出 10 MB 或 100 张限制");
+            extracted.push([
+              path.relative(directoryRoot, target).split(path.sep).join("/"),
+              `data:${mime};base64,${image.toString("base64")}`,
+            ]);
+          }
+        }
+      };
+      const directoryRoot = directory;
+      await visit(mediaDirectory);
+      // Longer paths first: a short filename must not consume a nested reference.
+      for (const [reference, dataUrl] of extracted.sort(
+        (a, b) => b[0].length - a[0].length,
+      ))
+        text = text.replaceAll(reference, dataUrl);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }

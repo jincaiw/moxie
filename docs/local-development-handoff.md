@@ -2,7 +2,7 @@
 
 目标：在用户 Mac 的本地 `moxie` Git 项目继续开发、运行桌面应用，并与已安装的 Typora 逐项对照。
 
-2026-10-10 已在 Mac 本机接续。`/Volumes/My-Data/jason.wa/codebase/moxie` 原为空目录，最初 Git 向上识别到用户主目录的仓库；确认目录为空后独立克隆 `https://github.com/jincaiw/moxie.git`，未修改主目录仓库。随后 fetch 与 `pull --ff-only origin main` 确认基线为 `e3b0f22`，没有本地修改或分叉。后续优化位于本地 `codex/local-typora-sidebar` 分支，尚未推送。
+2026-10-10 已在 Mac 本机接续。`/Volumes/My-Data/jason.wa/codebase/moxie` 原为空目录，最初 Git 向上识别到用户主目录的仓库；确认目录为空后独立克隆 `https://github.com/jincaiw/moxie.git`，未修改主目录仓库。随后 fetch 与 `pull --ff-only origin main` 确认基线为 `e3b0f22`，没有本地修改或分叉。后续优化位于 `codex/local-typora-sidebar` 分支，已提交并推送远端同名分支，尚未合并 main 或发布。
 
 本机为 macOS 27.0.1 / arm64，Typora 的安装元数据确认 **1.14.9（7785）**，已通过原生菜单选择 GitHub 主题。系统默认 Node 26.8.2；本轮另行准备并使用 Node 22.23.3 进行最终构建与界面回归，没有更改系统默认 Node。
 
@@ -198,3 +198,7 @@ L29 将层级缩进、悬挂对齐扩展到任务、引用内列表与续行，�
 14 项专项、最终全量 255 项通过（3 性能跳过，无重试），生产构建 / QA 打包成功。新 QA 原生点击第三段定位第 10 行，Up / Down 为第 9 / 10 行；一至五空行显示已复核。[前后截图、首次子像素断言失败及最终日志](evidence/typora-local-2026-10-11/paragraph-spacing/)。
 
 系统“填充”后 QA / Typora 截图为 3840×1956 / 3838×1956，高度统一，宽度仍差 2 像素，缩放未重新取得数值证据，不宣称严格像素一致。原件和恢复数据保留，仓库 release 新 QA 当前打开 blank-counts.md。下一步核对标题及其他块间留白、侧栏逐状态与原生输入 / 读屏，再按其余总清单推进。版本保持 0.16.249，继续提交推送优化分支，不创建发布标签。
+
+## L35 交接补充
+
+已复核全任务及远端发布条件；新增真实 Pandoc 专项并修复提取图片嵌套目录 / 哈希文件名导入。使用 Node 22 运行 `npm run test:pandoc:real`。LaTeX 宏内图片再次导入丢失仍待处理；本轮 IME 没有候选框证据、LibreOffice 未得到可见文档或转换 PDF，不能标为通过。完整证据及剩余顺序见 [总核查](work-task-audit-2026-10-11.md)。当前 QA 仍是 d5d6d86；L35 为主进程导入修复，尚未打包替换正在运行的 QA。未命名测试标签与恢复数据保留。

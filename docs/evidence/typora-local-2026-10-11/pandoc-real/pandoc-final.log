@@ -1,0 +1,53 @@
+
+> moxie-editor@0.16.249 test:pandoc:real
+> node --test tests-desktop/pandoc-real.cjs
+
+TAP version 13
+# Subtest: 真实 Pandoc：五种格式保留中文、列表、表格和本地图片
+    # Subtest: rtf
+    ok 1 - rtf
+      ---
+      duration_ms: 110.84425
+      type: 'test'
+      ...
+    # Subtest: epub
+    ok 2 - epub
+      ---
+      duration_ms: 150.211625
+      type: 'test'
+      ...
+    # Subtest: odt
+    ok 3 - odt
+      ---
+      duration_ms: 123.936583
+      type: 'test'
+      ...
+    # Subtest: latex
+    ok 4 - latex
+      ---
+      duration_ms: 240.531625
+      type: 'test'
+      ...
+    # Subtest: mediawiki
+    ok 5 - mediawiki
+      ---
+      duration_ms: 58.771459
+      type: 'test'
+      ...
+    1..5
+ok 1 - 真实 Pandoc：五种格式保留中文、列表、表格和本地图片
+  ---
+  duration_ms: 776.264167
+  type: 'test'
+  ...
+# pandoc 3.11
+# LaTeX 导出图片及伴随资源通过；Pandoc 3.11 的 reader 丢弃其 pandocbounded 包裹图片，图片往返仍待修复。
+1..1
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 816.146
