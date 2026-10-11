@@ -1,0 +1,12 @@
+The following is a diff from the previous accessibility tree for Window: "image-copy.md" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 551-631
+~548 标准窗口 image-copy.md, Secondary Actions: Raise, URL: file:///private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-real-image-bf3n098x/destination/image-copy.md
+~	549 滚动区
+~		550 HTML内容
++	551 关闭按钮
++	552 全屏幕按钮 Help: 此按钮也可以执行缩放窗口的操作, Secondary Actions: 缩放窗口
++	553 最小化按钮
++	554 菜单按钮 (disabled) 文稿操作
++	555 图像 image-copy.md
++	556 文本 image-copy.md
+The focused UI element is 550 HTML内容

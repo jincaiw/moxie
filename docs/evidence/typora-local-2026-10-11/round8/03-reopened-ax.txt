@@ -1,0 +1,135 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 140, 143-166, 169, 173-455
+~135 standard window 墨写 · Markdown 编辑器, Secondary Actions: Raise
+~	136 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
+~		137 container
+~			138 container
+~				139 button 切换侧栏导航模式
++					140 image
+~				141 text 文件
+~				142 button 搜索项目文件夹
++					143 image
++			144 container 文档列表
++				145 container 文件
++					146 container 文件夹浏览
++						147 container /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-real-image-bf3n098x/destination
++							148 image
++							149 text destination
++						150 text 文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home 和 End 跳到列表首尾。Shift+F10 打开文件操作，上下方向键循环切换操作，Home/End 跳到首尾，Tab 切换操作，Enter 执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
++						151 content list 文件列表
++							152 container
++								153 button Description: 打开 image-copy.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-real-image-bf3n098x/destination/image-copy.md
++									154 image
++									155 text image-copy.md
++								156 button 文件操作：image-copy.md
++									157 image
++			158 container
++				159 button 新建文件
++					160 image
++				161 button Description: 文件夹菜单, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-real-image-bf3n098x/destination
++					162 text destination
++					163 image
++				164 button 切换到文件列表
++					165 image
++			166 splitter Description: 调整侧栏宽度, Value: 260
+~			167 container
+~				168 button 切换侧栏
++					169 image
+~				170 text image-copy.md
+~				171 button 即时排版
+~				172 button 源码
++					173 image
++					174 text 源码
++				175 pop up button 格式
++					176 image
++				177 button 插入图片
++					178 image
++				179 button 设置图片尺寸
++					180 image
++				181 button 查找与替换
++					182 image
++				183 button 跨文档搜索
++					184 image
++				185 button 快速打开
++					186 image
++				187 pop up button 导出
++					188 image
++					189 text 导出
++					190 image
++				191 button 专注模式
++					192 image
++				193 button 切换深色主题
++					194 image
++				195 button 偏好设置
++					196 image
++			197 container 文档分组
++				198 button 全部 7
++					199 text 全部
++					200 text 7
++				201 button Description: 新建标签分组, Help: 将当前文档加入新分组
++			202 tab group 打开的文档
++				203 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				204 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
++					205 (selected) 未分组
++				206 button Description: 关闭 欢迎使用.md, Help: 关闭文档
++					207 image
++				208 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				209 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
++					210 (selected) 未分组
++				211 button Description: 关闭 写作指南.md, Help: 关闭文档
++					212 image
++				213 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				214 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
++					215 (selected) 未分组
++				216 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
++					217 image
++				218 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				219 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
++					220 (selected) 未分组
++				221 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
++					222 image
++				223 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++					224 container 未保存
++					225 text 未命名.md
++				226 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
++					227 (selected) 未分组
++				228 button Description: 关闭 未命名.md, Help: 关闭文档
++					229 image
++				230 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				231 pop up button Description: recovered-copy.md所属分组, Help: 所属分组, Value: 未分组
++					232 (selected) 未分组
++				233 button Description: 关闭 recovered-copy.md, Help: 关闭文档
++					234 image
++				235 tab (selected) image-copy.md, Help: image-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
++				236 pop up button Description: image-copy.md所属分组, Help: 所属分组, Value: 未分组
++					237 (selected) 未分组
++				238 button Description: 关闭 image-copy.md, Help: 关闭文档
++					239 image
++			240 text 已恢复上次会话的未保存文档。请保存到文件。
++			241 button 关闭恢复提示
++				242 image
++			243 container image-copy.md
++				244 container
++					245 text entry area (settable) Description: Markdown 编辑区, Value:  图片迁移验收
+插入图片后另存为到其他目录。
+
+
+
+
+
++						246 text  图片迁移验收
++						247 text 插入图片后另存为到其他目录。
++						248 button Description: 图片预览：三色样本.png；Enter 编辑路径，Shift+F10 打开图片操作菜单, Help: 点击编辑图片路径
++							249 image 三色样本.png
++			250 container
++				251 button 已保存
++					252 image
++					253 text 已保存
++				254 text 恢复副本已更新 Markdown UTF-8 行  9 , 列  1
++				255 button 字数统计
++					256 text 28
++					257 text  字符
++	258 close button
++	259 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
++	260 minimize button
+The focused UI element is 230 tab (settable, integer) recovered-copy.md, Help: recovered-copy.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
