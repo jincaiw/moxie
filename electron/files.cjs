@@ -158,6 +158,22 @@ async function writableTargetMode(file) {
     throw error;
   }
 }
+function describeSaveFailure(error) {
+  const messages = {
+    ENOENT: "保存目录不存在或已被移动，请使用“另存为”选择其他目录。",
+    ENOTDIR: "保存路径中的目录已变成文件，请使用“另存为”选择其他目录。",
+    EISDIR: "目标路径已变成文件夹，请使用“另存为”选择其他文件。",
+    EACCES: "文件为只读或没有写入权限，请使用“另存为”保存副本。",
+    EPERM: "文件为只读或没有写入权限，请使用“另存为”保存副本。",
+    EROFS: "目标磁盘为只读，请使用“另存为”选择可写入的磁盘。",
+    ENOSPC: "磁盘空间不足，请释放空间后重试，或使用“另存为”选择其他磁盘。",
+    EDQUOT: "磁盘存储配额不足，请释放空间后重试，或使用“另存为”选择其他磁盘。",
+  };
+  if (!Object.hasOwn(messages, error.code)) return error;
+  const failure = new Error(messages[error.code], { cause: error });
+  failure.code = error.code;
+  return failure;
+}
 async function atomicWrite(file, text) {
   const temp = path.join(
     path.dirname(file),
@@ -1370,7 +1386,7 @@ class FileStore {
       try {
         actual = await fs.readFile(file, "utf8");
       } catch (error) {
-        if (error.code !== "ENOENT") throw error;
+        if (error.code !== "ENOENT") throw describeSaveFailure(error);
       }
       if (actual !== input.expected) {
         if (input.automatic)
@@ -1380,7 +1396,11 @@ class FileStore {
         if (!(await confirmConflict())) return null;
       }
     }
-    await atomicWrite(file, input.text);
+    try {
+      await atomicWrite(file, input.text);
+    } catch (error) {
+      throw describeSaveFailure(error);
+    }
     const version = await this.signature(file);
     await this.remember(file);
     return { path: file, name: path.basename(file), text: input.text, version };

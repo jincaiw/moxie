@@ -1,0 +1,135 @@
+The following is a diff from the previous accessibility tree for Window: "墨写 · Markdown 编辑器" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 143-145
+~141 standard window 墨写 · Markdown 编辑器, Secondary Actions: Raise
+~	142 HTML content 墨写 · Markdown 编辑器, URL: file:///Volumes/My-Data/jason.wa/codebase/moxie/release/mac-arm64/%E5%A2%A8%E5%86%99%E6%9C%AC%E6%9C%BA%E5%AF%B9%E7%85%A7.app/Contents/Resources/app.asar/dist/index.html
++		143 container
++			144 container
++				145 button 切换侧栏导航模式
++					146 image
++				147 text 文件
++				148 button 搜索项目文件夹
++					149 image
++			150 container 文档列表
++				151 container 文件
++					152 container 文件夹浏览
++						153 container /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-missing-directory-ryt026am/original
++							154 image
++							155 text original
++						156 text 文件夹暂时无法读取。当前文档已保留，可重试或重新选择文件夹。
++						157 text 文件列表支持方向键导航：上下方向键切换项目，左右方向键展开或折叠文件夹，Home 和 End 跳到列表首尾。Shift+F10 打开文件操作，上下方向键循环切换操作，Home/End 跳到首尾，Tab 切换操作，Enter 执行；可选择插入相对链接到正文，Escape 关闭操作并返回文件行。
++						158 content list 文件列表
++							159 container
++								160 button Description: 打开 missing-directory.md, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-missing-directory-ryt026am/original/missing-directory.md
++									161 image
++									162 text missing-directory.md
++								163 button 文件操作：missing-directory.md
++									164 image
++			165 container
++				166 button 新建文件
++					167 image
++				168 button Description: 文件夹菜单, Help: /private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-missing-directory-ryt026am/original
++					169 text original
++					170 image
++				171 button 切换到文件列表
++					172 image
++			173 splitter Description: 调整侧栏宽度, Value: 260
++			174 container
++				175 button 切换侧栏
++					176 image
++				177 text missing-directory.md
++				178 container 文档未保存
++				179 button 即时排版
++				180 button 源码
++					181 image
++					182 text 源码
++				183 pop up button 格式
++					184 image
++				185 button 插入图片
++					186 image
++				187 button 设置图片尺寸
++					188 image
++				189 button 查找与替换
++					190 image
++				191 button 跨文档搜索
++					192 image
++				193 button 快速打开
++					194 image
++				195 pop up button 导出
++					196 image
++					197 text 导出
++					198 image
++				199 button 专注模式
++					200 image
++				201 button 切换深色主题
++					202 image
++				203 button 偏好设置
++					204 image
++			205 container 文档分组
++				206 button 全部 6
++					207 text 全部
++					208 text 6
++				209 button Description: 新建标签分组, Help: 将当前文档加入新分组
++			210 tab group 打开的文档
++				211 tab (settable, integer) 欢迎使用.md, Help: 欢迎使用.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				212 pop up button Description: 欢迎使用.md所属分组, Help: 所属分组, Value: 未分组
++					213 (selected) 未分组
++				214 button Description: 关闭 欢迎使用.md, Help: 关闭文档
++					215 image
++				216 tab (settable, integer) 写作指南.md, Help: 写作指南.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				217 pop up button Description: 写作指南.md所属分组, Help: 所属分组, Value: 未分组
++					218 (selected) 未分组
++				219 button Description: 关闭 写作指南.md, Help: 关闭文档
++					220 image
++				221 tab (settable, integer) quit-recovery-evidence.md, Help: quit-recovery-evidence.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				222 pop up button Description: quit-recovery-evidence.md所属分组, Help: 所属分组, Value: 未分组
++					223 (selected) 未分组
++				224 button Description: 关闭 quit-recovery-evidence.md, Help: 关闭文档
++					225 image
++				226 tab (settable, integer) round6-before-quit.md, Help: round6-before-quit.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++				227 pop up button Description: round6-before-quit.md所属分组, Help: 所属分组, Value: 未分组
++					228 (selected) 未分组
++				229 button Description: 关闭 round6-before-quit.md, Help: 关闭文档
++					230 image
++				231 tab (settable, integer) 未保存 未命名.md, Help: 未命名.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 0
++					232 container 未保存
++					233 text 未命名.md
++				234 pop up button Description: 未命名.md所属分组, Help: 所属分组, Value: 未分组
++					235 (selected) 未分组
++				236 button Description: 关闭 未命名.md, Help: 关闭文档
++					237 image
++				238 tab (selected) 未保存 missing-directory.md, Help: missing-directory.md · 中键关闭；拖动可排序；按 Alt+Shift+方向键可移动, Value: 1
++					239 container 未保存
++					240 text missing-directory.md
++				241 pop up button Description: missing-directory.md所属分组, Help: 所属分组, Value: 未分组
++					242 (selected) 未分组
++				243 button Description: 关闭 missing-directory.md, Help: 关闭文档
++					244 image
++			245 text 已恢复上次会话的未保存文档。请保存到文件。
++			246 button 关闭恢复提示
++				247 image
++			248 container
++				249 text 磁盘文件已删除或无法读取。当前编辑已保留。
++				250 button 另存为保留编辑
++			251 container 未保存 missing-directory.md
++				252 container
++					253 text entry area (settable) Description: Markdown 编辑区, Value:  目录失效验收
+原始正文。
+目录移动后，最新编辑必须保留。
++						254 text  目录失效验收
++						255 text 原始正文。
++						256 text 目录移动后，最新编辑必须保留。
++			257 container
++				258 button 未保存 · 点击保存
++					259 image
++					260 text 未保存 · 点击保存
++				261 text 恢复副本已更新 Markdown UTF-8 行  5 , 列  16
++				262 button 字数统计
++					263 text 26
++					264 text  字符
++			265 text Error invoking remote method 'file:save': Error: ENOENT: no such file or directory, open '/private/var/folders/rd/08pgs8m95832jrvj12f6ktz40000gp/T/moxie-missing-directory-ryt026am/original/.missing-directory.md.562b6157-0c0e-4b0b-84de-da3e7d09b441.tmp'
++	266 close button
++	267 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
++	268 minimize button
+The focused UI element is 253 text entry area (settable) Description: Markdown 编辑区, Value:  目录失效验收
+原始正文。
+目录移动后，最新编辑必须保留。

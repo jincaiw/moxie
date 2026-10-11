@@ -49,7 +49,22 @@ contextBridge.exposeInMainWorld("desktop", {
   inspect: (files) => ipcRenderer.invoke("file:inspect", files),
   recent: () => ipcRenderer.invoke("file:recent"),
   reopen: (file) => ipcRenderer.invoke("file:reopen", file),
-  save: (input) => ipcRenderer.invoke("file:save", input),
+  save: async (input) => {
+    try {
+      return await ipcRenderer.invoke("file:save", input);
+    } catch (error) {
+      // Electron wraps main-process errors with transport details. Keep the
+      // actual save failure actionable in manual and automatic save notices.
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        message.replace(
+          /^Error invoking remote method 'file:save': (?:Error: )?/,
+          "",
+        ),
+        { cause: error },
+      );
+    }
+  },
   storeImage: (input) => ipcRenderer.invoke("image:store", input),
   readImage: (input) => ipcRenderer.invoke("image:read", input),
   manageImage: (input) => ipcRenderer.invoke("image:manage", input),

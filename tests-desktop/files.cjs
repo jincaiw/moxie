@@ -923,6 +923,139 @@ test("新建窗口独立恢复工作区和未保存状态，并在关闭时清�
 });
 const { FileStore } = require("../electron/files.cjs");
 
+test("保存目录移动或变为文件时保留原件，另存为可恢复最新编辑", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-missing-save-"));
+  const directory = path.join(root, "original");
+  const moved = path.join(root, "moved");
+  const file = path.join(directory, "note.md");
+  try {
+    await fs.mkdir(directory);
+    await fs.writeFile(file, "原件");
+    const store = new FileStore();
+    await store.read(file);
+    await fs.rename(directory, moved);
+    const input = { path: file, text: "最新编辑", expected: "原件" };
+    await assert.rejects(
+      () =>
+        store.save(
+          input,
+          async () => null,
+          async () => true,
+        ),
+      (error) =>
+        error.code === "ENOENT" && /保存目录不存在.*另存为/.test(error.message),
+    );
+    assert.equal(syncFS.existsSync(directory), false);
+    await fs.writeFile(directory, "替代目录的文件");
+    await assert.rejects(
+      () =>
+        store.save(
+          input,
+          async () => null,
+          async () => true,
+        ),
+      (error) =>
+        error.code === "ENOTDIR" &&
+        /目录已变成文件.*另存为/.test(error.message),
+    );
+    const copy = path.join(root, "copy.md");
+    await store.save(
+      { ...input, saveAs: true },
+      async () => copy,
+      async () => false,
+    );
+    assert.equal(await fs.readFile(copy, "utf8"), "最新编辑");
+    assert.equal(
+      await fs.readFile(path.join(moved, "note.md"), "utf8"),
+      "原件",
+    );
+    assert.equal(await fs.readFile(directory, "utf8"), "替代目录的文件");
+    assert.deepEqual((await fs.readdir(root)).sort(), [
+      "copy.md",
+      "moved",
+      "original",
+    ]);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("磁盘替换失败给出恢复提示并清理临时文件，原件保持不变", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-save-disk-error-"),
+  );
+  const file = path.join(root, "note.md");
+  const rename = fs.rename;
+  try {
+    await fs.writeFile(file, "原件");
+    const store = new FileStore();
+    await store.read(file);
+    for (const [code, message] of [
+      ["ENOSPC", "磁盘空间不足"],
+      ["EDQUOT", "磁盘存储配额不足"],
+      ["EROFS", "目标磁盘为只读"],
+      ["EACCES", "没有写入权限"],
+    ]) {
+      const failure = Object.assign(new Error("模拟替换失败"), { code });
+      fs.rename = async () => {
+        throw failure;
+      };
+      await assert.rejects(
+        () =>
+          store.save(
+            { path: file, text: "最新编辑", expected: "原件" },
+            async () => null,
+            async () => false,
+          ),
+        (error) =>
+          error.code === code &&
+          error.cause === failure &&
+          error.message.includes(message) &&
+          error.message.includes("另存为"),
+      );
+      assert.equal(await fs.readFile(file, "utf8"), "原件");
+      assert.deepEqual(await fs.readdir(root), ["note.md"]);
+    }
+  } finally {
+    fs.rename = rename;
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("保存桥接去除 Electron 包装，保留失败原因和取消结果", async () => {
+  let bridge;
+  let failure = new Error(
+    "Error invoking remote method 'file:save': Error: 保存目录不存在，请另存为",
+  );
+  const ipcRenderer = {
+    invoke: async () => {
+      if (failure) throw failure;
+      return null;
+    },
+  };
+  vm.runInNewContext(
+    await fs.readFile(path.join(__dirname, "../electron/preload.cjs"), "utf8"),
+    {
+      require: () => ({
+        contextBridge: {
+          exposeInMainWorld: (_name, value) => {
+            bridge = value;
+          },
+        },
+        ipcRenderer,
+      }),
+      Error,
+    },
+  );
+  await assert.rejects(() => bridge.save({}), {
+    message: "保存目录不存在，请另存为",
+  });
+  failure = new Error("未知保存错误");
+  await assert.rejects(() => bridge.save({}), { message: "未知保存错误" });
+  failure = null;
+  assert.equal(await bridge.save({}), null);
+});
+
 test("只读原件拒绝手动/自动保存及同路径另存为，新副本可保存", async (t) => {
   if (process.platform === "win32")
     return t.skip("POSIX 模式位；Windows 只读属性另行实机验收");
