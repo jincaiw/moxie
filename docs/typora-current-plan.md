@@ -339,3 +339,11 @@ E03 复核 Pandoc 导出缺图处理时发现，远程 / 不支持的图片源�
 E03 真实导出检查发现，LaTeX / MediaWiki 导出为伴随图片目录整体重写 `media/` 时，也改动了 verbatim / `<pre>` 代码示例里的字面路径。现在只重写 LaTeX `\\includegraphics` 与 MediaWiki `[[File:...]]` 图片引用，并跳过相应注释、逐字代码和预格式化块；导出的图片仍指向新伴随目录，代码内容保持原样。
 
 新增真实 Pandoc 3.11 产物专项先在旧实现上对 LaTeX 和 MediaWiki 均复现失败，修复后确认代码示例中的 `media/image-1.png` 原样保留，真实图片引用迁移到 `.tex_assets` / `.mediawiki_assets`。真实 Pandoc 专项 **9 项通过**、桌面逻辑 **64 项通过**、生产构建通过；完整 Playwright **270 项通过、3 项性能基准跳过**（2 workers、无重试），格式及 diff 检查通过。目标 Word/WPS 字体分页、Preview/打印和真实目标阅读器仍未完成，P01/E02/E05、签名/跨平台及 E06 性能继续按去重清单开放；整体仍不满足发布门槛，正式版本保持 0.16.249。
+
+## L63：DOCX 原生脚注
+
+E03 复核发现，DOCX 原先把 Markdown 脚注以普通编号列表写在正文末尾，正文引用没有 Word 脚注语义。导出现在把符合段落/行内结构的脚注写入 `word/footnotes.xml`，正文使用 `w:footnoteReference`，建立 OOXML 部件关系和内容类型；重复引用共享一个脚注 ID。脚注中的粗体、行内代码样式及外链保留。含图片、表格、列表、引用等块结构的脚注使用原有 html-to-docx 转换，保持原内容并避免不完整的原生脚注改写。
+
+桌面逻辑新增真实 `html-to-docx` 包回归：验证两处引用共用 ID、仅生成一条 Word 脚注、格式/链接关系和包内部件完整。真实 Pandoc 3.11 再导入 DOCX，确认单引用脚注仍导出为 Markdown 脚注并保留正文、粗体及外链。最终桌面 **65 项通过**、真实 Pandoc **10 项通过**、完整 Playwright **270 项通过、3 项性能基准跳过**（2 workers、无重试）、生产构建、Prettier 与 diff 检查通过。Word/WPS 实际显示和长脚注分页仍未验收；本机 WPS 启动时提示找不到关联的 Windows 11 虚拟机，未打开样本。复杂块结构脚注、P01/E02/E05、签名/跨平台及 E06 性能仍开放，正式版本保持 0.16.249。
+
+发布条件复核：仓库正式发布 workflow 仅响应 `v*` 标签，首个校验要求标签等于 `package.json` 版本；GitHub Actions Secret 名单当前为空，workflow 会明确跳过 macOS Developer ID 签名/公证，且自动安装更新不可用。P01/E01–E06 仍开放，Windows/Linux 和 macOS 目标应用验收也未完成，不创建版本标签或发布。

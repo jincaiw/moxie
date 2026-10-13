@@ -10,6 +10,7 @@ const {
   exportWithPandoc,
   importWithPandoc,
 } = require("../electron/pandoc.cjs");
+const { exportDocxWithFootnotes } = require("../electron/docx-footnotes.cjs");
 
 // Explicit local integration suite: never substitute a fake converter or silently skip.
 test("真实 Pandoc：五种格式中文、列表、表格和图片往返", async (t) => {
@@ -126,5 +127,42 @@ test("真实 Pandoc：伴随图片目录重写不改代码示例", async (t) => 
         assert.doesNotMatch(document, /\[\[File:media\/image-1\.png/);
       }
     });
+  }
+});
+
+test("真实 Pandoc：DOCX 脚注往返保留 Word 原生语义", async () => {
+  const executable = await findPandoc();
+  assert.ok(executable, "此专项需要已安装的 Pandoc");
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-docx-footnote-real-"),
+  );
+  try {
+    const input = `<html><body><p>正文<sup id="fnref-1-1" role="doc-noteref"><a href="#fn-1">1</a></sup>。</p><section class="footnotes" role="doc-endnotes" aria-label="脚注"><hr><ol><li id="fn-1" role="doc-endnote"><p>脚注内容 <strong>粗体</strong>、<code>行内代码</code>与 <a href="https://example.com/note">链接</a>。</p><a class="footnote-backref" href="#fnref-1-1">↩</a></li></ol></section></body></html>`;
+    const outputPath = path.join(root, "footnotes.docx");
+    const buffer = await exportDocxWithFootnotes(
+      input,
+      {
+        title: "脚注验收",
+        creator: "墨写 Moxie",
+        lang: "zh-CN",
+        font: "Arial",
+        fontSize: 24,
+      },
+      require("html-to-docx"),
+    );
+    await fs.writeFile(outputPath, buffer);
+    const imported = await importWithPandoc({
+      inputPath: outputPath,
+      executable,
+    });
+    assert.match(imported.text, /正文\[\^1\]/);
+    assert.match(imported.text, /\[\^1\]: 脚注内容 \*\*粗体\*\*、行内代码/);
+    assert.match(imported.text, /\[链接\]\(https:\/\/example\.com\/note\)/);
+    assert.doesNotMatch(
+      imported.text,
+      /footnote-backref|MOXIE_DOCX_FOOTNOTE_REF/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
   }
 });

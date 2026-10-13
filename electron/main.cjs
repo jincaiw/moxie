@@ -22,6 +22,7 @@ const {
 } = require("./pandoc.cjs");
 const { autoUpdater } = require("electron-updater");
 const { exportDocumentAsSVG } = require("./image-export.cjs");
+const { exportDocxWithFootnotes } = require("./docx-footnotes.cjs");
 const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
 // Set only by the local QA packaging command, never by release configuration.
@@ -509,9 +510,8 @@ function setupIPC() {
     }
     if (input.format === "docx") {
       const htmlToDocx = require("html-to-docx");
-      const buffer = await htmlToDocx(
+      const buffer = await exportDocxWithFootnotes(
         writerCompatibleImages(input.html),
-        null,
         {
           title: path
             .basename(String(input.name))
@@ -523,6 +523,7 @@ function setupIPC() {
           pageSize: { width: 11906, height: 16838 },
           margins: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
         },
+        htmlToDocx,
       );
       await atomicWrite(result.filePath, buffer);
       return true;

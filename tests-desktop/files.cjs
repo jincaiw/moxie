@@ -780,6 +780,53 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+test("DOCX 将 Markdown 脚注写为 Word 原生脚注并保留行内格式", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-docx-footnote-test-"),
+  );
+  try {
+    const target = path.join(root, "footnotes.docx");
+    const h = await harness();
+    h.save(target);
+    assert.equal(
+      await h.call("file:export", {
+        html: `<html><body><p>正文<sup id="fnref-1-1" role="doc-noteref"><a href="#fn-1">1</a></sup>和重复引用<sup id="fnref-1-2" role="doc-noteref"><a href="#fn-1">1</a></sup></p><section class="footnotes" role="doc-endnotes" aria-label="脚注"><hr><ol><li id="fn-1" role="doc-endnote">脚注内容 <strong>粗体</strong>、<code>行内代码</code>与 <a href="https://example.com/note">链接</a>。 <a class="footnote-backref" href="#fnref-1-1">↩</a> <a class="footnote-backref" href="#fnref-1-2">↩</a></li></ol></section></body></html>`,
+        name: "footnotes.md",
+        format: "docx",
+      }),
+      true,
+    );
+    const archive = await require("jszip").loadAsync(await fs.readFile(target));
+    const document = await archive.file("word/document.xml").async("string");
+    const footnotes = await archive.file("word/footnotes.xml").async("string");
+    const relationships = await archive
+      .file("word/_rels/footnotes.xml.rels")
+      .async("string");
+    assert.equal(
+      (document.match(/<w:footnoteReference w:id="1"\/>/g) || []).length,
+      2,
+    );
+    assert.doesNotMatch(document, /MOXIE_DOCX_FOOTNOTE_REF|脚注内容/);
+    assert.match(footnotes, /<w:footnote w:id="1">/);
+    assert.match(footnotes, /脚注内容/);
+    assert.match(footnotes, /粗体/);
+    assert.match(footnotes, /<w:b\/>/);
+    assert.match(footnotes, /行内代码/);
+    assert.match(footnotes, /w:hyperlink r:id="rId1"/);
+    assert.match(relationships, /Target="https:\/\/example\.com\/note"/);
+    assert.doesNotMatch(footnotes, /footnote-backref|↩/);
+    assert.match(
+      await archive.file("[Content_Types].xml").async("string"),
+      /footnotes\+xml/,
+    );
+    assert.match(
+      await archive.file("word/_rels/document.xml.rels").async("string"),
+      /relationships\/footnotes/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
 test("PDF 分页预览使用最终打印流程且不创建导出文件", async () => {
   const h = await harness();
   assert.equal(h.window.options.webPreferences.plugins, true);
