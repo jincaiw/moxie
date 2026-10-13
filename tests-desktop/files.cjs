@@ -424,6 +424,7 @@ async function harness(
   startupFiles = [],
   updateConfig = true,
   localQA = false,
+  qaProfile,
 ) {
   if (!userData) {
     userData = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-main-test-"));
@@ -579,7 +580,12 @@ async function harness(
                   ? path.join(__dirname, "../electron", name)
                   : name,
               ),
-    process: { env: {}, platform: "darwin", resourcesPath: userData },
+    process: {
+      env: {},
+      platform: "darwin",
+      resourcesPath: userData,
+      argv: qaProfile ? [`--moxie-local-qa-profile=${qaProfile}`] : [],
+    },
     __dirname: path.join(__dirname, "../electron"),
     Buffer,
     console,
@@ -889,12 +895,22 @@ test("未知窗口被拒绝，未授权路径必须通过另存为对话框", as
   }
 });
 test("只有明确的本机 QA 包使用独立配置目录，正式包不改用户路径", async () => {
-  const formal = await harness();
+  const formal = await harness(undefined, [], false, false, "l74");
   assert.equal(formal.app.qaPath, undefined);
   const qa = await harness(undefined, [], false, true);
   assert.deepEqual(
     [...qa.app.qaPath],
     ["userData", path.join(qa.userData, "moxie-editor-localqa")],
+  );
+  const isolatedQA = await harness(undefined, [], false, true, "l74");
+  assert.deepEqual(
+    [...isolatedQA.app.qaPath],
+    ["userData", path.join(isolatedQA.userData, "moxie-editor-localqa-l74")],
+  );
+  const invalidProfile = await harness(undefined, [], false, true, "../shared");
+  assert.deepEqual(
+    [...invalidProfile.app.qaPath],
+    ["userData", path.join(invalidProfile.userData, "moxie-editor-localqa")],
   );
 });
 test("关闭脏文档时取消有效，保留副本先通知渲染层", async () => {

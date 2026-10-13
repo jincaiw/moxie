@@ -26,11 +26,21 @@ const { exportDocxWithFootnotes } = require("./docx-footnotes.cjs");
 const { UpdateController, supportsAutoUpdate } = require("./updater.cjs");
 const { fetchThemeResource } = require("./theme-gallery.cjs");
 // Set only by the local QA packaging command, never by release configuration.
-if (require("../package.json").moxieLocalQA === true)
+if (require("../package.json").moxieLocalQA === true) {
+  const profile = process.argv
+    .map(
+      (argument) =>
+        /^--moxie-local-qa-profile=([a-z\d-]{1,40})$/i.exec(argument)?.[1],
+    )
+    .find(Boolean);
   app.setPath(
     "userData",
-    path.join(app.getPath("appData"), "moxie-editor-localqa"),
+    path.join(
+      app.getPath("appData"),
+      profile ? `moxie-editor-localqa-${profile}` : "moxie-editor-localqa",
+    ),
   );
+}
 let store,
   updates,
   windowSequence = 0,
