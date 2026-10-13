@@ -1,6 +1,37 @@
 import { test, expect } from "@playwright/test";
 import { documentEnd, documentStart } from "./keyboard";
 
+test("Typora 主题的水平分隔线映射高度、留白和颜色", async ({ page }) => {
+  const source = "上方文字\n\n---\n\n下方文字";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "themed-rule.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = `#write{font-size:16px;line-height:1.6}
+      hr{height:2px;padding:0;margin:16px 0;background-color:#e7e7e7;border:0 none}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  const rule = page.locator(".cm-line.md-rule");
+  await expect(rule).toHaveCount(1);
+  await expect(rule).toHaveCSS("height", "34px");
+  await expect
+    .poll(() =>
+      rule.evaluate((line) => getComputedStyle(line, "::after").borderTopColor),
+    )
+    .toBe("rgb(231, 231, 231)");
+  await expect
+    .poll(() => rule.evaluate((line) => getComputedStyle(line, "::after").top))
+    .toBe("17px");
+});
+
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
   const source =
     "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";

@@ -1,5 +1,11 @@
 # 本地开发与任务交接
 
+## 最新交接：2026-10-14 L68 Typora 主题水平分隔线
+
+读取本机 Typora 1.14.9 GitHub 主题 `hr` 规则，确认其线高 2px、上下留白各 16px、颜色 `#e7e7e7`；Moxie 旧适配忽略该规则，固定为 26px 默认色。现将样式映射到编辑器装饰行，并把外边距计入行框以保持光标定位。专项先在旧实现显示 26px 时失败，修复后 34px、颜色及线条位置断言通过。完整 Playwright **272 通过、3 项性能跳过**，桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 包、Prettier 和 diff 检查通过。
+
+详见[计划 L68](typora-current-plan.md#l68映射-typora-主题的水平分隔线样式)及[全工作核查](work-task-audit-2026-10-11.md#接续-l68typora-主题水平分隔线)。P01/E01–E06 仍有未完成验收；版本保持 0.16.249，未达发布条件，不发布。
+
 ## 最新交接：2026-10-14 L67 Pandoc 百分号编码 SVG
 
 E03 本机真实 Pandoc 3.11 回归确认，百分号编码 SVG data URL 先前会被作为缺图替代文本，LaTeX 与 MediaWiki 专项在旧实现上失败。导出预处理现能解码百分号编码和带 charset 的 SVG data URL；LaTeX `\\includesvg` 路径也会迁移到输出伴随资源目录。RTF、EPUB、ODT、LaTeX、MediaWiki 五种格式的真实 SVG 导出专项通过，并核对 LaTeX / MediaWiki 资源字节与路径。桌面逻辑 **65 项通过**、真实 Pandoc **16 项通过**、生产构建、macOS arm64 QA 包打包、Prettier 与 diff 检查通过。完整 Playwright 未重跑，本次只涉及 Electron 主进程导出逻辑。

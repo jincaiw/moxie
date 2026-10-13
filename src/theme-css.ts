@@ -185,6 +185,24 @@ export function typoraEditorCSS(css: string): string {
                 .join("");
               return `${host} .cm-content .md-code-preview{${declarations(rule.style, (name) => typography.test(name) || (surface.test(name) && !/^padding/.test(name)) || /^margin(?:-|$)/.test(name))}${padding}}`;
             }
+            if (/^(?:#write\s*>?\s*)?hr$/.test(selector)) {
+              // A thematic break is a decorated editor line rather than an
+              // <hr> element. Fold its outside margins into the line height
+              // so CodeMirror keeps accurate pointer and caret coordinates.
+              const height =
+                rule.style.getPropertyValue("height") ||
+                rule.style.getPropertyValue("border-top-width") ||
+                "1px";
+              const marginTop =
+                rule.style.getPropertyValue("margin-top") || "0px";
+              const marginBottom =
+                rule.style.getPropertyValue("margin-bottom") || "0px";
+              const color =
+                rule.style.getPropertyValue("background-color") ||
+                rule.style.getPropertyValue("border-top-color") ||
+                "currentColor";
+              return `${host} .cm-content .md-rule{--md-rule-height:${height};--md-rule-margin-top:${marginTop};--md-rule-margin-bottom:${marginBottom};height:calc(var(--md-rule-margin-top) + var(--md-rule-height) + var(--md-rule-margin-bottom));margin:0 !important;padding:0 !important;background:none !important;}${host} .cm-content .md-rule::after{top:calc(var(--md-rule-margin-top) + var(--md-rule-height)/2);border-top:var(--md-rule-height) solid ${color};}`;
+            }
             // A quote is a sequence of decorated lines, not a block element.
             // Do not repeat block margins on every line or flatten nested quotes.
             if (/^(?:#write\s*>?\s*)?blockquote$/.test(selector)) {

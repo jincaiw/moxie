@@ -371,3 +371,9 @@ E02 检查 Electron 主进程 `clipboard:write-rich-text` 时发现，5 MB 限�
 E03 真实 Pandoc 检查发现，导出图片预处理只接受 base64 data URL。合法的 `data:image/svg+xml,%3Csvg...` 图片因此被当作缺图替代文本；本机 Pandoc 3.11 真实回归在 LaTeX 和 MediaWiki 上先失败。现在接受百分号编码及可选 charset 的 SVG 数据 URL，并解码为 SVG 图片资源；LaTeX 的伴随资源路径重写也覆盖 Pandoc 生成的 `\\includesvg`，避免资源留在临时目录。
 
 真实 Pandoc 3.11 对 RTF、EPUB、ODT、LaTeX、MediaWiki 五种导出的百分号编码 SVG 回归通过；LaTeX / MediaWiki 实际伴随 SVG 字节及目标路径均核对成功。桌面逻辑 **65 项通过**，真实 Pandoc **16 项通过**，生产构建、macOS arm64 QA 包、Prettier 和 diff 检查通过。完整 Playwright 未重跑，因为改动只涉及 Electron 主进程导出路径；P01/E01–E06 其他验收仍开放，版本保持 0.16.249，不发布。
+
+## L68：映射 Typora 主题的水平分隔线样式
+
+对照本机 Typora 1.14.9 的真实 GitHub 主题发现，其 `hr` 规则设定 2px 线高、上下各 16px 留白和 `#e7e7e7` 颜色；主题适配器原先忽略 `hr`，编辑器仍固定显示 26px 高、默认颜色的分隔线。现在将主题线高、上下留白和颜色映射到装饰行，并把 margin 合并到行框高度，避免 CodeMirror 点击 / 光标坐标因外边距偏移。
+
+新增主题专项目以真实 GitHub 主题 HR 属性为样本，旧实现稳定显示 26px 并失败，修复后分隔线为 34px，线条颜色和中心位置符合主题样式。完整 Playwright **272 项通过、3 项性能基准跳过**（2 workers、无重试），桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 包、Prettier 和 diff 检查通过。P01 其他严格视觉与侧栏状态、E01–E06 其余原生 / 外部验收仍开放；正式版本保持 0.16.249，不满足发布条件，不发布。
