@@ -1,3 +1,9 @@
+## 最新交接：2026-10-14 L73 Typora 正文左边距
+
+映射本机 GitHub CSS 中遗留的 `.CodeMirror-lines` 左内边距到 CodeMirror 6 的 `.cm-content`，还验证点击定位正常。顺手加固 L72，避免前置属性 `pre` 的内边距扩散至每条编辑行。全量 Playwright **280 通过、3 项性能跳过**、桌面逻辑 **65 通过**、生产构建与隔离 QA 包通过。详见[Typora 当前计划 L73](typora-current-plan.md)。
+
+发布条件再次核对：GitHub 最新 Release/包版本均为 v0.16.249/0.16.249；仓库 Actions Secrets 为空，本机只有 Apple Development 身份。P01/E01–E06 仍开放，因此不创建标签、不发布。
+
 ## 最新交接：2026-10-14 L72 Typora YAML 前置属性样式
 
 对照本机 GitHub 主题发现 `#write pre.md-meta-block` 样式未映射到 YAML 前置属性。现将字体、行高、颜色和背景映射到编辑行及源码预览，并将主题预览的内边距/盒模型映射到预览区。回归确认字号 13.6px、行高 19.72px、`#777` 文字、`#f7f7f7` 背景和 16px 内边距，编辑态前置属性行也按主题缩放。全量 Playwright **279 通过、3 项性能跳过**，桌面逻辑 **65 通过**，生产构建、隔离 QA 包及格式检查通过。详见[计划 L72](typora-current-plan.md)。

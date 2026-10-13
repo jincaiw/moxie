@@ -86,12 +86,20 @@ export function typoraEditorCSS(css: string): string {
             if (/^(?:#write\s*(?:>\s*|\s+))?pre\.md-meta-block$/.test(selector))
               return `${host} .cm-content .md-front-matter{${declarations(
                 rule.style,
-                (name) => typography.test(name) || surface.test(name),
+                (name) =>
+                  typography.test(name) ||
+                  /^(?:background(?:-color)?|border(?:-[a-z-]+)?)$/.test(name),
               )}}${host} .md-metadata-source{${declarations(
                 rule.style,
                 (name) =>
                   typography.test(name) || surface.test(name) || box.test(name),
               )}}`;
+            if (selector === ".CodeMirror-lines") {
+              const paddingLeft = rule.style.getPropertyValue("padding-left");
+              return paddingLeft
+                ? `${host} .cm-content{padding-left:${paddingLeft}${rule.style.getPropertyPriority("padding-left") ? " !important" : ""};}`
+                : "";
+            }
             const match = /^(?:#write\s*>?\s*)?h([1-6])$/.exec(selector);
             if (match) {
               // CodeMirror measures each line's border box. Vertical margins

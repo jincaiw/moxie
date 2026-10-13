@@ -1,3 +1,7 @@
+## 接续 L73：Typora 旧版编辑器左内边距
+
+将 GitHub 主题 `.CodeMirror-lines` 的 4px 左内边距迁移到 CodeMirror 6 正文内容，并验证点击定位；L72 内边距映射限制在源码预览，避免编辑行逐行膨胀。全量 Playwright 280 通过 / 3 性能跳过、桌面 65 通过、QA 包通过。P01/E01–E06 未清，最新 Release v0.16.249；Secrets 空且缺 Developer ID，不能发布。
+
 ## 接续 L72：Typora YAML 前置属性主题样式
 
 补齐 GitHub 主题 `#write pre.md-meta-block` 在 Moxie YAML 前置属性编辑行/源码预览的样式映射。真实 CSS 值回归验证 85% 字号、1.45 行高、前景/背景色及预览内边距；全量 Playwright 279 通过 / 3 性能跳过、桌面 65 通过、生产构建与隔离 macOS QA 包通过。P01/E01–E06 仍开放；最新 Release v0.16.249，仓库 Secrets 为空且无 Developer ID 身份，不能发版。

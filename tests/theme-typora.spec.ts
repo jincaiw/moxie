@@ -215,10 +215,31 @@ test("Typora 主题的 YAML 元数据源码样式映射前置属性", async ({ p
   await expect(preview).toHaveCSS("color", "rgb(119, 119, 119)");
   await expect(preview).toHaveCSS("padding-top", "16px");
   await page.getByRole("button", { name: "展开文档属性源码" }).click();
-  await expect(page.locator(".cm-line.md-front-matter").first()).toHaveCSS(
-    "font-size",
-    "13.6px",
-  );
+  const metadataLine = page.locator(".cm-line.md-front-matter").first();
+  await expect(metadataLine).toHaveCSS("font-size", "13.6px");
+  await expect(metadataLine).toHaveCSS("padding-top", "0px");
+});
+
+test("Typora 旧版 CodeMirror 正文左内边距映射编辑器内容", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "legacy-line-padding.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("# 标题\n\n正文"),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = "#write{padding:30px}.CodeMirror-lines{padding-left:4px}";
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await expect(page.locator(".cm-content")).toHaveCSS("padding-left", "4px");
+  const paragraph = page.locator(".cm-line").filter({ hasText: "正文" });
+  await paragraph.click();
+  await expect(page.locator(".cm-activeLine")).toContainText("正文");
 });
 
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {

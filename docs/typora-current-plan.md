@@ -401,3 +401,9 @@ E03 真实 Pandoc 检查发现，导出图片预处理只接受 base64 data URL�
 本机 GitHub 主题定义 `#write pre.md-meta-block`：85% 字号、1.45 行高、`#777` 文字、`#f7f7f7` 背景、16px 内边距及零上边距；此前适配器未映射。Moxie 的 YAML 编辑行与源码预览已有对应节点，现将主题文字/表面属性映射到前置属性编辑行，文字/表面/盒模型映射到源码预览，保留折叠控件自身布局。真实规则值回归确认源码预览字号 13.6px、行高 19.72px、背景/文字色、16px 内边距；进入编辑态后前置属性行字号也为 13.6px。
 
 全量 Playwright **279 项通过、3 项性能基准跳过**（2 workers、无重试），桌面逻辑 **65 项通过**，TypeScript/Vite 生产构建、隔离 macOS QA 包、Prettier 与 diff 检查通过。正式版仍为 0.16.249；P01 和 E01–E06 的外部/原生验收仍开放，不发布。
+
+## L73：Typora 旧版 CodeMirror 正文左内边距
+
+本机 GitHub 主题仍含旧编辑器规则 `.CodeMirror-lines { padding-left: 4px }`；Moxie 使用 CodeMirror 6，旧选择器不生效，正文内容因此少 4px 左内边距。适配器现将该规则的 `padding-left` 映射到 `.cm-content`，其它 CodeMirror 旧版属性不扩散到编辑器。回归检查 4px 计算样式并点击正文验证编辑定位；同时加固 L72 前置属性测试，确保 `pre.md-meta-block` 的 16px 内边距只作用于整块源码预览，不错误地施加到每条编辑行。
+
+全量 Playwright **280 项通过、3 项性能基准跳过**（2 workers、无重试），桌面逻辑 **65 项通过**，TypeScript/Vite 生产构建、隔离 macOS QA 包、Prettier 与 diff 检查通过。正式版本仍为 0.16.249；P01/E01–E06 仍有外部/原生验收未完成，不发布。
