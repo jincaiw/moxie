@@ -23,7 +23,7 @@ test("真实 Pandoc：五种格式中文、列表、表格和图片往返", asyn
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-pandoc-real-"));
   const png =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=";
-  const html = `<html><body><h1>中文验收标题</h1><p>正文保留检查。</p><ul><li>列表首项<ul><li>嵌套项</li></ul></li></ul><table><thead><tr><th>左列</th><th>右列</th></tr></thead><tbody><tr><td>甲</td><td>乙</td></tr></tbody></table><img alt="本地像素" src="data:image/png;base64,${png}"><img alt="未嵌入远程图" src="https://example.invalid/never-fetch.png"></body></html>`;
+  const html = `<html><body><h1>中文验收标题</h1><p>正文保留检查。</p><ul><li>列表首项<ul><li>嵌套项</li></ul></li></ul><table><thead><tr><th>左列</th><th>右列</th></tr></thead><tbody><tr><td>甲</td><td>乙</td></tr></tbody></table><img alt="本地像素" src="data:image/png;base64,${png}"><img alt="空载荷缺图" src="data:image/png;base64,===="><img src="data:image/png;base64,===="><img alt="未嵌入远程图" src="https://example.invalid/never-fetch.png"></body></html>`;
   try {
     for (const [format, definition] of Object.entries(pandocFormats)) {
       await t.test(format, async () => {
@@ -67,6 +67,8 @@ test("真实 Pandoc：五种格式中文、列表、表格和图片往返", asyn
           "右列",
           "甲",
           "乙",
+          "空载荷缺图",
+          "图片资源未嵌入",
           "未嵌入远程图",
         ])
           assert.ok(imported.text.includes(text), `${format}: 缺少 ${text}`);

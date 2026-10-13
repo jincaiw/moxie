@@ -122,6 +122,10 @@ function escapeHTML(value) {
   });
 }
 
+function unavailableImage(altText) {
+  return `<span>${altText ? `[图片：${escapeHTML(altText)}]` : "[图片资源未嵌入]"}</span>`;
+}
+
 async function prepareHTML(html, directory) {
   const replacements = [];
   const mediaDirectory = path.join(directory, "media");
@@ -145,12 +149,19 @@ async function prepareHTML(html, directory) {
       replacements.push({
         from: match.index,
         to: match.index + tag.length,
-        value: `<span>${altText ? `[图片：${escapeHTML(altText)}]` : "[图片资源未嵌入]"}</span>`,
+        value: unavailableImage(altText),
       });
       continue;
     }
     const bytes = Buffer.from(data[2].replace(/\s/g, ""), "base64");
-    if (!bytes.length) continue;
+    if (!bytes.length) {
+      replacements.push({
+        from: match.index,
+        to: match.index + tag.length,
+        value: unavailableImage(altText),
+      });
+      continue;
+    }
     await fs.mkdir(mediaDirectory, { recursive: true });
     const extension = data[1]
       .toLowerCase()

@@ -161,7 +161,9 @@ process.stdin.on("data", chunk => html += chunk);
 process.stdin.on("end", () => {
   const hasImage = fs.existsSync(path.join(process.cwd(), "media/image-1.png"));
   const containsImage = hasImage && html.includes('src="media/image-1.png"') && !html.includes("https://");
-  fs.writeFileSync(output, Buffer.from(latex ? (containsImage ? "\\\\includegraphics{media/image-1.png}" : "missing-image") : "{\\\\rtf1\\\\ansi " + (containsImage ? "embedded-image" : "missing-image") + "}"));
+  const containsEmptyImageFallback = html.includes("[图片：空载荷]");
+  const containsUnnamedImageFallback = html.includes("[图片资源未嵌入]");
+  fs.writeFileSync(output, Buffer.from(latex ? (containsImage ? "\\\\includegraphics{media/image-1.png}" : "missing-image") : "{\\\\rtf1\\\\ansi " + (containsImage ? "embedded-image" : "missing-image") + (containsEmptyImageFallback ? "+empty-image-fallback" : "") + (containsUnnamedImageFallback ? "+unnamed-image-fallback" : "") + "}"));
 });
 
 `,
@@ -172,12 +174,15 @@ process.stdin.on("end", () => {
       "base64",
     );
     const result = await exportWithPandoc({
-      html: `<html><body><h1>中文</h1><img alt="图标" src="data:image/png;base64,${png.toString("base64")}"><img alt="远程图" src="https://example.com/image.png"></body></html>`,
+      html: `<html><body><h1>中文</h1><img alt="图标" src="data:image/png;base64,${png.toString("base64")}"><img alt="空载荷" src="data:image/png;base64,===="><img src="data:image/png;base64,===="><img alt="远程图" src="https://example.com/image.png"></body></html>`,
       format: "rtf",
       name: "测试.md",
       executable,
     });
-    assert.equal(result.data.toString(), "{\\rtf1\\ansi embedded-image}");
+    assert.equal(
+      result.data.toString(),
+      "{\\rtf1\\ansi embedded-image+empty-image-fallback+unnamed-image-fallback}",
+    );
     assert.deepEqual(result.assets, []);
     const latex = await exportWithPandoc({
       html: `<html><body><img alt="图标" src="data:image/png;base64,${png.toString("base64")}"><img alt="远程图" src="https://example.com/image.png"></body></html>`,
