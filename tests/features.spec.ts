@@ -2889,6 +2889,24 @@ test("大纲识别 Setext 标题并正确跳过嵌套围栏内容", async ({ pag
   await expect(page.locator(".cm-focused")).toBeVisible();
 });
 
+test("实时排版在标题文字处隐藏井号，仅编辑井号时显示语法标记", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "标题标记.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("## 标题文字\n"),
+  });
+  const editor = page.locator(".cm-content");
+  const heading = page.locator(".cm-line.md-heading").first();
+  await heading.click();
+  await page.keyboard.press("End");
+  await expect(heading).toHaveText("标题文字");
+  await page.keyboard.press("Home");
+  await expect(heading).toHaveText("## 标题文字");
+});
+
 test("侧栏标签支持方向键切换、面板关联和完整大纲标题", async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 700 });
   await page.goto("/");

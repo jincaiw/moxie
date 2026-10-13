@@ -994,6 +994,19 @@ function build(
             line.from,
             Decoration.line({ class: "md-heading md-h" + node.name.slice(-1) }),
           );
+          const marker = /^#{1,6}(?:[ \t]+|$)/.exec(
+            state.doc.sliceString(node.from, node.to),
+          );
+          if (marker) {
+            const markerEnd = node.from + marker[0].length;
+            const markerSelected = state.selection.ranges.some((range) =>
+              range.empty
+                ? range.head >= node.from && range.head < markerEnd
+                : range.from < markerEnd && range.to > node.from,
+            );
+            if (!markerSelected)
+              add(node.from, markerEnd, Decoration.replace({}));
+          }
         }
         if (node.name === "SetextHeading1" || node.name === "SetextHeading2") {
           add(
