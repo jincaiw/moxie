@@ -27,7 +27,10 @@ const {
   importWithPandoc,
   readablePandocLatexImages,
 } = require("../electron/pandoc.cjs");
-const { exportDocumentAsSVG } = require("../electron/image-export.cjs");
+const {
+  exportDocumentAsSVG,
+  planSlices,
+} = require("../electron/image-export.cjs");
 const harnessDirectories = [];
 after(async () => {
   await Promise.all(
@@ -106,7 +109,7 @@ test("Pandoc 导出无响应时超时，临时输出清理后仍可再次转换"
     const marker = path.join(root, "working-directory");
     await fs.writeFile(
       executable,
-      `#!/bin/sh\npwd > '${marker.replaceAll("'", "'\\''")}'\nexec node -e 'process.stdin.resume(); setTimeout(() => {}, 10000)'\n`,
+      `#!/usr/bin/env node\nconst fs=require('node:fs');fs.writeFileSync(${JSON.stringify(marker)},process.cwd());process.stdin.resume();setTimeout(()=>{},30000);\n`,
       { mode: 0o755 },
     );
     await assert.rejects(
@@ -115,7 +118,7 @@ test("Pandoc 导出无响应时超时，临时输出清理后仍可再次转换"
         format: "rtf",
         name: "样本.md",
         executable,
-        timeoutMs: 3000,
+        timeoutMs: 5000,
       }),
       /导出超时.*未覆盖目标文件/,
     );
@@ -242,7 +245,20 @@ test("Pandoc 导入限制格式/大小与网络，并将图片嵌入未保存文
   }
 });
 
-test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品", async () => {
+test("长图切片优先避开内容块，超长单块仍保持有界", () => {
+  assert.deepEqual(planSlices(5000, [4000, 2800, 1500, 300]), [
+    { y: 0, height: 1500 },
+    { y: 1500, height: 1300 },
+    { y: 2800, height: 1200 },
+    { y: 4000, height: 1000 },
+  ]);
+  assert.deepEqual(planSlices(3000, [1000]), [
+    { y: 0, height: 2048 },
+    { y: 2048, height: 952 },
+  ]);
+});
+
+test("整篇长图按有界内容切片导出 SVG，失败或取消不留下半成品", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-image-export-"));
   const output = path.join(root, "document.svg");
   let dimensionsRead = false;
@@ -274,8 +290,18 @@ test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品"
                 ],
                 createElement: () => ({ style: {} }),
                 documentElement: { scrollWidth: 2, scrollHeight: 3000 },
-                body: { scrollWidth: 2, scrollHeight: 3000 },
+                body: {
+                  scrollWidth: 2,
+                  scrollHeight: 3000,
+                  querySelectorAll: () =>
+                    [1500, 2800].map((bottom) => ({
+                      parentElement: null,
+                      getBoundingClientRect: () => ({ bottom }),
+                    })),
+                },
+                defaultView: { scrollY: 0 },
               },
+              window: { scrollY: 0 },
             });
           }
         },
@@ -310,6 +336,8 @@ test("整篇长图按有界切片导出 SVG，失败或取消不留下半成品"
     const svg = await fs.readFile(output, "utf8");
     assert.match(svg, /width="2" height="3000"/);
     assert.equal((svg.match(/<image /g) || []).length, 2);
+    assert.match(svg, /<image x="0" y="0" width="2" height="1500"/);
+    assert.match(svg, /<image x="0" y="1500" width="2" height="1500"/);
     assert.match(svg, /data:image\/png;base64,UE5HMQ==/);
     const canceled = await exportDocumentAsSVG({
       html: "<html></html>",

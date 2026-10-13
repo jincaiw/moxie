@@ -5,6 +5,27 @@ const MAX_HTML_BYTES = 30 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 35 * 1024 * 1024;
 const MAX_PIXELS = 50 * 1000 * 1000;
 const CAPTURE_HEIGHT = 2048;
+const SLICE_BOUNDARY_LOOKAHEAD = Math.floor(CAPTURE_HEIGHT / 2);
+
+function planSlices(height, boundaries) {
+  const slices = [];
+  const sorted = [...new Set(boundaries)].sort((a, b) => a - b);
+  for (let y = 0; y < height;) {
+    const limit = Math.min(height, y + CAPTURE_HEIGHT);
+    const boundary =
+      limit === height
+        ? height
+        : (sorted
+            .filter(
+              (candidate) =>
+                candidate > y + SLICE_BOUNDARY_LOOKAHEAD && candidate <= limit,
+            )
+            .at(-1) ?? limit);
+    slices.push({ y, height: boundary - y });
+    y = boundary;
+  }
+  return slices;
+}
 
 async function exportDocumentAsSVG({
   html,
@@ -56,6 +77,7 @@ async function exportDocumentAsSVG({
       `data:text/html;base64,${Buffer.from(isolatedHTML, "utf8").toString("base64")}`,
     );
     const dimensions = await view.webContents.executeJavaScript(`(async () => {
+      const blockSelector = 'h1,h2,h3,h4,h5,h6,p,blockquote,li,pre,table,hr,img,svg,.mermaid-diagram,.moxie-toc,.footnotes';
       await document.fonts.ready;
       await Promise.all(Array.from(document.images, async image => {
         try {
@@ -69,10 +91,13 @@ async function exportDocumentAsSVG({
       }));
       return {
         width: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-        height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
+        height: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+        sliceBoundaries: Array.from(document.body.querySelectorAll(blockSelector))
+          .filter(element => !element.parentElement?.closest(blockSelector))
+          .map(element => Math.ceil(element.getBoundingClientRect().bottom + window.scrollY))
       };
     })()`);
-    const { width, height } = dimensions || {};
+    const { width, height, sliceBoundaries = [] } = dimensions || {};
     if (
       !Number.isInteger(width) ||
       !Number.isInteger(height) ||
@@ -85,8 +110,10 @@ async function exportDocumentAsSVG({
 
     const parts = [];
     let byteLength = 0;
-    for (let y = 0; y < height; y += CAPTURE_HEIGHT) {
-      const sliceHeight = Math.min(CAPTURE_HEIGHT, height - y);
+    for (const { y, height: sliceHeight } of planSlices(
+      height,
+      sliceBoundaries,
+    )) {
       await view.webContents.executeJavaScript(`new Promise(resolve => {
         window.scrollTo(0, ${y});
         requestAnimationFrame(() => requestAnimationFrame(resolve));
@@ -115,4 +142,4 @@ async function exportDocumentAsSVG({
   }
 }
 
-module.exports = { exportDocumentAsSVG };
+module.exports = { exportDocumentAsSVG, planSlices };
