@@ -80,6 +80,42 @@ test("前置文档属性使后续列表不再是主题 CSS 的首个子项", asy
   await expect(page.locator(".cm-line.md-first-root-list")).toHaveCount(0);
 });
 
+test("Typora 主题的标题行内代码继承标题字号", async ({ page }) => {
+  const source =
+    "# 一级 `a`\n\n## 二级 `b`\n\n### 三级 `c`\n\n#### 四级 `d`\n\n##### 五级 `e`\n\n###### 六级 `f`\n\n正文 `body`";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "heading-inline-code.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = `#write{font-size:16px}
+      h1,h2,h3,h4,h5,h6{font-weight:bold}
+      h1{font-size:36px} h2{font-size:28px} h3{font-size:24px}
+      h4{font-size:20px} h5{font-size:16px} h6{font-size:14px}
+      h1 tt,h1 code,h2 tt,h2 code,h3 tt,h3 code,h4 tt,h4 code,h5 tt,h5 code,h6 tt,h6 code{font-size:inherit}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line").filter({ hasText: "正文" }).click();
+  for (let level = 1; level <= 6; level++) {
+    const heading = page.locator(`.cm-line.md-h${level}`);
+    const inlineCode = heading.locator(".md-inline-code");
+    await expect(inlineCode).toHaveCSS(
+      "font-size",
+      await heading.evaluate((element) => getComputedStyle(element).fontSize),
+    );
+  }
+  await expect(
+    page.locator(".cm-line.md-root-paragraph .md-inline-code"),
+  ).toHaveCSS("font-size", "13.76px");
+});
+
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
   const source =
     "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";

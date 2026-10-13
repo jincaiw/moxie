@@ -113,6 +113,12 @@ export function typoraEditorCSS(css: string): string {
                 .join("");
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}${bottomBorder}border-bottom-color:transparent !important;}`;
             }
+            const headingInlineCode =
+              /^(?:#write\s*(?:>\s*|\s+))?h([1-6])\s+(?:tt|code)$/.exec(
+                selector,
+              );
+            if (headingInlineCode)
+              return `${host} .cm-content .md-h${headingInlineCode[1]} .md-inline-code{${declarations(rule.style, (name) => typography.test(name))}}`;
             if (/^(?:#write\s*>?\s*)?p$/.test(selector)) {
               // Paragraphs are measured CodeMirror lines, including soft line
               // breaks. Preserve direct-child scope and scoped-rule specificity.
