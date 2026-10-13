@@ -45,6 +45,7 @@
     "mermaid": "^11.17.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.35.5",
     "turndown": "^7.2.4",
     "turndown-plugin-gfm": "^1.0.2",
     "yaml": "^2.9.1"

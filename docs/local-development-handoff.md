@@ -1,10 +1,11 @@
 # 本地开发与任务交接
 
-## 最新交接：2026-10-14 L63 DOCX 原生脚注
+## 最新交接：2026-10-14 L64 DOCX WebP 图片兼容
 
-E03 对照发现 DOCX 会把 Markdown 脚注写成普通编号列表，引用不能作为 Word 脚注跳转。现在导出器把符合简单段落/行内内容结构的注释转成 OOXML 原生脚注，重复引用共享对应脚注 ID，并保留粗体、行内样式与外链。含图片、表格、列表、引用等复杂脚注沿用原转换结果，未扩大支持范围。
+E03 复核发现 DOCX 直接嵌入 WebP 的兼容性不可靠，Electron 35 `nativeImage` 对有效 WebP Data URL 返回空图。现在 DOCX/Pandoc 导出会用 Sharp 将 WebP 转成 PNG，其它 BMP、AVIF、SVG 继续沿用原有转换路径；无效图片仍明确取消导出。桌面逻辑 **65 项通过**、真实 Pandoc **10 项通过**、生产构建和 Prettier 检查通过；macOS arm64 QA 包构建成功，确认 Sharp 的原生模块和 libvips 动态库随包解压。完整界面测试沿用 L63 的 **270 通过、3 项性能基准跳过**，本轮未涉及渲染层。
 
-桌面逻辑 **65 项通过**，真实 Pandoc **10 项通过**（含 DOCX 导入后保留原生脚注语义），完整 Playwright **270 项通过、3 项性能基准跳过**，生产构建、格式与 diff 检查通过。详见[计划 L63](typora-current-plan.md#l63-docx-原生脚注)及[全工作核查](work-task-audit-2026-10-11.md#接续-l63docx-原生脚注)。Word/WPS 实际显示、脚注分页及复杂脚注仍待目标应用验收。本轮启动 WPS 时只出现“找不到含有 WPS Office 应用程序的 Windows 11 (1)”提示，没有打开文档。发布 workflow 仅由 `v*` 标签触发，且要求标签与 `package.json` 版本完全一致；远端 Actions Secret 名单为空，签名/公证将跳过，macOS 自动安装更新不可用。P01/E01–E06 未全部完成，版本保持 0.16.249，暂不发布。
+详见[计划 L64](typora-current-plan.md#l64-docx-webp-图片兼容)及[全工作核查](work-task-audit-2026-10-11.md#接续-l64docx-webp-图片兼容)。Word/WPS 实际显示、脚注分页及复杂脚注、Preview/打印仍待目标应用验收；本机 WPS 虚拟机不可用。发布 workflow 仅由 `v*` 标签触发，要求标签与 `package.json` 版本完全一致；远端 Actions Secret 名单为空，签名/公证将跳过，macOS 自动安装更新不可用。P01/E01–E06 未全部完成，版本保持 0.16.249，暂不发布。
+
 ## 最新调查：E02 系统拼写建议入口（未完成）
 
 检查到“系统拼写检查”设置可启用编辑器 `spellcheck`，但自定义编辑区右键格式菜单可能阻挡系统拼写建议。尝试实现 Electron 词典建议、替换错误词和添加词条时，新增 Playwright 专项未通过：在测试中点击“偏好设置”入口时等待 `getByRole("button", { name: "偏好设置" })` 超时 30 秒；接入项目现有桌面 Proxy 桩后结果相同。另一次测试进入文件导入阶段后没有稳定找到编辑器。单独浏览器诊断能显示设置按钮，测试运行状态差异的根因未确认。

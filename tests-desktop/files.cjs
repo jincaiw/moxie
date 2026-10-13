@@ -729,7 +729,7 @@ test("PDF 导出等待图片与字体就绪后再生成并原子写入", async (
     await fs.rm(root, { recursive: true, force: true });
   }
 });
-test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () => {
+test("DOCX 导出将 BMP、AVIF、SVG 和 WebP 图片转换为 Word 兼容的 PNG", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-docx-test-"));
   try {
     const target = path.join(root, "output.docx");
@@ -748,9 +748,13 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
     const svg = Buffer.from(
       '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1"/></svg>',
     );
+    const webp = Buffer.from(
+      "UklGRjoAAABXRUJQVlA4IC4AAADwAQCdASoBAAEAAUAmJaACdLoB+AAEgwAA/vAb3/89M15g/yc/+Uq8Fjc3wAAA",
+      "base64",
+    );
     assert.equal(
       await h.call("file:export", {
-        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src=data:image/avif;base64,${avif.toString("base64")}><img alt="SVG" src="data:image/svg+xml;base64,${svg.toString("base64")}"></body></html>`,
+        html: `<html><body><img alt="BMP" src="data:image/bmp;base64,${bmp.toString("base64")}"><img alt="AVIF" src=data:image/avif;base64,${avif.toString("base64")}><img alt="SVG" src="data:image/svg+xml;base64,${svg.toString("base64")}"><img alt="WebP" src="data:image/webp;base64,${webp.toString("base64")}"></body></html>`,
         name: "report.md",
         format: "docx",
       }),
@@ -761,20 +765,25 @@ test("DOCX 导出将 BMP 和 AVIF 图片转换为 Word 兼容的 PNG", async () 
     const imageEntries = Object.keys(archive.files).filter((name) =>
       /^word\/media\/image-/.test(name),
     );
-    assert.ok(imageEntries.length > 0);
+    assert.ok(imageEntries.length >= 4);
     assert.ok(imageEntries.every((name) => name.endsWith(".png")));
     const contentTypes = await archive
       .file("[Content_Types].xml")
       .async("string");
     assert.match(contentTypes, /Extension="png"/);
     assert.doesNotMatch(contentTypes, /Extension="bmp"/);
+    const webpPng = await require("sharp")(webp).png().toBuffer();
+    assert.ok(
+      await Promise.all(
+        imageEntries.map(async (name) =>
+          (await archive.file(name).async("nodebuffer")).equals(webpPng),
+        ),
+      ).then((matches) => matches.some(Boolean)),
+    );
     for (const name of imageEntries)
       assert.deepEqual(
-        await archive.file(name).async("nodebuffer"),
-        Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=",
-          "base64",
-        ),
+        (await archive.file(name).async("nodebuffer")).subarray(0, 8),
+        Buffer.from("89504e470d0a1a0a", "hex"),
       );
   } finally {
     await fs.rm(root, { recursive: true, force: true });

@@ -40,17 +40,44 @@ let store,
   quitPreparation,
   closeSequence = 0;
 
-function writerCompatibleImages(html) {
-  return html.replace(
-    /(\bsrc\s*=\s*)(["']?)((?:data:image\/(?:avif|bmp|svg\+xml);base64,)[A-Za-z\d+/=]+)\2/gi,
-    (_match, attribute, quote, source) => {
-      const image = nativeImage.createFromDataURL(source);
-      const { width, height } = image.getSize();
-      if (image.isEmpty() || width <= 0 || height <= 0)
-        throw Error("无法解码 BMP/AVIF/SVG 图片，导出已取消");
-      return `${attribute}${quote}data:image/png;base64,${image.toPNG().toString("base64")}${quote}`;
-    },
-  );
+async function writerCompatibleImages(html) {
+  const images = [
+    ...html.matchAll(
+      /(\bsrc\s*=\s*)(["']?)(data:image\/(?:avif|bmp|svg\+xml|webp);base64,[A-Za-z\d+/=]+)\2/gi,
+    ),
+  ];
+  const converted = new Map();
+  for (const [, , , source] of images) {
+    if (converted.has(source)) continue;
+    let png;
+    try {
+      if (/^data:image\/webp;/i.test(source)) {
+        png = await require("sharp")(
+          Buffer.from(source.slice(source.indexOf(",") + 1), "base64"),
+        )
+          .png()
+          .toBuffer();
+      } else {
+        const image = nativeImage.createFromDataURL(source);
+        const { width, height } = image.getSize();
+        if (image.isEmpty() || width <= 0 || height <= 0) throw Error();
+        png = image.toPNG();
+      }
+    } catch {
+      throw Error("无法解码 BMP/AVIF/SVG/WebP 图片，导出已取消");
+    }
+    converted.set(source, `data:image/png;base64,${png.toString("base64")}`);
+  }
+  let output = html;
+  for (const match of images.reverse()) {
+    const [, attribute, quote, source] = match;
+    const replacement = `${attribute}${quote}${converted.get(source)}${quote}`;
+    output =
+      output.slice(0, match.index) +
+      replacement +
+      output.slice(match.index + match[0].length);
+  }
+  return output;
 }
 async function reservePandocAssetsDirectory(outputPath) {
   const parent = path.dirname(outputPath);
@@ -483,7 +510,7 @@ function setupIPC() {
         : null;
       try {
         const output = await exportWithPandoc({
-          html: writerCompatibleImages(input.html),
+          html: await writerCompatibleImages(input.html),
           format: input.format,
           name: input.name,
           executable: pandocBinary,
@@ -511,7 +538,7 @@ function setupIPC() {
     if (input.format === "docx") {
       const htmlToDocx = require("html-to-docx");
       const buffer = await exportDocxWithFootnotes(
-        writerCompatibleImages(input.html),
+        await writerCompatibleImages(input.html),
         {
           title: path
             .basename(String(input.name))
