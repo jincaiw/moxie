@@ -4311,7 +4311,9 @@ export default function App() {
             部分图片未能移回原路径。请检查下列目标位置与原位置，新的正文编辑已保留。
           </p>
           <p style={{ overflowWrap: "anywhere" }}>
-            文档：{imageRecoveryFailures.documentPath}
+            文档：
+            <br />
+            {imageRecoveryFailures.documentPath}
           </p>
           <ul>
             {imageRecoveryFailures.paths.map((failure) => (

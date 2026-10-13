@@ -24,6 +24,8 @@
 
 最终原生 QA 包通过实际“格式 → 移动本地图片到文件夹”移动自有图标样本 3 张，显示成功 3 / 失败 0，保存后三处链接与图片 SHA-256 一致。当前 QA 打开 `/private/tmp/moxie-image-management-native/managed.md`。正式应用、用户原件与旧恢复副本未修改。
 
+截图复核后将恢复提示中的“文档”标签与长路径分行，避免中文标签被挤开；两项专项再次无重试通过，并重新构建最终 QA 包。此排版调整后的专项日志为 `/tmp/moxie-image-management-layout.log`，打包日志为 `/tmp/moxie-image-management-final-package.log`。
+
 Browser plugin not available；仓库 Playwright 位于 `http://127.0.0.1:5173`，本轮新增流程 1440×960，原生使用 CUA。日志 `/tmp/moxie-image-management-*`，故障提示截图 `/tmp/moxie-image-rollback-conflict.png`，原生正常流程 `/tmp/moxie-image-management-native/normal-after.png`。桌面逻辑未变，未重复前轮 61 项桌面测试。
 
 **仍未完成**：跨窗口同时移动同一图片、远程下载 / 粘贴图片的异步关闭保护、强制退出和磁盘故障恢复、不同词法 / 符号链接别名；其他严格视觉、IME / VoiceOver、复杂导出、真实主题、签名与平台设备条件按下方清单继续，性能最后。版本仍为 0.16.249，未合并 main 或发布。
