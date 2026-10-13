@@ -396,7 +396,7 @@ export function Settings({
           aria-label="正文宽度"
           type="range"
           min="620"
-          max="1040"
+          max="1200"
           step="20"
           value={preferences.width}
           onChange={(e) => update("width", Number(e.target.value))}

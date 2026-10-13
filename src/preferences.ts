@@ -123,7 +123,7 @@ function initial(): Preferences {
         ),
       ),
       font: value.font === "serif" ? "serif" : "sans",
-      width: Math.min(1040, Math.max(620, Number(value.width) || 880)),
+      width: Math.min(1200, Math.max(620, Number(value.width) || 880)),
       autoSave: value.autoSave === true,
       autoCheckUpdates: value.autoCheckUpdates !== false,
       typewriter: value.typewriter === true,

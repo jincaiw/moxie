@@ -1134,7 +1134,7 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByRole("button", { name: "偏好设置" }).click();
   await page.getByLabel("默认复制格式").selectOption("markdown");
   await page.getByLabel("正文字体").selectOption("serif");
-  await page.getByLabel("正文宽度").fill("960");
+  await page.getByLabel("正文宽度").fill("1200");
   await page.getByLabel("外观").selectOption("sepia");
   await page.getByLabel("PDF 纸张").selectOption("Letter");
   await page.getByLabel("PDF 页面方向").selectOption("landscape");
@@ -1157,7 +1157,7 @@ test("设置持久化、专注模式和对话框键盘退出", async ({ page }) 
   await page.getByRole("button", { name: "偏好设置" }).click();
   await expect(page.getByLabel("正文字体")).toHaveValue("serif");
   await expect(page.getByLabel("默认复制格式")).toHaveValue("markdown");
-  await expect(page.getByLabel("正文宽度")).toHaveValue("960");
+  await expect(page.getByLabel("正文宽度")).toHaveValue("1200");
   await expect(page.getByLabel("外观")).toHaveValue("sepia");
   await expect(page.getByLabel("PDF 纸张")).toHaveValue("Letter");
   await expect(page.getByLabel("PDF 页面方向")).toHaveValue("landscape");
