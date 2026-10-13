@@ -144,7 +144,7 @@ function rewriteCompanionImagePaths(text, format, assetsDirectoryName) {
       /\\begin\{(verbatim\*?|Verbatim|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^a-zA-Z\s])[^\r\n]*?\2|\\[%\\]|%[^\r\n]*/g;
     return rewriteOutsideProtected(text, literals, (segment) =>
       segment.replace(
-        /(\\includegraphics\b(?:\[[^\r\n]*?\])?\{)(media\/[^{}\r\n]+)(\})/g,
+        /(\\(?:includegraphics|includesvg)\b(?:\[[^\r\n]*?\])?\{)(media\/[^{}\r\n]+)(\})/g,
         rewritePath,
       ),
     );
@@ -180,7 +180,10 @@ async function prepareHTML(html, directory) {
       /^data:image\/(png|jpeg|gif|webp|bmp|avif|svg\+xml);base64,([a-z\d+/=\s]+)$/i.exec(
         source,
       );
-    if (!data) {
+    const encodedSvg = /^data:image\/svg\+xml(?:;charset=[^;,]+)?,(.*)$/is.exec(
+      source,
+    );
+    if (!data && !encodedSvg) {
       // Pandoc should not fetch external resources during a local export.
       replacements.push({
         from: match.index,
@@ -189,7 +192,19 @@ async function prepareHTML(html, directory) {
       });
       continue;
     }
-    const bytes = Buffer.from(data[2].replace(/\s/g, ""), "base64");
+    let bytes;
+    try {
+      bytes = data
+        ? Buffer.from(data[2].replace(/\s/g, ""), "base64")
+        : Buffer.from(decodeURIComponent(encodedSvg[1]), "utf8");
+    } catch {
+      replacements.push({
+        from: match.index,
+        to: match.index + tag.length,
+        value: unavailableImage(altText),
+      });
+      continue;
+    }
     if (!bytes.length) {
       replacements.push({
         from: match.index,
@@ -199,7 +214,7 @@ async function prepareHTML(html, directory) {
       continue;
     }
     await fs.mkdir(mediaDirectory, { recursive: true });
-    const extension = data[1]
+    const extension = (data?.[1] ?? "svg+xml")
       .toLowerCase()
       .replace("jpeg", "jpg")
       .replace("svg+xml", "svg");

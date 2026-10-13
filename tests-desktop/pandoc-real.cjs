@@ -130,6 +130,35 @@ test("真实 Pandoc：伴随图片目录重写不改代码示例", async (t) => 
   }
 });
 
+test("真实 Pandoc：百分号编码 SVG 内嵌图片保留为图片资源", async (t) => {
+  const executable = await findPandoc();
+  assert.ok(executable, "此专项需要已安装的 Pandoc");
+  const svg = Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2" height="1"><rect width="2" height="1" fill="#123456"/></svg>',
+  );
+  const source = `data:image/svg+xml,${encodeURIComponent(svg.toString("utf8"))}`;
+  for (const format of Object.keys(pandocFormats)) {
+    await t.test(format, async () => {
+      const output = await exportWithPandoc({
+        html: `<html><body><img alt="矢量图" src="${source}"></body></html>`,
+        format,
+        name: "svg.md",
+        executable,
+        assetsDirectoryName: "svg_assets",
+      });
+      assert.ok(output.data.length > 0);
+      assert.doesNotMatch(output.data.toString("utf8"), /图片资源未嵌入/);
+      if (pandocFormats[format].companionAssets) {
+        assert.equal(output.assets.length, 1);
+        assert.equal(output.assets[0].name, "image-1.svg");
+        assert.deepEqual(output.assets[0].data, svg);
+        assert.match(output.data.toString("utf8"), /svg_assets\/image-1\.svg/);
+        assert.doesNotMatch(output.data.toString("utf8"), /图片：矢量图/);
+      }
+    });
+  }
+});
+
 test("真实 Pandoc：DOCX 脚注往返保留 Word 原生语义", async () => {
   const executable = await findPandoc();
   assert.ok(executable, "此专项需要已安装的 Pandoc");

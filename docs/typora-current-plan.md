@@ -365,3 +365,9 @@ P01 在 Typora 1.14.9 和 Moxie QA 中打开同一 `MARKDOWN_RENDERING_TEST.md` 
 E02 检查 Electron 主进程 `clipboard:write-rich-text` 时发现，5 MB 限制比较的是 JavaScript `string.length`，而非系统剪贴板实际承载的 UTF‑8 大小。Emoji 以两个 UTF‑16 code units 表示、UTF‑8 编码占四个字节，因此 HTML 或纯文本 Unicode 内容能够超过 5 MiB 仍通过检查。现对 HTML 与纯文本都用 `Buffer.byteLength(value, "utf8")` 比较 5 MiB 限额。
 
 在桌面回归中加入 5 MiB + 4 字节的 emoji 纯文本和 HTML 载荷，旧实现先稳定复现缺少拒绝，修复后两者都被拒绝；现有 ASCII 超限检查和正常富文本双格式写入也通过。桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 打包、Prettier 和 diff 检查通过。修改只在 Electron 主进程 IPC 大小校验和桌面测试，本轮未重复完整 Playwright（L65 为 271 通过、3 项性能跳过）。原生跨应用粘贴、IME/VoiceOver 和其他 E02 条件仍待验收；其余 P01/E01–E06 门槛未完成，版本仍为 0.16.249，不发布。
+
+## L67：Pandoc 支持百分号编码 SVG 数据 URL
+
+E03 真实 Pandoc 检查发现，导出图片预处理只接受 base64 data URL。合法的 `data:image/svg+xml,%3Csvg...` 图片因此被当作缺图替代文本；本机 Pandoc 3.11 真实回归在 LaTeX 和 MediaWiki 上先失败。现在接受百分号编码及可选 charset 的 SVG 数据 URL，并解码为 SVG 图片资源；LaTeX 的伴随资源路径重写也覆盖 Pandoc 生成的 `\\includesvg`，避免资源留在临时目录。
+
+真实 Pandoc 3.11 对 RTF、EPUB、ODT、LaTeX、MediaWiki 五种导出的百分号编码 SVG 回归通过；LaTeX / MediaWiki 实际伴随 SVG 字节及目标路径均核对成功。桌面逻辑 **65 项通过**，真实 Pandoc **16 项通过**，生产构建、macOS arm64 QA 包、Prettier 和 diff 检查通过。完整 Playwright 未重跑，因为改动只涉及 Electron 主进程导出路径；P01/E01–E06 其他验收仍开放，版本保持 0.16.249，不发布。

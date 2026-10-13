@@ -1,5 +1,9 @@
 # 全工作任务核查（2026-10-11）
 
+## 接续 L67：Pandoc 百分号编码 SVG
+
+E03 的 Pandoc 导出之前只接受 base64 图片数据，合法百分号编码 SVG 会变成缺图占位。真实 Pandoc 3.11 的 LaTeX / MediaWiki 回归在修复前失败；现在五种 Pandoc 格式均能导出该 SVG，LaTeX `\\includesvg` 和 MediaWiki 图片引用正确指向伴随资源目录，资源字节核对一致。桌面 **65 项**、真实 Pandoc **16 项**、生产构建和 macOS QA 打包通过。其他目标阅读器/打印与 P01/E01–E06 验收仍未完成，版本 0.16.249，未发布。
+
 本页是对“未完成继续实施；已完成提交并发布”的执行记录。核查范围包括交接文档、当前 Typora 计划、macOS 验收、implementation-plan、typora-gap-audit、主题图库计划及历次 UI/UX 报告中的未勾选项。历史重复条目按下表归并，保留原文作为历史证据，不将旧环境“无 Mac”的描述当作当前事实。
 
 ## 当前结论

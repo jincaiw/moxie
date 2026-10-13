@@ -1,5 +1,11 @@
 # 本地开发与任务交接
 
+## 最新交接：2026-10-14 L67 Pandoc 百分号编码 SVG
+
+E03 本机真实 Pandoc 3.11 回归确认，百分号编码 SVG data URL 先前会被作为缺图替代文本，LaTeX 与 MediaWiki 专项在旧实现上失败。导出预处理现能解码百分号编码和带 charset 的 SVG data URL；LaTeX `\\includesvg` 路径也会迁移到输出伴随资源目录。RTF、EPUB、ODT、LaTeX、MediaWiki 五种格式的真实 SVG 导出专项通过，并核对 LaTeX / MediaWiki 资源字节与路径。桌面逻辑 **65 项通过**、真实 Pandoc **16 项通过**、生产构建、macOS arm64 QA 包打包、Prettier 与 diff 检查通过。完整 Playwright 未重跑，本次只涉及 Electron 主进程导出逻辑。
+
+详见[计划 L67](typora-current-plan.md#l67pandoc-支持百分号编码-svg-数据-url)及[全工作核查](work-task-audit-2026-10-11.md#接续-l67pandoc-百分号编码-svg)。P01 和 E01–E06 仍有未完成验收；版本保持 0.16.249，不满足发布条件，不发布。
+
 ## 最新交接：2026-10-14 L66 富文本剪贴板 UTF-8 大小限制
 
 E02 复核发现富文本剪贴板接口用 JavaScript 字符数判断 5 MB 限制，中文或 emoji 因 UTF‑8 字节更大可能绕过限制。主进程现对 HTML 和纯文本都按 UTF‑8 字节数计算。新增桌面回归先在旧实现上复现失败，再确认两种载荷超限都被拒绝；桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 包打包、格式检查通过。未重复跑完整 UI：本次只有主进程大小检查和桌面测试变更。
