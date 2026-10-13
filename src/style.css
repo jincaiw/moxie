@@ -1814,7 +1814,7 @@ p {
   cursor: not-allowed;
 }
 .editable-table table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 .editable-table th,
 .editable-table td {

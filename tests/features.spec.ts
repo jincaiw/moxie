@@ -2774,6 +2774,34 @@ test("窄屏表格操作按钮保留可触控尺寸和清晰的禁用态", async
   expect(metrics.opacity).toBeGreaterThanOrEqual(0.7);
 });
 
+test("Markdown 表格按内容分配列宽，长单元格避免不必要的换行", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.goto("/");
+  await page
+    .locator(".md-input")
+    .setInputFiles("tests/fixtures/MARKDOWN_RENDERING_TEST.md");
+  await selectSidebarMode(page, "大纲");
+  await page.locator(".outline-row").filter({ hasText: "6. 表格" }).click();
+  const table = page
+    .locator(".editable-table")
+    .filter({ hasText: "较长的单元格内容" })
+    .first();
+  await expect(table).toBeVisible();
+  await expect(table.locator('[data-cell="0:0"]')).toBeVisible();
+  const widths = await table
+    .locator('[data-cell="0:0"]')
+    .evaluate((cell) =>
+      Array.from(
+        cell.closest("table")!.rows[0].cells,
+        (header) => header.getBoundingClientRect().width,
+      ),
+    );
+  expect(widths).toHaveLength(4);
+  expect(widths[0]).toBeGreaterThan(widths[2] * 1.5);
+});
+
 test("另存为迁移真实图片并保留代码示例", async ({ page }) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
