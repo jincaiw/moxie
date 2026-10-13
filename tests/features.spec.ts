@@ -2778,17 +2778,18 @@ test("表格操作条只在指针悬停或表格键盘聚焦时显示", async ({
   await page.goto("/");
   const table = page.locator(".editable-table").first();
   const tools = table.locator(".table-tools");
-  await expect(tools).toHaveCSS("visibility", "hidden");
+  await expect(tools).toHaveCSS("display", "none");
+  await expect(tools).toHaveJSProperty("offsetHeight", 0);
 
   await table.hover();
-  await expect(tools).toHaveCSS("visibility", "visible");
+  await expect(tools).toHaveCSS("display", "flex");
   await page.mouse.move(0, 0);
-  await expect(tools).toHaveCSS("visibility", "hidden");
+  await expect(tools).toHaveCSS("display", "none");
 
   await table.locator('[data-cell="1:0"]').focus();
-  await expect(tools).toHaveCSS("visibility", "visible");
+  await expect(tools).toHaveCSS("display", "flex");
   await page.locator("body").click({ position: { x: 5, y: 5 } });
-  await expect(tools).toHaveCSS("visibility", "hidden");
+  await expect(tools).toHaveCSS("display", "none");
 });
 
 test("Markdown 表格按内容分配列宽，长单元格避免不必要的换行", async ({

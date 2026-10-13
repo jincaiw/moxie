@@ -1786,21 +1786,15 @@ p {
   margin: 4px 6px;
 }
 .table-tools {
-  display: flex;
+  display: none;
   gap: 2px;
   align-items: center;
   margin-bottom: 7px;
   flex-wrap: wrap;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
 }
 .editable-table:hover .table-tools,
 .editable-table:focus-within .table-tools {
-  visibility: visible;
-  opacity: 1;
-  pointer-events: auto;
+  display: flex;
 }
 .table-tools button {
   min-height: 30px;
