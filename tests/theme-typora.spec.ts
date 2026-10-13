@@ -1,6 +1,74 @@
 import { test, expect } from "@playwright/test";
 import { documentEnd, documentStart } from "./keyboard";
 
+test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
+  const source =
+    "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "paragraph-style.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const css = `#write{font-size:16px;line-height:1.5}
+      #write > p{color:#8a2457;text-align:right}
+      p{font-size:18px;line-height:1.8;color:#246890;letter-spacing:1px}
+      @media(max-width:1000px){#write > p{font-size:20px;color:#245724}}
+      .toolbar p{font-size:99px}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  const paragraph = page.locator(".cm-line").filter({ hasText: "第一段" });
+  await expect(paragraph).toHaveCSS("font-size", "18px");
+  await expect(paragraph).toHaveCSS("line-height", "32.4px");
+  await expect(paragraph).toHaveCSS("color", "rgb(138, 36, 87)");
+  await expect(paragraph).toHaveCSS("text-align", "right");
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "软换行" }),
+  ).toHaveCSS("font-size", "18px");
+  for (const text of ["引用文字", "列表文字"]) {
+    const nested = page.locator(".cm-line").filter({ hasText: text });
+    await expect(nested).toHaveCSS("font-size", "18px");
+    await expect(nested).toHaveCSS("color", "rgb(36, 104, 144)");
+    await expect(nested).not.toHaveCSS("text-align", "right");
+  }
+  await expect(page.locator(".md-h1")).not.toHaveCSS(
+    "color",
+    "rgb(138, 36, 87)",
+  );
+  await expect(page.locator(".md-code-preview")).not.toHaveCSS(
+    "font-size",
+    "18px",
+  );
+  await paragraph.click();
+  await expect(page.locator(".cm-activeLine")).toContainText("第一段");
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator(".cm-activeLine")).toContainText("软换行");
+  await page.screenshot({
+    path: "/tmp/moxie-paragraph-typography-desktop.png",
+  });
+  await page.setViewportSize({ width: 900, height: 700 });
+  await expect(paragraph).toHaveCSS("font-size", "20px");
+  await expect(paragraph).toHaveCSS("color", "rgb(36, 87, 36)");
+  await page.screenshot({ path: "/tmp/moxie-paragraph-typography-narrow.png" });
+  await page.getByRole("button", { name: "源码", exact: true }).click();
+  await expect(
+    page.locator(".cm-line").filter({ hasText: "第一段" }),
+  ).not.toHaveCSS("font-size", "20px");
+  expect(
+    await page
+      .locator(".cm-line")
+      .evaluateAll((lines) => lines.map((line) => line.textContent).join("\n")),
+  ).toBe(source);
+  expect(errors).toEqual([]);
+});
+
 test("主题长标题文档的文末光标保持在正文视口内", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -43,7 +111,24 @@ test("主题长标题文档的文末光标保持在正文视口内", async ({ pa
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await page.locator(".cm-content").click();
   await page.keyboard.press(documentEnd);
-  await expect.poll(caretVisible).toBe(true);
+  try {
+    await expect.poll(caretVisible).toBe(true);
+  } catch (error) {
+    const bounds = await page.locator(".cm-activeLine").evaluate((line) => {
+      const area = line.closest<HTMLElement>(".document-area")!;
+      return {
+        line: line.getBoundingClientRect().toJSON(),
+        area: area.getBoundingClientRect().toJSON(),
+        scrollTop: area.scrollTop,
+        scrollHeight: area.scrollHeight,
+        clientHeight: area.clientHeight,
+        content: line.textContent,
+      };
+    });
+    throw new Error(
+      `${String(error)}\nSource end bounds: ${JSON.stringify(bounds)}`,
+    );
+  }
   await page.screenshot({ path: "/tmp/moxie-heading-end-source-narrow.png" });
   expect(errors).toEqual([]);
 });

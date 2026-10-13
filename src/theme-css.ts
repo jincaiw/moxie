@@ -114,6 +114,12 @@ export function typoraEditorCSS(css: string): string {
               return `${host} .cm-content .md-h${match[1]}{${declarations(rule.style, (name) => typography.test(name) || (heading.test(name) && !/^(?:margin|padding)/.test(name)))}${spacing}${horizontal}${bottomBorder}border-bottom-color:transparent !important;}`;
             }
             if (/^(?:#write\s*>?\s*)?p$/.test(selector)) {
+              // Paragraphs are measured CodeMirror lines, including soft line
+              // breaks. Preserve direct-child scope and scoped-rule specificity.
+              const paragraphSelector = selector.includes(">")
+                ? ".md-root-paragraph"
+                : ".md-paragraph";
+              const paragraphTypography = `${host} ${selector.startsWith("#write") ? ".cm-content" : ":where(.cm-content)"} ${paragraphSelector}{${declarations(rule.style, (name) => typography.test(name))}}`;
               const spacing = ["top", "bottom"]
                 .map((side) => {
                   const name = `margin-${side}`;
@@ -123,12 +129,12 @@ export function typoraEditorCSS(css: string): string {
                     : "";
                 })
                 .join("");
-              if (!spacing) return "";
+              if (!spacing) return paragraphTypography;
               const gap =
                 "max(0px,var(--md-paragraph-margin-top,0px),var(--md-paragraph-margin-bottom,0px))";
               // Share the measured gap across source blank lines, keeping each
               // one selectable without introducing unmeasured outside margins.
-              return `${host} .cm-content{${spacing}}${host} .cm-content .md-paragraph-gap{font-size:inherit;line-height:inherit;min-height:0;height:calc((${gap} + var(--md-empty-paragraphs)*(1lh + ${gap}))/var(--md-blank-count));}`;
+              return `${paragraphTypography}${host} .cm-content{${spacing}}${host} .cm-content .md-paragraph-gap{font-size:inherit;line-height:inherit;min-height:0;height:calc((${gap} + var(--md-empty-paragraphs)*(1lh + ${gap}))/var(--md-blank-count));}`;
             }
             const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
             if (list) {

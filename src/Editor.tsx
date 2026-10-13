@@ -1149,12 +1149,36 @@ export const Editor = forwardRef<EditorHandle, Props>(
                             instance.state.selection.main.head,
                           );
                           if (!area || !caret) return null;
+                          let top = caret.top;
+                          let bottom = caret.bottom;
+                          // Empty lines can have a measured minimum height larger
+                          // than the caret glyph. Keep that editable box visible too.
+                          if (
+                            !instance.state.doc.lineAt(
+                              instance.state.selection.main.head,
+                            ).length
+                          ) {
+                            const node = instance.domAtPos(
+                              instance.state.selection.main.head,
+                            ).node;
+                            const element =
+                              node.nodeType === Node.ELEMENT_NODE
+                                ? (node as Element)
+                                : node.parentElement;
+                            const line = element
+                              ?.closest(".cm-line")
+                              ?.getBoundingClientRect();
+                            if (line) {
+                              top = Math.min(top, line.top);
+                              bottom = Math.max(bottom, line.bottom);
+                            }
+                          }
                           const bounds = area.getBoundingClientRect();
                           const delta =
-                            caret.top < bounds.top + 8
-                              ? caret.top - bounds.top - 8
-                              : caret.bottom > bounds.bottom - 8
-                                ? caret.bottom - bounds.bottom + 8
+                            top < bounds.top + 8
+                              ? top - bounds.top - 8
+                              : bottom > bounds.bottom - 8
+                                ? bottom - bounds.bottom + 8
                                 : 0;
                           return { area, delta };
                         },

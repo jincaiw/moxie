@@ -934,6 +934,31 @@ function build(
         const line = state.doc.lineAt(node.from);
         const isActive = active(line.from, state.doc.lineAt(node.to).to);
         if (node.name === "Paragraph" || node.name === "Task") {
+          for (
+            let number = Math.max(
+              line.number,
+              state.doc.lineAt(visible.from).number,
+            );
+            number <=
+            Math.min(
+              state.doc.lineAt(node.to).number,
+              state.doc.lineAt(visible.to).number,
+            );
+            number++
+          ) {
+            const paragraphLine = state.doc.line(number);
+            add(
+              paragraphLine.from,
+              paragraphLine.from,
+              Decoration.line({
+                class:
+                  "md-paragraph" +
+                  (node.node.parent?.name === "Document"
+                    ? " md-root-paragraph"
+                    : ""),
+              }),
+            );
+          }
           const layout = listLayout(node.node);
           if (layout) {
             const first = state.doc.lineAt(layout.item.from).number;
