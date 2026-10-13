@@ -359,3 +359,9 @@ E03 检查发现 `html-to-docx` 会把 WebP 原图放入 DOCX，但 Microsoft Wo
 P01 在 Typora 1.14.9 和 Moxie QA 中打开同一 `MARKDOWN_RENDERING_TEST.md` 并定位第 6 节；本轮 CUA 截图画布两边都是 3840×1956。Typora 表格操作不常驻表格上方。Moxie 原先默认以 75% 不透明度持续显示每张表的行列、对齐和编辑按钮；光标已在表格外段落，操作条仍同时出现在两张表上方。现改为默认从布局移除；鼠标悬停单张表格或键盘焦点进入表格时显示，键盘可从单元格聚焦操作按钮，离开时隐藏且不占用额外间距。
 
 新增 Playwright 状态回归检查默认不显示且高度为零、悬停显示、移开隐藏、单元格键盘聚焦显示以及离开焦点后隐藏；旧有表格编辑、操作按钮、窄屏尺寸、Typora 主题保留表格操作的回归同时通过。完整 UI **271 项通过、3 项性能基准跳过**（2 workers、无重试），桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 包打包、Prettier 与 diff 检查通过。该局部修复不代表 P01 全面验收：标题/正文视觉样式、侧栏逐状态、严格统一窗口与系统缩放仍未完成。版本保持 0.16.249，不发布。
+
+## L66：富文本剪贴板按 UTF-8 字节数限额
+
+E02 检查 Electron 主进程 `clipboard:write-rich-text` 时发现，5 MB 限制比较的是 JavaScript `string.length`，而非系统剪贴板实际承载的 UTF‑8 大小。Emoji 以两个 UTF‑16 code units 表示、UTF‑8 编码占四个字节，因此 HTML 或纯文本 Unicode 内容能够超过 5 MiB 仍通过检查。现对 HTML 与纯文本都用 `Buffer.byteLength(value, "utf8")` 比较 5 MiB 限额。
+
+在桌面回归中加入 5 MiB + 4 字节的 emoji 纯文本和 HTML 载荷，旧实现先稳定复现缺少拒绝，修复后两者都被拒绝；现有 ASCII 超限检查和正常富文本双格式写入也通过。桌面逻辑 **65 项通过**，生产构建、macOS arm64 QA 打包、Prettier 和 diff 检查通过。修改只在 Electron 主进程 IPC 大小校验和桌面测试，本轮未重复完整 Playwright（L65 为 271 通过、3 项性能跳过）。原生跨应用粘贴、IME/VoiceOver 和其他 E02 条件仍待验收；其余 P01/E01–E06 门槛未完成，版本仍为 0.16.249，不发布。

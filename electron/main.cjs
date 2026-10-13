@@ -221,8 +221,8 @@ function setupIPC() {
       !input ||
       typeof input.html !== "string" ||
       typeof input.text !== "string" ||
-      input.html.length > 5 * 1024 * 1024 ||
-      input.text.length > 5 * 1024 * 1024
+      Buffer.byteLength(input.html, "utf8") > 5 * 1024 * 1024 ||
+      Buffer.byteLength(input.text, "utf8") > 5 * 1024 * 1024
     )
       throw Error("复制内容无效或超出 5 MB 限制");
     clipboard.write({ html: input.html, text: input.text });

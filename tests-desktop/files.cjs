@@ -662,6 +662,15 @@ test("富文本剪贴板 IPC 同时写入 HTML 与纯文本并限制大小", asy
     }),
     /5 MB 限制/,
   );
+  const oversizedUnicode = "😀".repeat(Math.floor((5 * 1024 * 1024) / 4) + 1);
+  for (const input of [
+    { html: "", text: oversizedUnicode },
+    { html: oversizedUnicode, text: "" },
+  ])
+    await assert.rejects(
+      h.call("clipboard:write-rich-text", input),
+      /5 MB 限制/,
+    );
 });
 test("打开、原子保存、外部修改取消和明确覆盖", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-test-"));
