@@ -258,6 +258,23 @@ async function moveFileNoReplace(source, destination) {
     );
   }
 }
+const imageOperationLocks = new Map();
+async function withImageOperationLock(key, operation) {
+  const previous = imageOperationLocks.get(key) || Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
+  });
+  imageOperationLocks.set(key, current);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (imageOperationLocks.get(key) === current)
+      imageOperationLocks.delete(key);
+  }
+}
 async function createAuthorizedDirectory(root, target) {
   const relative = path.relative(root, target);
   if (!inside(root, target)) throw Error("图片目录必须位于已打开的文件夹内");
@@ -1479,13 +1496,28 @@ class FileStore {
     const type = imageType(bytes);
     return `data:${type.mime};base64,${bytes.toString("base64")}`;
   }
-  async manageImage({
-    documentPath,
-    sourcePath,
-    targetPath,
-    mode,
-    avoidCollision = false,
-  }) {
+  async manageImage(input) {
+    const { documentPath, sourcePath } = input || {};
+    if (
+      typeof sourcePath !== "string" ||
+      !sourcePath ||
+      sourcePath.includes("\0") ||
+      path.isAbsolute(sourcePath)
+    )
+      throw Error("图片路径无效");
+    const { directory, root } = await this.resourceRoot(documentPath);
+    const source = path.resolve(directory, sourcePath);
+    if (!inside(await fs.realpath(root), source))
+      throw Error("图片必须位于已打开的文件夹内");
+    const lockedSource = await fs.realpath(source);
+    return withImageOperationLock(lockedSource, () =>
+      this.manageImageUnlocked(input, lockedSource),
+    );
+  }
+  async manageImageUnlocked(
+    { documentPath, sourcePath, targetPath, mode, avoidCollision = false },
+    lockedSource,
+  ) {
     if (!["copy", "move"].includes(mode)) throw Error("图片操作无效");
     if (typeof avoidCollision !== "boolean") throw Error("图片操作参数无效");
     for (const value of [sourcePath, targetPath])
@@ -1508,6 +1540,8 @@ class FileStore {
     const resolved = await fs.realpath(source);
     if (!inside(rootPath, resolved))
       throw Error("图片不能指向已打开文件夹之外");
+    if (resolved !== lockedSource)
+      throw Error("图片源路径在操作期间发生变化，请重试");
     imageType(await fs.readFile(resolved));
     if (source === target) {
       if (!avoidCollision) throw Error("图片目标路径不能与原图相同");

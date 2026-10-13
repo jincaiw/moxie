@@ -1390,6 +1390,62 @@ test("图片并发同名复制不覆盖，目标失败保留源文件且可重�
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+test("同一源图片的并发移动串行执行且只允许一次成功", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-image-source-lock-"),
+  );
+  try {
+    const documentPath = path.join(root, "note.md");
+    const store = new FileStore();
+    await fs.writeFile(documentPath, "# Note");
+    await store.read(documentPath);
+    await fs.writeFile(path.join(root, "source.png"), png);
+    const results = await Promise.allSettled([
+      store.manageImage({
+        documentPath,
+        sourcePath: "source.png",
+        targetPath: "first/source.png",
+        mode: "move",
+      }),
+      store.manageImage({
+        documentPath,
+        sourcePath: "source.png",
+        targetPath: "second/source.png",
+        mode: "move",
+      }),
+    ]);
+    assert.equal(
+      results.filter((result) => result.status === "fulfilled").length,
+      1,
+    );
+    assert.equal(
+      results.filter((result) => result.status === "rejected").length,
+      1,
+    );
+    const success = results.find((result) => result.status === "fulfilled");
+    assert.deepEqual(
+      await fs.readFile(path.join(root, success.value.relativePath)),
+      png,
+    );
+    await assert.rejects(fs.stat(path.join(root, "source.png")), {
+      code: "ENOENT",
+    });
+    const targets = await Promise.all(
+      ["first/source.png", "second/source.png"].map((file) =>
+        fs.stat(path.join(root, file)).then(
+          () => true,
+          (error) => {
+            if (error.code === "ENOENT") return false;
+            throw error;
+          },
+        ),
+      ),
+    );
+    assert.equal(targets.filter(Boolean).length, 1);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
 test("自动保存不弹出路径或冲突对话框，不覆盖外部修改", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-auto-"));
   try {
