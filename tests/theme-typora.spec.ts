@@ -32,6 +32,54 @@ test("Typora 主题的水平分隔线映射高度、留白和颜色", async ({ p
     .toBe("17px");
 });
 
+test("Typora 主题只为文档首个顶层列表增加上边距", async ({ page }) => {
+  const source =
+    "- 首个列表项\n- 第二个列表项\n\n正文\n\n- 后续列表\n  - 嵌套列表";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "root-list-margin.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = `#write{font-size:16px}
+      #write > ul:first-child,#write > ol:first-child{margin-top:30px}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line").filter({ hasText: "正文" }).click();
+  const first = page.locator(".cm-line.md-first-root-list");
+  await expect(first).toHaveCount(1);
+  await expect(first).toHaveCSS("padding-top", "30px");
+  await expect(
+    page.locator(".cm-line.md-list-line").filter({ hasText: "第二个列表项" }),
+  ).toHaveCSS("padding-top", "0px");
+  await expect(
+    page.locator(".cm-line.md-list-line").filter({ hasText: "后续列表" }),
+  ).toHaveCSS("padding-top", "0px");
+  await expect(
+    page.locator(".cm-line.md-list-line").filter({ hasText: "嵌套列表" }),
+  ).toHaveCSS("padding-top", "0px");
+});
+
+test("前置文档属性使后续列表不再是主题 CSS 的首个子项", async ({ page }) => {
+  const source = "---\ntitle: 文档属性\n---\n\n- 属性后的列表";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "front-matter-list.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  const list = page.getByText("属性后的列表");
+  await expect(list).toBeVisible();
+  await list.click();
+  await expect(page.locator(".cm-line.md-first-root-list")).toHaveCount(0);
+});
+
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
   const source =
     "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";

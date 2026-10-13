@@ -165,6 +165,12 @@ export function typoraEditorCSS(css: string): string {
                 : ":where(.cm-content)";
               return `${host} ${scope} ${context}{${declarations(rule.style, (name) => typography.test(name))}}`;
             }
+            if (/^#write\s*>\s*(?:ul|ol):first-child$/.test(selector)) {
+              const marginTop = rule.style.getPropertyValue("margin-top");
+              return marginTop
+                ? `${host} .cm-content .md-first-root-list{padding-top:${marginTop}${rule.style.getPropertyPriority("margin-top") ? " !important" : ""};}`
+                : "";
+            }
             const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
             if (list) {
               const inset = rule.style.getPropertyValue("padding-left");

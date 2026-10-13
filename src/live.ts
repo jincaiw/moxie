@@ -769,15 +769,30 @@ function build(
     if (!item) return null;
     return { item, bullets, ordered, kind };
   };
+  const isFirstRootList = (node: SyntaxNode, item: SyntaxNode) => {
+    let topLevel = node;
+    while (topLevel.parent && topLevel.parent.name !== "Document")
+      topLevel = topLevel.parent;
+    const firstChild = topLevel.parent?.firstChild;
+    const firstItem = topLevel.firstChild;
+    return (
+      topLevel.parent?.name === "Document" &&
+      topLevel.from === firstChild?.from &&
+      (topLevel.name === "BulletList" || topLevel.name === "OrderedList") &&
+      firstItem?.name === "ListItem" &&
+      item.from === firstItem.from
+    );
+  };
   const listLine = (
     from: number,
     layout: NonNullable<ReturnType<typeof listLayout>>,
+    firstRootList = false,
   ) => {
     add(
       from,
       from,
       Decoration.line({
-        class: "md-list-line",
+        class: `md-list-line${firstRootList ? " md-first-root-list" : ""}`,
         attributes: {
           style: `--md-list-offset:calc(${layout.bullets} * var(--md-bullet-inset,30px) + ${layout.ordered} * var(--md-ordered-inset,30px));--md-list-marker-width:var(--md-${layout.kind}-inset,30px)`,
         },
@@ -1375,7 +1390,12 @@ function build(
           const layout = listLayout(node.node);
           const marker = state.doc.sliceString(node.from, node.to);
           if (layout && /^(?:[-+*]|\d+[.)])$/.test(marker)) {
-            listLine(line.from, layout);
+            listLine(
+              line.from,
+              layout,
+              layout.bullets + layout.ordered === 1 &&
+                isFirstRootList(node.node, layout.item),
+            );
             hideListIndent(line.from, node.from);
             const gap = /^[ \t]*/.exec(
               state.doc.sliceString(node.to, line.to),
