@@ -83,6 +83,15 @@ export function typoraEditorCSS(css: string): string {
               return `${host} .cm-content .md-link{${declarations(rule.style, (name) => typography.test(name))}}`;
             if (/^(?:#write\s*(?:>\s*|\s+))?\.md-lang$/.test(selector))
               return `${host} .cm-content .md-code-language{${declarations(rule.style, (name) => typography.test(name))}}`;
+            if (/^(?:#write\s*(?:>\s*|\s+))?pre\.md-meta-block$/.test(selector))
+              return `${host} .cm-content .md-front-matter{${declarations(
+                rule.style,
+                (name) => typography.test(name) || surface.test(name),
+              )}}${host} .md-metadata-source{${declarations(
+                rule.style,
+                (name) =>
+                  typography.test(name) || surface.test(name) || box.test(name),
+              )}}`;
             const match = /^(?:#write\s*>?\s*)?h([1-6])$/.exec(selector);
             if (match) {
               // CodeMirror measures each line's border box. Vertical margins

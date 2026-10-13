@@ -191,6 +191,36 @@ test("Typora 主题代码语言标签映射 md-lang 颜色", async ({ page }) =>
   );
 });
 
+test("Typora 主题的 YAML 元数据源码样式映射前置属性", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "theme-metadata-style.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("---\ntitle: 示例\n---\n\n正文"),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = `#write{font-size:16px}
+      #write pre.md-meta-block{padding:1rem;font-size:85%;line-height:1.45;background-color:#f7f7f7;border:0;color:#777;margin-top:0 !important}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  const preview = page.locator(".md-metadata-source");
+  await expect(preview).toHaveCSS("font-size", "13.6px");
+  await expect(preview).toHaveCSS("line-height", "19.72px");
+  await expect(preview).toHaveCSS("background-color", "rgb(247, 247, 247)");
+  await expect(preview).toHaveCSS("color", "rgb(119, 119, 119)");
+  await expect(preview).toHaveCSS("padding-top", "16px");
+  await page.getByRole("button", { name: "展开文档属性源码" }).click();
+  await expect(page.locator(".cm-line.md-front-matter").first()).toHaveCSS(
+    "font-size",
+    "13.6px",
+  );
+});
+
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
   const source =
     "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";

@@ -1,3 +1,7 @@
+## 接续 L72：Typora YAML 前置属性主题样式
+
+补齐 GitHub 主题 `#write pre.md-meta-block` 在 Moxie YAML 前置属性编辑行/源码预览的样式映射。真实 CSS 值回归验证 85% 字号、1.45 行高、前景/背景色及预览内边距；全量 Playwright 279 通过 / 3 性能跳过、桌面 65 通过、生产构建与隔离 macOS QA 包通过。P01/E01–E06 仍开放；最新 Release v0.16.249，仓库 Secrets 为空且无 Developer ID 身份，不能发版。
+
 ## 接续 L71：Typora GitHub 主题尾项
 
 修复本机 GitHub 主题裸 URL 链接色、嵌套引用 `padding-right: 0`、`.md-lang` 代码语言标签色三项未映射规则。三个样式回归确认修复前差异及修复后值；全量 Playwright 278 通过 / 3 性能跳过、桌面 65 通过、生产构建和 macOS QA 包通过。P01/E01–E06 仍开放，具体完成标准见下方清单；v0.16.249 仍是最新发布，仓库未配置签名 Secrets，不发布。

@@ -1,3 +1,9 @@
+## 最新交接：2026-10-14 L72 Typora YAML 前置属性样式
+
+对照本机 GitHub 主题发现 `#write pre.md-meta-block` 样式未映射到 YAML 前置属性。现将字体、行高、颜色和背景映射到编辑行及源码预览，并将主题预览的内边距/盒模型映射到预览区。回归确认字号 13.6px、行高 19.72px、`#777` 文字、`#f7f7f7` 背景和 16px 内边距，编辑态前置属性行也按主题缩放。全量 Playwright **279 通过、3 项性能跳过**，桌面逻辑 **65 通过**，生产构建、隔离 QA 包及格式检查通过。详见[计划 L72](typora-current-plan.md)。
+
+已重新核对发布前置条件：GitHub 最新 Release 为 v0.16.249，包版本为 0.16.249，Actions Secret 列表为空，本机仅有 Apple Development 签名身份。release workflow 要求匹配版本的 `v*` 标签；Developer ID/公证、P01 同尺寸全状态原生对照、E02–E06 实机/目标应用/主题及性能验收仍开放，不创建发布标签。
+
 ## 2026-10-14 接续 L71：Typora GitHub 主题规则
 
 L71 补齐本机 Typora 1.14.9 GitHub 主题中裸 URL 链接色、嵌套引用右内边距、代码语言标签色三项映射。全量 Playwright 278 项通过、3 项性能基准跳过，桌面逻辑 65 项通过，生产构建和隔离 macOS QA 包通过；记录见 [Typora 当前计划](typora-current-plan.md)。
