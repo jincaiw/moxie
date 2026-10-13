@@ -179,9 +179,16 @@ export async function rehomeImages(
     });
   }
   matches.sort((a, b) => b.start - a.start);
+  const relocated = new Map<string, string>();
   for (const match of matches) {
     const src = match.src;
     if (/^[a-z][a-z0-9+.-]*:/i.test(src)) continue;
+    const sourcePath = decodeURIComponent(src);
+    const existing = relocated.get(sourcePath);
+    if (existing !== undefined) {
+      text = text.slice(0, match.start) + existing + text.slice(match.end);
+      continue;
+    }
     const data = await resolveImage(src, oldPath);
     const bytes = Uint8Array.from(
       atob(data.slice(data.indexOf(",") + 1)),
@@ -195,6 +202,7 @@ export async function rehomeImages(
       .split("/")
       .map(encodeURIComponent)
       .join("/");
+    relocated.set(sourcePath, encoded);
     text = text.slice(0, match.start) + encoded + text.slice(match.end);
   }
   return text;
@@ -408,13 +416,17 @@ export async function manageLocalImages(
       // Malformed percent escapes remain visible and are skipped.
     }
   }
-  if (sources.size > 100) throw new Error("单次最多管理 100 张本地图片。");
+  // Encoded spellings may refer to the same file. Move each decoded source
+  // once, then apply its result to every inline, HTML and reference occurrence.
+  const uniqueSources = new Set(sources.values());
+  if (uniqueSources.size > 100)
+    throw new Error("单次最多管理 100 张本地图片。");
   const directory = targetDirectory.trim().replace(/[\\/]+$/, "");
   if (!directory) throw new Error("请输入图片目标文件夹。");
   const replacements = new Map<string, string>();
   const operations: { sourcePath: string; targetPath: string }[] = [];
   let failed = matches.filter((match) => !sources.has(match.url)).length;
-  for (const [encoded, sourcePath] of sources) {
+  for (const sourcePath of uniqueSources) {
     const name = sourcePath.split(/[\\/]/).at(-1)!;
     const targetPath = `${directory}/${name}`;
     try {
@@ -427,7 +439,7 @@ export async function manageLocalImages(
       });
       operations.push({ sourcePath, targetPath: result.relativePath });
       replacements.set(
-        encoded,
+        sourcePath,
         result.relativePath.split("/").map(encodeURIComponent).join("/"),
       );
     } catch {
@@ -435,18 +447,18 @@ export async function manageLocalImages(
     }
   }
   const updates = matches
-    .filter((match) => replacements.has(match.url))
+    .filter((match) => replacements.has(sources.get(match.url)!))
     .sort((a, b) => b.start - a.start);
   for (const match of updates)
     text =
       text.slice(0, match.start) +
-      replacements.get(match.url)! +
+      replacements.get(sources.get(match.url)!)! +
       text.slice(match.end);
   return {
     text,
     managed: replacements.size,
     failed,
-    found: sources.size,
+    found: uniqueSources.size,
     operations,
   };
 }

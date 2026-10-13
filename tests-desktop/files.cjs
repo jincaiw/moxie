@@ -1329,6 +1329,67 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
     await fs.rm(outside, { recursive: true, force: true });
   }
 });
+test("图片并发同名复制不覆盖，目标失败保留源文件且可重试", async () => {
+  const root = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-image-collision-"),
+  );
+  try {
+    const documentPath = path.join(root, "note.md");
+    const store = new FileStore();
+    await fs.writeFile(documentPath, "# Note");
+    await store.read(documentPath);
+    await fs.writeFile(path.join(root, "source.png"), png);
+    await fs.mkdir(path.join(root, "target"));
+    const sentinel = Buffer.from("existing target must survive");
+    await fs.writeFile(path.join(root, "target/image.png"), sentinel);
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        store.manageImage({
+          documentPath,
+          sourcePath: "source.png",
+          targetPath: "target/image.png",
+          mode: "copy",
+          avoidCollision: true,
+        }),
+      ),
+    );
+    assert.equal(new Set(results.map((item) => item.relativePath)).size, 12);
+    assert.deepEqual(
+      await fs.readFile(path.join(root, "target/image.png")),
+      sentinel,
+    );
+    for (const result of results)
+      assert.deepEqual(
+        await fs.readFile(path.join(root, result.relativePath)),
+        png,
+      );
+    await fs.writeFile(path.join(root, "blocked"), "not a directory");
+    await assert.rejects(() =>
+      store.manageImage({
+        documentPath,
+        sourcePath: "source.png",
+        targetPath: "blocked/image.png",
+        mode: "move",
+      }),
+    );
+    assert.deepEqual(await fs.readFile(path.join(root, "source.png")), png);
+    const moved = await store.manageImage({
+      documentPath,
+      sourcePath: "source.png",
+      targetPath: "recovered/image.png",
+      mode: "move",
+    });
+    assert.deepEqual(
+      await fs.readFile(path.join(root, moved.relativePath)),
+      png,
+    );
+    await assert.rejects(() => fs.stat(path.join(root, "source.png")), {
+      code: "ENOENT",
+    });
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
 test("自动保存不弹出路径或冲突对话框，不覆盖外部修改", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-auto-"));
   try {
