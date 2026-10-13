@@ -2551,6 +2551,30 @@ export default function App() {
                     value={outlineQuery}
                     onChange={(event) => setOutlineQuery(event.target.value)}
                     onKeyDown={(event) => {
+                      if (
+                        event.nativeEvent.isComposing ||
+                        event.altKey ||
+                        event.ctrlKey ||
+                        event.metaKey ||
+                        event.shiftKey
+                      )
+                        return;
+                      if (
+                        ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)
+                      ) {
+                        event.preventDefault();
+                        const rows =
+                          outlineNavigation.current?.querySelectorAll<HTMLButtonElement>(
+                            ".outline-row",
+                          );
+                        const target =
+                          event.key === "ArrowUp"
+                            ? rows?.[rows.length - 1]
+                            : rows?.[0];
+                        if (event.key === "Enter") target?.click();
+                        else target?.focus();
+                        return;
+                      }
                       if (event.key === "Escape") {
                         event.preventDefault();
                         if (outlineQuery) setOutlineQuery("");
@@ -2708,6 +2732,10 @@ export default function App() {
                       (event.key === "ArrowLeft" || event.key === "ArrowRight")
                     ) {
                       event.preventDefault();
+                      // Filtering exposes a list of matches, not a subtree.
+                      // Keep the stored folds unchanged and never treat the
+                      // next match in another branch as this row's child.
+                      if (outlineQuery.trim()) return;
                       const row = outlineRows[index];
                       if (
                         row.hasChildren &&
@@ -2761,7 +2789,9 @@ export default function App() {
                         key={heading.from}
                         style={{ paddingLeft: 6 + (heading.level - 1) * 12 }}
                       >
-                        {outlineCollapsible && hasChildren ? (
+                        {outlineCollapsible &&
+                        !outlineQuery.trim() &&
+                        hasChildren ? (
                           <button
                             className="outline-toggle"
                             aria-label={`${collapsed ? "展开" : "折叠"} ${heading.title}`}
