@@ -93,3 +93,38 @@ test("真实 Pandoc：五种格式中文、列表、表格和图片往返", asyn
     await fs.rm(root, { recursive: true, force: true });
   }
 });
+
+test("真实 Pandoc：伴随图片目录重写不改代码示例", async (t) => {
+  const executable = await findPandoc();
+  assert.ok(executable, "此专项需要已安装的 Pandoc");
+  const png =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aVFEAAAAASUVORK5CYII=";
+  for (const format of ["latex", "mediawiki"]) {
+    await t.test(format, async () => {
+      const assetsDirectoryName = `sample.${format}_assets`;
+      const output = await exportWithPandoc({
+        html: `<html><body><pre><code>media/image-1.png</code></pre><img alt="image" src="data:image/png;base64,${png}"></body></html>`,
+        format,
+        name: "sample.md",
+        executable,
+        assetsDirectoryName,
+      });
+      const document = output.data.toString("utf8");
+      assert.ok(document.includes("media/image-1.png"));
+      assert.ok(document.includes(`${assetsDirectoryName}/image-1.png`));
+      if (format === "latex") {
+        assert.match(
+          document,
+          /\\begin\{verbatim\}\s*media\/image-1\.png\s*\\end\{verbatim\}/,
+        );
+        assert.doesNotMatch(
+          document,
+          /\\includegraphics[^\n]*\{media\/image-1\.png\}/,
+        );
+      } else {
+        assert.match(document, /<pre>media\/image-1\.png<\/pre>/);
+        assert.doesNotMatch(document, /\[\[File:media\/image-1\.png/);
+      }
+    });
+  }
+});

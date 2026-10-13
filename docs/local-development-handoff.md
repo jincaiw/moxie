@@ -288,3 +288,7 @@ L29 将层级缩进、悬挂对齐扩展到任务、引用内列表与续行，�
 ## L35 交接补充
 
 已复核全任务及远端发布条件；新增真实 Pandoc 专项并修复提取图片嵌套目录 / 哈希文件名导入。使用 Node 22 运行 `npm run test:pandoc:real`。LaTeX 宏内图片再次导入丢失仍待处理；本轮 IME 没有候选框证据、LibreOffice 未得到可见文档或转换 PDF，不能标为通过。完整证据及剩余顺序见 [总核查](work-task-audit-2026-10-11.md)。当前 QA 仍是 d5d6d86；L35 为主进程导入修复，尚未打包替换正在运行的 QA。未命名测试标签与恢复数据保留。
+
+## 2026-10-13 接续 L62：Pandoc 伴随资源路径
+
+修复 LaTeX / MediaWiki companion-assets 路径重写污染代码块字面路径：只改写真实图片引用，并保护注释、verbatim / `<pre>`。真实 Pandoc 3.11 两格式回归及桌面逻辑通过。当前真实 Pandoc 9 项、桌面 64 项、生产构建通过；完整 Playwright **270 项通过、3 项性能基准跳过**（2 workers、无重试）。Microsoft Word/WPS 字体分页、Preview/打印和真实目标阅读器仍待验收，正式版本 0.16.249，未发布。

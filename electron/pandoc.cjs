@@ -126,6 +126,42 @@ function unavailableImage(altText) {
   return `<span>${altText ? `[图片：${escapeHTML(altText)}]` : "[图片资源未嵌入]"}</span>`;
 }
 
+function rewriteOutsideProtected(text, protectedPattern, rewrite) {
+  let output = "";
+  let cursor = 0;
+  for (const match of text.matchAll(protectedPattern)) {
+    output += rewrite(text.slice(cursor, match.index)) + match[0];
+    cursor = match.index + match[0].length;
+  }
+  return output + rewrite(text.slice(cursor));
+}
+
+function rewriteCompanionImagePaths(text, format, assetsDirectoryName) {
+  const rewritePath = (_match, prefix, imagePath, suffix) =>
+    `${prefix}${assetsDirectoryName}/${imagePath.slice("media/".length)}${suffix}`;
+  if (format === "latex") {
+    const literals =
+      /\\begin\{(verbatim\*?|Verbatim|lstlisting|minted)\}[\s\S]*?\\end\{\1\}|\\verb\*?([^a-zA-Z\s])[^\r\n]*?\2|\\[%\\]|%[^\r\n]*/g;
+    return rewriteOutsideProtected(text, literals, (segment) =>
+      segment.replace(
+        /(\\includegraphics\b(?:\[[^\r\n]*?\])?\{)(media\/[^{}\r\n]+)(\})/g,
+        rewritePath,
+      ),
+    );
+  }
+  if (format === "mediawiki") {
+    const literals = /<!--[\s\S]*?-->|<pre\b[^>]*>[\s\S]*?<\/pre\s*>/gi;
+    return rewriteOutsideProtected(text, literals, (segment) =>
+      segment.replace(
+        /(\[\[File:)(media\/[^|\]]+)(?=[|\]])/gi,
+        (_match, prefix, imagePath) =>
+          `${prefix}${assetsDirectoryName}/${imagePath.slice("media/".length)}`,
+      ),
+    );
+  }
+  return text;
+}
+
 async function prepareHTML(html, directory) {
   const replacements = [];
   const mediaDirectory = path.join(directory, "media");
@@ -289,7 +325,11 @@ async function exportWithPandoc({
       }
       if (assets.length && assetsDirectoryName) {
         data = Buffer.from(
-          data.toString("utf8").replaceAll("media/", `${assetsDirectoryName}/`),
+          rewriteCompanionImagePaths(
+            data.toString("utf8"),
+            format,
+            assetsDirectoryName,
+          ),
         );
       }
     }
