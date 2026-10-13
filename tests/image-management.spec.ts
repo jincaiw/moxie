@@ -16,13 +16,18 @@ async function start(
   page: Page,
   documentPath: string,
   manage: (input: any) => Promise<any>,
-  options: { source?: string; download?: (input: any) => Promise<any> } = {},
+  options: {
+    source?: string;
+    download?: (input: any) => Promise<any>;
+    store?: (input: any) => Promise<any>;
+  } = {},
 ) {
   await page.exposeFunction("testManageImage", manage);
   if (options.download)
     await page.exposeFunction("testDownloadImage", options.download);
+  if (options.store) await page.exposeFunction("testStoreImage", options.store);
   await page.addInitScript(
-    ({ documentPath, source, image, hasDownload }) => {
+    ({ documentPath, source, image, hasDownload, hasStore }) => {
       localStorage.setItem(
         "moxie.recovery.v1",
         JSON.stringify([
@@ -47,6 +52,9 @@ async function start(
         downloadRemoteImage: hasDownload
           ? (input: any) => state.testDownloadImage(input)
           : undefined,
+        storeImage: hasStore
+          ? (input: any) => state.testStoreImage(input)
+          : undefined,
         onAction: (callback: any) => {
           state.nativeAction = callback;
           return () => {};
@@ -59,13 +67,14 @@ async function start(
       documentPath,
       source: options.source || source,
       hasDownload: Boolean(options.download),
+      hasStore: Boolean(options.store),
       image: "data:image/png;base64," + png.toString("base64"),
     },
   );
   await page.goto("/");
   await page.getByRole("button", { name: "源码", exact: true }).click();
-  await expect(page.locator(".cm-content")).toContainText("a.png");
   if (options.source) return;
+  await expect(page.locator(".cm-content")).toContainText("a.png");
   await page.evaluate(() => (window as any).nativeAction("move-local-images"));
   await page.getByRole("button", { name: "移动图片", exact: true }).click();
 }
@@ -110,6 +119,66 @@ test("远程图片下载期间保留文档，编辑不被旧快照覆盖", async
     await expect(page.locator(".cm-content")).not.toContainText(
       "_images/a.png",
     );
+    expect(calls).toHaveLength(1);
+  } finally {
+    release();
+  }
+});
+
+test("粘贴图片写入期间拒绝关闭和退出，完成后插入内容并释放保护", async ({
+  page,
+}) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const calls: any[] = [];
+  try {
+    await start(page, "/notes/managed.md", async () => ({}), {
+      source: "# 粘贴图片\n",
+      store: async (input) => {
+        calls.push(input);
+        await gate;
+        return { relativePath: "_images/pasted.png" };
+      },
+    });
+    await page.locator(".cm-content").click();
+    await page.evaluate(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(
+        new File([new Uint8Array([1, 2, 3])], "pasted.png", {
+          type: "image/png",
+        }),
+      );
+      document.querySelector(".cm-content")!.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData: transfer,
+        }),
+      );
+    });
+    await expect.poll(() => calls.length).toBe(1);
+    await page
+      .getByRole("group", { name: "已打开文档" })
+      .getByRole("button", { name: "关闭 managed.md", exact: true })
+      .click();
+    await expect(page.locator(".cm-content")).toContainText("粘贴图片");
+    await page.evaluate(() => (window as any).nativeAction("keep-close", 704));
+    await expect
+      .poll(() => page.evaluate(() => (window as any).closeResults))
+      .toEqual([["cancel", 704]]);
+    release();
+    await expect(page.locator(".cm-content")).toContainText(
+      "_images/pasted.png",
+    );
+    await page.evaluate(() => (window as any).nativeAction("keep-close", 705));
+    await expect
+      .poll(() => page.evaluate(() => (window as any).closeResults))
+      .toEqual([
+        ["cancel", 704],
+        ["ready", 705],
+      ]);
     expect(calls).toHaveLength(1);
   } finally {
     release();

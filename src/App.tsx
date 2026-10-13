@@ -3840,7 +3840,23 @@ export default function App() {
             onImages={async (files) => {
               if (readOnlyRef.current || preparingCloseRef.current)
                 throw Error("当前为只读模式，请先恢复编辑。");
+              if (imageOperationDocument.current !== current.id)
+                throw Error("图片插入操作状态已失效，请重试。");
               return withImages(current)(files);
+            }}
+            onImageOperation={(documentId, active) => {
+              if (active) {
+                if (imageOperationDocument.current) {
+                  setMessage("正在处理图片，请完成后再插入。");
+                  return false;
+                }
+                editor.current?.flush();
+                imageOperationDocument.current = documentId;
+                return true;
+              }
+              if (imageOperationDocument.current === documentId)
+                imageOperationDocument.current = null;
+              return true;
             }}
             onError={setMessage}
           />

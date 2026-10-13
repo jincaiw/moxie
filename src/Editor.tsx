@@ -102,6 +102,7 @@ type Props = {
   onLink: (href: string) => void;
   onContextMenu: (point: { left: number; top: number }) => void;
   onImages: (files: File[]) => Promise<string>;
+  onImageOperation: (documentId: string, active: boolean) => boolean;
   onFileLink: (target: string, label?: string) => Promise<string>;
   onError: (message: string) => void;
 };
@@ -629,6 +630,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
     const insertImages = async (files: File[]) => {
       const instance = view.current;
       if (!instance || !files.length) return;
+      if (!latest.current.onImageOperation(id, true)) return;
       const point = {
         from: instance.state.selection.main.from,
         to: instance.state.selection.main.to,
@@ -651,6 +653,7 @@ export const Editor = forwardRef<EditorHandle, Props>(
         );
       } finally {
         pending.current.delete(point);
+        latest.current.onImageOperation(id, false);
       }
     };
     const insertFileLink = async (target: string) => {
