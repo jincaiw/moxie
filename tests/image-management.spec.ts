@@ -16,10 +16,13 @@ async function start(
   page: Page,
   documentPath: string,
   manage: (input: any) => Promise<any>,
+  options: { source?: string; download?: (input: any) => Promise<any> } = {},
 ) {
   await page.exposeFunction("testManageImage", manage);
+  if (options.download)
+    await page.exposeFunction("testDownloadImage", options.download);
   await page.addInitScript(
-    ({ documentPath, source, image }) => {
+    ({ documentPath, source, image, hasDownload }) => {
       localStorage.setItem(
         "moxie.recovery.v1",
         JSON.stringify([
@@ -41,6 +44,9 @@ async function start(
         dirty: () => {},
         readImage: async () => image,
         manageImage: (input: any) => state.testManageImage(input),
+        downloadRemoteImage: hasDownload
+          ? (input: any) => state.testDownloadImage(input)
+          : undefined,
         onAction: (callback: any) => {
           state.nativeAction = callback;
           return () => {};
@@ -51,16 +57,64 @@ async function start(
     },
     {
       documentPath,
-      source,
+      source: options.source || source,
+      hasDownload: Boolean(options.download),
       image: "data:image/png;base64," + png.toString("base64"),
     },
   );
   await page.goto("/");
   await page.getByRole("button", { name: "源码", exact: true }).click();
   await expect(page.locator(".cm-content")).toContainText("a.png");
+  if (options.source) return;
   await page.evaluate(() => (window as any).nativeAction("move-local-images"));
   await page.getByRole("button", { name: "移动图片", exact: true }).click();
 }
+
+test("远程图片下载期间保留文档，编辑不被旧快照覆盖", async ({ page }) => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const remoteSource = "# 图片下载\n\n![远程](https://example.test/a.png)\n";
+  const calls: any[] = [];
+  try {
+    await start(page, "/notes/managed.md", async () => ({}), {
+      source: remoteSource,
+      download: async (input) => {
+        calls.push(input);
+        await gate;
+        return { relativePath: "_images/a.png" };
+      },
+    });
+    await page.evaluate(() =>
+      (window as any).nativeAction("download-remote-images"),
+    );
+    await expect.poll(() => calls.length).toBe(1);
+    await page
+      .getByRole("group", { name: "已打开文档" })
+      .getByRole("button", { name: "关闭 managed.md", exact: true })
+      .click();
+    await expect(page.locator(".cm-content")).toContainText("example.test");
+    await page.locator(".cm-content").click();
+    await page.keyboard.press(documentEnd);
+    await page.keyboard.insertText("\n保留下载期间的编辑");
+    await page.evaluate(() => (window as any).nativeAction("keep-close", 703));
+    await expect
+      .poll(() => page.evaluate(() => (window as any).closeResults))
+      .toEqual([["cancel", 703]]);
+    release();
+    await expect(page.locator(".cm-content")).toContainText(
+      "保留下载期间的编辑",
+    );
+    await expect(page.locator(".cm-content")).toContainText("example.test");
+    await expect(page.locator(".cm-content")).not.toContainText(
+      "_images/a.png",
+    );
+    expect(calls).toHaveLength(1);
+  } finally {
+    release();
+  }
+});
 
 test("图片操作期间禁止重复管理、关闭该文档或退出，完成后可以退出", async ({
   page,

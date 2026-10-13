@@ -1088,15 +1088,26 @@ export default function App() {
     setImageSizeDialog(size);
   };
   const downloadDocumentImages = async () => {
+    if (imageOperationDocument.current) {
+      setMessage("正在处理此文档的图片，请完成后再操作。");
+      return;
+    }
     if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，请先恢复编辑。");
       return;
     }
-    const originalText = current.text;
-    const documentId = current.id;
-    const originalPath = current.path;
+    editor.current?.flush();
+    const original =
+      workspace.docsRef.current.find(
+        (document) => document.id === current.id,
+      ) || current;
+    const originalText = original.text;
+    const documentId = original.id;
+    const originalPath = original.path;
+    imageOperationDocument.current = documentId;
     try {
       const result = await downloadRemoteImages(originalText, originalPath);
+      editor.current?.flush();
       const latest = workspace.docsRef.current.find(
         (document) => document.id === documentId,
       );
@@ -1120,6 +1131,8 @@ export default function App() {
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      imageOperationDocument.current = null;
     }
   };
   const manageDocumentImages = async (
@@ -1637,7 +1650,7 @@ export default function App() {
   };
   const requestClose = (document: DocumentFile = current) => {
     if (imageOperationDocument.current === document.id) {
-      setMessage("正在管理此文档的图片，请完成后再关闭。");
+      setMessage("正在处理此文档的图片，请完成后再关闭。");
       return;
     }
     closeOrigin.current =
