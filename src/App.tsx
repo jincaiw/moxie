@@ -515,6 +515,11 @@ export default function App() {
   }, [current.path, folderWorkspace.root, Boolean(folderWorkspace.tree)]);
   const [preparingClose, setPreparingClose] = useState(false);
   const preparingCloseRef = useRef(false);
+  const imageOperationDocument = useRef<string | null>(null);
+  const [imageRecoveryFailures, setImageRecoveryFailures] = useState<{
+    documentPath: string;
+    paths: string[];
+  } | null>(null);
   const [readOnly, setReadOnly] = useState(false);
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
@@ -1121,13 +1126,23 @@ export default function App() {
     mode: "copy" | "move",
     targetDirectory: string,
   ) => {
+    if (imageOperationDocument.current) {
+      setMessage("正在管理本地图片，请完成后再操作。");
+      return;
+    }
     if (readOnlyRef.current || preparingCloseRef.current) {
       setMessage("当前为只读模式，请先恢复编辑。");
       return;
     }
-    const originalText = current.text;
-    const documentId = current.id;
-    const originalPath = current.path;
+    editor.current?.flush();
+    const original =
+      workspace.docsRef.current.find(
+        (document) => document.id === current.id,
+      ) || current;
+    const originalText = original.text;
+    const documentId = original.id;
+    const originalPath = original.path;
+    imageOperationDocument.current = documentId;
     try {
       const result = await manageLocalImages(
         originalText,
@@ -1135,6 +1150,7 @@ export default function App() {
         targetDirectory.trim(),
         mode,
       );
+      editor.current?.flush();
       const latest = workspace.docsRef.current.find(
         (document) => document.id === documentId,
       );
@@ -1145,16 +1161,39 @@ export default function App() {
         latest.text !== originalText ||
         latest.path !== originalPath
       ) {
-        if (mode === "move" && window.desktop?.manageImage) {
-          for (const operation of [...result.operations].reverse())
+        if (mode === "copy") {
+          setMessage(
+            "图片复制已完成，但文档状态已变化，未更新引用；请检查目标文件夹。",
+          );
+          return;
+        }
+        const failed: string[] = [];
+        for (const operation of [...result.operations].reverse()) {
+          if (operation.sourcePath === operation.targetPath) continue;
+          try {
+            if (!window.desktop?.manageImage) throw Error("图片管理不可用");
             await window.desktop.manageImage({
               documentPath: originalPath!,
               sourcePath: operation.targetPath,
               targetPath: operation.sourcePath,
               mode: "move",
             });
+          } catch {
+            // A conflicting original path must survive. Continue restoring the
+            // remaining images and identify the retained copies for recovery.
+            failed.push(`${operation.targetPath} → ${operation.sourcePath}`);
+          }
         }
-        setMessage("操作期间文档内容已变化，图片移动已撤销；请重试。");
+        if (failed.length)
+          setImageRecoveryFailures({
+            documentPath: originalPath || original.name,
+            paths: failed,
+          });
+        setMessage(
+          failed.length
+            ? `文档状态已变化，未覆盖编辑；${failed.length} 张图片未能撤销，请检查：${failed.join("；")}`
+            : "操作期间文档状态已变化，图片移动已撤销；请重试。",
+        );
         return;
       }
       if (result.text !== originalText) workspace.edit(documentId, result.text);
@@ -1163,9 +1202,15 @@ export default function App() {
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      imageOperationDocument.current = null;
     }
   };
   const openBulkImageManager = (mode: "copy" | "move") => {
+    if (imageOperationDocument.current) {
+      setMessage("正在管理本地图片，请完成后再操作。");
+      return;
+    }
     setMenu(null);
     setBulkImageDirectory("_images");
     setBulkImageDialog(mode);
@@ -1591,6 +1636,10 @@ export default function App() {
     void workspace.save(latest, saveAs);
   };
   const requestClose = (document: DocumentFile = current) => {
+    if (imageOperationDocument.current === document.id) {
+      setMessage("正在管理此文档的图片，请完成后再关闭。");
+      return;
+    }
     closeOrigin.current =
       window.document.activeElement instanceof HTMLElement &&
       window.document.activeElement !== window.document.body
@@ -2004,7 +2053,8 @@ export default function App() {
           if (
             workspace.saving.current ||
             fileOperationInFlight.current ||
-            dropInFlight.current
+            dropInFlight.current ||
+            imageOperationDocument.current
           ) {
             setMessage("正在执行文件操作，请完成后再关闭。");
             return;
@@ -4249,6 +4299,30 @@ export default function App() {
               </button>
             </div>
           </form>
+        </Dialog>
+      )}
+      {imageRecoveryFailures && (
+        <Dialog
+          title="图片恢复需要处理"
+          onClose={() => setImageRecoveryFailures(null)}
+        >
+          <h2>图片恢复需要处理</h2>
+          <p>
+            部分图片未能移回原路径。请检查下列目标位置与原位置，新的正文编辑已保留。
+          </p>
+          <p style={{ overflowWrap: "anywhere" }}>
+            文档：{imageRecoveryFailures.documentPath}
+          </p>
+          <ul>
+            {imageRecoveryFailures.paths.map((failure) => (
+              <li key={failure} style={{ overflowWrap: "anywhere" }}>
+                {failure}
+              </li>
+            ))}
+          </ul>
+          <div className="dialog-actions">
+            <button onClick={() => setImageRecoveryFailures(null)}>关闭</button>
+          </div>
         </Dialog>
       )}
       {bulkImageDialog && (
