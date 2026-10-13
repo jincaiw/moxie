@@ -1,10 +1,10 @@
 # 本地开发与任务交接
 
-## 最新交接：2026-10-14 L64 DOCX WebP 图片兼容
+## 最新交接：2026-10-14 L65 表格操作条按需显示
 
-E03 复核发现 DOCX 直接嵌入 WebP 的兼容性不可靠，Electron 35 `nativeImage` 对有效 WebP Data URL 返回空图。现在 DOCX/Pandoc 导出会用 Sharp 将 WebP 转成 PNG，其它 BMP、AVIF、SVG 继续沿用原有转换路径；无效图片仍明确取消导出。桌面逻辑 **65 项通过**、真实 Pandoc **10 项通过**、生产构建和 Prettier 检查通过；macOS arm64 QA 包构建成功，确认 Sharp 的原生模块和 libvips 动态库随包解压。完整界面测试沿用 L63 的 **270 通过、3 项性能基准跳过**，本轮未涉及渲染层。
+P01 原生同样例复核：Typora 1.14.9 和 Moxie QA 都打开 `MARKDOWN_RENDERING_TEST.md`，当前 CUA 截图画布均为 3840×1956，定位在第 6 节表格。Typora 没有常驻表格操作条；Moxie 在光标移至表格外段落后仍显示两条表格操作按钮，造成额外留白和视觉噪音。现在操作条仅在鼠标悬停表格或键盘焦点位于表格时显示；键盘聚焦单元格会唤出操作条，离开表格即隐藏。完整 Playwright **271 项通过、3 项性能基准跳过**，桌面逻辑 **65 项通过**，生产构建、格式检查通过。
 
-详见[计划 L64](typora-current-plan.md#l64-docx-webp-图片兼容)及[全工作核查](work-task-audit-2026-10-11.md#接续-l64docx-webp-图片兼容)。Word/WPS 实际显示、脚注分页及复杂脚注、Preview/打印仍待目标应用验收；本机 WPS 虚拟机不可用。发布 workflow 仅由 `v*` 标签触发，要求标签与 `package.json` 版本完全一致；远端 Actions Secret 名单为空，签名/公证将跳过，macOS 自动安装更新不可用。P01/E01–E06 未全部完成，版本保持 0.16.249，暂不发布。
+详见[计划 L65](typora-current-plan.md#l65-表格操作条按需显示)及[全工作核查](work-task-audit-2026-10-11.md#接续-l65表格操作条按需显示)。截图中的文档层级、正文宽度与原生窗口/缩放尚未完成严格逐项对齐；P01 其余项继续开放。E03 的 Word/WPS 实际显示、脚注分页及复杂脚注、Preview/打印仍待目标应用验收；本机 WPS 虚拟机不可用。发布 workflow 仅由 `v*` 标签触发，要求标签与 `package.json` 版本完全一致；远端 Actions Secret 名单为空，签名/公证将跳过，macOS 自动安装更新不可用。P01/E01–E06 未全部完成，版本保持 0.16.249，暂不发布。
 
 ## 最新调查：E02 系统拼写建议入口（未完成）
 

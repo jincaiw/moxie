@@ -1791,12 +1791,16 @@ p {
   align-items: center;
   margin-bottom: 7px;
   flex-wrap: wrap;
-  opacity: 0.75;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s;
 }
 .editable-table:hover .table-tools,
 .editable-table:focus-within .table-tools {
+  visibility: visible;
   opacity: 1;
+  pointer-events: auto;
 }
 .table-tools button {
   min-height: 30px;

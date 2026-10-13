@@ -2774,6 +2774,23 @@ test("窄屏表格操作按钮保留可触控尺寸和清晰的禁用态", async
   expect(metrics.opacity).toBeGreaterThanOrEqual(0.7);
 });
 
+test("表格操作条只在指针悬停或表格键盘聚焦时显示", async ({ page }) => {
+  await page.goto("/");
+  const table = page.locator(".editable-table").first();
+  const tools = table.locator(".table-tools");
+  await expect(tools).toHaveCSS("visibility", "hidden");
+
+  await table.hover();
+  await expect(tools).toHaveCSS("visibility", "visible");
+  await page.mouse.move(0, 0);
+  await expect(tools).toHaveCSS("visibility", "hidden");
+
+  await table.locator('[data-cell="1:0"]').focus();
+  await expect(tools).toHaveCSS("visibility", "visible");
+  await page.locator("body").click({ position: { x: 5, y: 5 } });
+  await expect(tools).toHaveCSS("visibility", "hidden");
+});
+
 test("Markdown 表格按内容分配列宽，长单元格避免不必要的换行", async ({
   page,
 }) => {

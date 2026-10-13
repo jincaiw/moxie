@@ -353,3 +353,9 @@ E03 复核发现，DOCX 原先把 Markdown 脚注以普通编号列表写在正�
 E03 检查发现 `html-to-docx` 会把 WebP 原图放入 DOCX，但 Microsoft Word for Mac 的官方可插入图形格式列表没有 WebP；Electron 35.7.5 的 `nativeImage.createFromDataURL()` 对有效 WebP 也返回空图。现在导出前使用 Sharp 将内嵌 WebP 转为 PNG；原有 BMP、AVIF、SVG 转码继续使用 `nativeImage`。无效 WebP 与其他无法解码格式统一报错取消，不生成不完整导出。微软依据：[Word for Mac 可插入的图形格式](https://support.microsoft.com/en-us/word/graphic-file-types-you-can-insert-and-save)；Electron nativeImage 的实际兼容性另以本机有效 WebP 探针确认。
 
 桌面集成回归使用有效 WebP 字节通过完整 DOCX 导出，验证 ZIP 内的 PNG 图片字节与 Sharp 编码结果一致。桌面 **65 项通过**，真实 Pandoc **10 项通过**，生产构建、Prettier 和 diff 检查通过；macOS arm64 QA 包构建完成，确认 Sharp 原生模块与 libvips 动态库已按 electron-builder 规则解包。没有重复运行 Playwright：本次只改 Electron 主进程与依赖，L63 全量基线为 **270 通过、3 项性能跳过**。尚未在 Word/WPS 中查看生成页面，也未在 Windows/Linux 安装包执行该代码；E03 目标阅读器/打印、P01/E01–E06 的其他未完成验收继续开放。版本保持 0.16.249，不发布。
+
+## L65：表格操作条按需显示
+
+P01 在 Typora 1.14.9 和 Moxie QA 中打开同一 `MARKDOWN_RENDERING_TEST.md` 并定位第 6 节；本轮 CUA 截图画布两边都是 3840×1956。Typora 表格操作不常驻表格上方。Moxie 原先默认以 75% 不透明度持续显示每张表的行列、对齐和编辑按钮；光标已在表格外段落，操作条仍同时出现在两张表上方。现改为默认不可见、无指针事件；鼠标悬停单张表格或键盘焦点进入表格时显示，键盘可从单元格聚焦操作按钮，离开时隐藏。
+
+新增 Playwright 状态回归检查默认隐藏、悬停显示、移开隐藏、单元格键盘聚焦显示以及离开焦点后隐藏；旧有表格编辑、操作按钮、窄屏尺寸、Typora 主题保留表格操作的回归同时通过。完整 UI **271 项通过、3 项性能基准跳过**（2 workers、无重试），桌面逻辑 **65 项通过**，生产构建、Prettier 与 diff 检查通过。该局部修复不代表 P01 全面验收：标题/正文视觉样式、侧栏逐状态、严格统一窗口与系统缩放仍未完成。版本保持 0.16.249，不发布。
