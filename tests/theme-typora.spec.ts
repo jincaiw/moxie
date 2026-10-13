@@ -1,6 +1,57 @@
 import { test, expect } from "@playwright/test";
 import { documentEnd, documentStart } from "./keyboard";
 
+test("Typora heading and following table collapse margins across blank lines", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "spacing.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("## 标题\n\n\n| A | B |\n| - | - |\n| x | y |"),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css =
+      "html{font-size:16px}body{line-height:1.6}#write{font-size:16px}h2{font-size:1.75em;line-height:1.225;margin:1rem 0;border-bottom:1px solid #eee}table{margin:.8em 0}";
+    const style = document.createElement("style");
+    style.textContent = css + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line.md-heading").click();
+  await expect(page.locator(".md-h2")).toHaveCount(1);
+  await expect(page.locator("table")).toHaveCount(1);
+  const geometry = await page.evaluate(() => {
+    const heading = document.querySelector(".md-h2")!;
+    const table = document.querySelector("table")!;
+    const gap = heading.nextElementSibling!;
+    return {
+      gapClass: gap.className,
+      gapHeight: gap.getBoundingClientRect().height,
+      tableLineClass: table.closest(".cm-line")?.className,
+      tableMargin: getComputedStyle(table).marginTop,
+      headingToTable:
+        table.getBoundingClientRect().top -
+        heading.getBoundingClientRect().bottom,
+    };
+  });
+  expect(geometry.gapClass).toContain("md-heading-table-gap");
+  expect(geometry.gapHeight).toBe(0);
+  expect(geometry.tableLineClass).toContain("md-table-after-heading");
+  expect(geometry.tableMargin).toBe("0px");
+  expect(geometry.headingToTable).toBeCloseTo(0, 0);
+
+  const widget = page.locator(".render-block.table");
+  await widget.hover();
+  await widget.getByRole("button", { name: "编辑原文" }).click();
+  await expect(page.locator("table")).toHaveCount(0);
+  await expect(page.locator(".md-table-after-heading")).toHaveCount(0);
+  await expect(page.locator(".md-heading-table-gap")).toHaveCount(0);
+  await expect(page.locator(".cm-activeLine")).toContainText("| A | B |");
+});
+
 test("Typora 主题的水平分隔线映射高度、留白和颜色", async ({ page }) => {
   const source = "上方文字\n\n---\n\n下方文字";
   await page.goto("/");

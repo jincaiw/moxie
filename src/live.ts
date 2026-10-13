@@ -744,6 +744,20 @@ function build(
       ? { count, emptyParagraphs: Math.floor((count - 1) / 2) }
       : null;
   };
+  const headingTableGap = (from: number, to: number) => {
+    const root = syntaxTree(state).topNode;
+    const previous = root.childBefore(from);
+    const next = root.childAfter(to);
+    return (
+      previous !== null &&
+      next !== null &&
+      /^(?:ATXHeading[1-6]|SetextHeading[12])$/.test(previous.name) &&
+      next.name === "Table" &&
+      previous.to <= from &&
+      next.from >= to &&
+      !activeLine(next.from, next.to)
+    );
+  };
   const active = (from: number, to: number) =>
     state.selection.ranges.some((r) => r.from <= to && r.to >= from);
   const activeLine = (from: number, to: number) =>
@@ -1118,8 +1132,22 @@ function build(
             add(l.from, l.from, Decoration.line({ class: "md-code-line" }));
           }
         }
-        if (node.name === "Table")
+        if (node.name === "Table") {
           codeRanges.push({ from: node.from, to: node.to });
+          // Fold the heading/table margin collapse into the heading line box;
+          // the browser's inline widget strut would otherwise add one line.
+          if (
+            !isActive &&
+            /^(?:ATXHeading[1-6]|SetextHeading[12])$/.test(
+              syntaxTree(state).topNode.childBefore(node.from)?.name || "",
+            )
+          )
+            add(
+              line.from,
+              line.from,
+              Decoration.line({ class: "md-table-after-heading" }),
+            );
+        }
         if (node.name === "Table" && !isActive) {
           add(
             node.from,
@@ -1445,12 +1473,18 @@ function build(
       const gap = /^\s*$/.test(line.text)
         ? paragraphGap(line.from, line.to)
         : null;
-      if (!line.text || gap)
+      const headingTable =
+        /^\s*$/.test(line.text) && headingTableGap(line.from, line.to);
+      if (!line.text || gap || headingTable)
         add(
           line.from,
           line.from,
           Decoration.line({
-            class: gap ? "md-empty md-paragraph-gap" : "md-empty",
+            class: headingTable
+              ? "md-empty md-heading-table-gap"
+              : gap
+                ? "md-empty md-paragraph-gap"
+                : "md-empty",
             attributes: gap
               ? {
                   style: `--md-blank-count:${gap.count};--md-empty-paragraphs:${gap.emptyParagraphs}`,
