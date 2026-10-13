@@ -20,12 +20,18 @@ async function start(
     source?: string;
     download?: (input: any) => Promise<any>;
     store?: (input: any) => Promise<any>;
+    resolve?: (input: any) => Promise<any>;
   } = {},
 ) {
   await page.exposeFunction("testManageImage", manage);
   if (options.download)
     await page.exposeFunction("testDownloadImage", options.download);
   if (options.store) await page.exposeFunction("testStoreImage", options.store);
+  await page.exposeFunction(
+    "testResolveImagePath",
+    options.resolve ||
+      (async (input: any) => ({ relativePath: input.relativePath })),
+  );
   await page.addInitScript(
     ({ documentPath, source, image, hasDownload, hasStore }) => {
       localStorage.setItem(
@@ -55,6 +61,7 @@ async function start(
         storeImage: hasStore
           ? (input: any) => state.testStoreImage(input)
           : undefined,
+        resolveImagePath: (input: any) => state.testResolveImagePath(input),
         onAction: (callback: any) => {
           state.nativeAction = callback;
           return () => {};
@@ -245,12 +252,17 @@ test("移动期间编辑后逐张撤销，单张冲突不阻断其他图片恢�
     const store = new FileStore();
     await store.read(documentPath);
     const calls: string[] = [];
-    await start(page, documentPath, async (input) => {
-      calls.push(input.sourcePath);
-      const result = await store.manageImage(input);
-      if (input.sourcePath === "c.png") await gate;
-      return result;
-    });
+    await start(
+      page,
+      documentPath,
+      async (input) => {
+        calls.push(input.sourcePath);
+        const result = await store.manageImage(input);
+        if (input.sourcePath === "c.png") await gate;
+        return result;
+      },
+      { resolve: (input) => store.resolveImagePath(input) },
+    );
     await expect.poll(() => calls.length).toBe(3);
     const sentinel = Buffer.from("external replacement must survive");
     await fs.writeFile(path.join(root, "c.png"), sentinel);

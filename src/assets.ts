@@ -421,12 +421,25 @@ export async function manageLocalImages(
   const uniqueSources = new Set(sources.values());
   if (uniqueSources.size > 100)
     throw new Error("单次最多管理 100 张本地图片。");
+  const canonicalSources = new Map<string, string>();
+  let failed = matches.filter((match) => !sources.has(match.url)).length;
+  for (const sourcePath of uniqueSources) {
+    try {
+      const resolved = await window.desktop.resolveImagePath({
+        documentPath,
+        relativePath: sourcePath,
+      });
+      canonicalSources.set(sourcePath, resolved.relativePath);
+    } catch {
+      failed++;
+    }
+  }
+  const uniqueCanonicalSources = new Set(canonicalSources.values());
   const directory = targetDirectory.trim().replace(/[\\/]+$/, "");
   if (!directory) throw new Error("请输入图片目标文件夹。");
   const replacements = new Map<string, string>();
   const operations: { sourcePath: string; targetPath: string }[] = [];
-  let failed = matches.filter((match) => !sources.has(match.url)).length;
-  for (const sourcePath of uniqueSources) {
+  for (const sourcePath of uniqueCanonicalSources) {
     const name = sourcePath.split(/[\\/]/).at(-1)!;
     const targetPath = `${directory}/${name}`;
     try {
@@ -447,18 +460,26 @@ export async function manageLocalImages(
     }
   }
   const updates = matches
-    .filter((match) => replacements.has(sources.get(match.url)!))
+    .filter((match) => {
+      const source = sources.get(match.url);
+      const canonical = source && canonicalSources.get(source);
+      return Boolean(canonical && replacements.has(canonical));
+    })
     .sort((a, b) => b.start - a.start);
-  for (const match of updates)
+  for (const match of updates) {
+    const source = sources.get(match.url)!;
+    const canonical = canonicalSources.get(source)!;
     text =
       text.slice(0, match.start) +
-      replacements.get(sources.get(match.url)!)! +
+      replacements.get(canonical)! +
       text.slice(match.end);
+  }
   return {
     text,
     managed: replacements.size,
     failed,
-    found: uniqueSources.size,
+    found:
+      uniqueCanonicalSources.size + uniqueSources.size - canonicalSources.size,
     operations,
   };
 }

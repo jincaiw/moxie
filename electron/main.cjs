@@ -434,6 +434,7 @@ function setupIPC() {
   );
   handle("image:store", (input) => store.storeImage(input));
   handle("image:read", (input) => store.readImage(input));
+  handle("image:resolve-path", (input) => store.resolveImagePath(input));
   handle("image:manage", (input) => store.manageImage(input));
   handle("image:download-remote", (input) => store.downloadRemoteImage(input));
   handle("pdf:preview", async (input) => {

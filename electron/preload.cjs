@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld("desktop", {
   },
   storeImage: (input) => ipcRenderer.invoke("image:store", input),
   readImage: (input) => ipcRenderer.invoke("image:read", input),
+  resolveImagePath: (input) => ipcRenderer.invoke("image:resolve-path", input),
   manageImage: (input) => ipcRenderer.invoke("image:manage", input),
   downloadRemoteImage: (input) =>
     ipcRenderer.invoke("image:download-remote", input),

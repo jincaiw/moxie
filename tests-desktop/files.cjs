@@ -1329,6 +1329,54 @@ test("图片资源写入、读取、非法格式、越界与符号链接检查",
     await fs.rm(outside, { recursive: true, force: true });
   }
 });
+test("图片路径解析归一词法与目录符号链接别名并拒绝文件符号链接", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "moxie-image-resolve-"));
+  const outside = await fs.mkdtemp(
+    path.join(os.tmpdir(), "moxie-image-resolve-outside-"),
+  );
+  try {
+    const documentPath = path.join(root, "note.md");
+    await fs.writeFile(documentPath, "# Note");
+    await fs.writeFile(path.join(root, "a.png"), png);
+    await fs.symlink(root, path.join(root, "linked-directory"), "dir");
+    await fs.writeFile(path.join(outside, "secret.png"), png);
+    await fs.symlink(
+      path.join(outside, "secret.png"),
+      path.join(root, "linked-file.png"),
+    );
+    const store = new FileStore();
+    await store.read(documentPath);
+    const paths = await Promise.all(
+      ["a.png", "./a.png", "nested/../a.png", "linked-directory/a.png"].map(
+        (relativePath) =>
+          store.resolveImagePath({ documentPath, relativePath }),
+      ),
+    );
+    assert.deepEqual(
+      paths.map((item) => item.relativePath),
+      ["a.png", "a.png", "a.png", "a.png"],
+    );
+    await assert.rejects(
+      () =>
+        store.resolveImagePath({
+          documentPath,
+          relativePath: "linked-file.png",
+        }),
+      /普通图片文件/,
+    );
+    await assert.rejects(
+      () =>
+        store.resolveImagePath({
+          documentPath,
+          relativePath: "../../secret.png",
+        }),
+      /已打开的文件夹内/,
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+    await fs.rm(outside, { recursive: true, force: true });
+  }
+});
 test("图片并发同名复制不覆盖，目标失败保留源文件且可重试", async () => {
   const root = await fs.mkdtemp(
     path.join(os.tmpdir(), "moxie-image-collision-"),

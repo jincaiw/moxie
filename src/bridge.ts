@@ -177,6 +177,10 @@ declare global {
         documentPath: string;
         relativePath: string;
       }) => Promise<string>;
+      resolveImagePath: (input: {
+        documentPath: string;
+        relativePath: string;
+      }) => Promise<{ relativePath: string }>;
       manageImage: (input: {
         documentPath: string;
         sourcePath: string;

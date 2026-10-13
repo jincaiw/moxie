@@ -1496,6 +1496,32 @@ class FileStore {
     const type = imageType(bytes);
     return `data:${type.mime};base64,${bytes.toString("base64")}`;
   }
+  async resolveImagePath({ documentPath, relativePath }) {
+    const { directory, root } = await this.resourceRoot(documentPath);
+    if (
+      typeof relativePath !== "string" ||
+      !relativePath ||
+      path.isAbsolute(relativePath) ||
+      relativePath.includes("\0")
+    )
+      throw Error("图片路径无效");
+    const rootPath = await fs.realpath(root);
+    const source = path.resolve(directory, relativePath);
+    if (!inside(rootPath, source)) throw Error("图片必须位于已打开的文件夹内");
+    const sourceStat = await fs.lstat(source);
+    if (!sourceStat.isFile() || sourceStat.isSymbolicLink())
+      throw Error("只能操作普通图片文件");
+    const resolved = await fs.realpath(source);
+    if (!inside(rootPath, resolved))
+      throw Error("图片不能指向已打开文件夹之外");
+    imageType(await fs.readFile(resolved));
+    return {
+      relativePath: path
+        .relative(directory, resolved)
+        .split(path.sep)
+        .join("/"),
+    };
+  }
   async manageImage(input) {
     const { documentPath, sourcePath } = input || {};
     if (
