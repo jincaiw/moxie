@@ -116,6 +116,81 @@ test("Typora 主题的标题行内代码继承标题字号", async ({ page }) =>
   ).toHaveCSS("font-size", "13.76px");
 });
 
+test("Typora 主题的裸 URL 标记继承链接颜色", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "theme-link-color.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("裸 URL https://example.com"),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = "#write{font-size:16px} a{color:#4183C4}";
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line").click();
+  await expect(page.locator(".md-link")).toHaveCSS(
+    "color",
+    "rgb(65, 131, 196)",
+  );
+});
+
+test("Typora 主题的嵌套引用清除右侧内边距", async ({ page }) => {
+  const source = "> 外层引用\n>\n> > 内层引用\n\n正文";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "nested-quote-padding.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = `#write{font-size:16px}
+      blockquote{border-left:4px solid #dfe2e5;padding:0 15px;color:#777}
+      blockquote blockquote{padding-right:0}`;
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line").filter({ hasText: "正文" }).click();
+  await expect(
+    page.locator('.md-quote[data-quote-depth="1"]').first(),
+  ).toHaveCSS("padding-right", "15px");
+  await expect(
+    page.locator('.md-quote[data-quote-depth="2"]').first(),
+  ).toHaveCSS("padding-right", "0px");
+});
+
+test("Typora 主题代码语言标签映射 md-lang 颜色", async ({ page }) => {
+  const source = "```js\nconst value = 1;\n```\n\n正文";
+  await page.goto("/");
+  await page.locator(".md-input").setInputFiles({
+    name: "theme-language-color.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from(source),
+  });
+  await page.evaluate(async () => {
+    const { typoraEditorCSS } = await import(
+      /* @vite-ignore */ "/src/theme-css.ts"
+    );
+    const css = "#write{font-size:16px} .md-lang{color:#b4654d}";
+    const style = document.createElement("style");
+    style.textContent = css + "\n" + typoraEditorCSS(css);
+    document.head.append(style);
+  });
+  await page.locator(".cm-line").filter({ hasText: "正文" }).click();
+  await expect(page.locator(".md-code-language")).toHaveCSS(
+    "color",
+    "rgb(180, 101, 77)",
+  );
+});
+
 test("Typora 段落字体和直接子段落级联保留作用域与源码", async ({ page }) => {
   const source =
     "# 标题\n\n第一段\n软换行\n\n> 引用文字\n\n- 列表文字\n\n```text\n代码文字\n```\n\n结尾段落";
