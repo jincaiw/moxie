@@ -136,6 +136,35 @@ export function typoraEditorCSS(css: string): string {
               // one selectable without introducing unmeasured outside margins.
               return `${paragraphTypography}${host} .cm-content{${spacing}}${host} .cm-content .md-paragraph-gap{font-size:inherit;line-height:inherit;min-height:0;height:calc((${gap} + var(--md-empty-paragraphs)*(1lh + ${gap}))/var(--md-blank-count));}`;
             }
+            const paragraphPath = selector
+              .replace(/^#write\s*(?:>\s*)?/, "")
+              .split(/\s*>\s*|\s+/)
+              .filter(Boolean);
+            if (
+              paragraphPath.at(-1) === "p" &&
+              paragraphPath.length > 1 &&
+              paragraphPath
+                .slice(0, -1)
+                .every((part) =>
+                  ["blockquote", "ul", "ol", "li"].includes(part),
+                )
+            ) {
+              // Nested block paragraphs are represented by decorated lines;
+              // map their typography without repeating block margins per line.
+              const context = [
+                paragraphPath.includes("blockquote") ? ".md-quote" : "",
+                paragraphPath.some((part) => ["ul", "ol", "li"].includes(part))
+                  ? ".md-list-line"
+                  : "",
+                ".md-paragraph",
+              ]
+                .filter(Boolean)
+                .join("");
+              const scope = selector.startsWith("#write")
+                ? ".cm-content"
+                : ":where(.cm-content)";
+              return `${host} ${scope} ${context}{${declarations(rule.style, (name) => typography.test(name))}}`;
+            }
             const list = /^(?:#write\s*>?\s*)?(ul|ol)$/.exec(selector);
             if (list) {
               const inset = rule.style.getPropertyValue("padding-left");

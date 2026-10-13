@@ -264,6 +264,49 @@ test("只有真实 write 选择器启用映射，正文容器字体可覆盖 htm
   await expect(page.locator(".cm-content")).toHaveCSS("font-family", "Georgia");
 });
 
+test("Typora 嵌套引用和列表段落选择器映射到对应编辑行", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "moxie.recovery.v1",
+      JSON.stringify([
+        {
+          id: "nested-paragraphs",
+          name: "nested-paragraphs.md",
+          dirty: false,
+          text: "> 引用段落\n> - 引用中的列表段落\n\n- 列表段落\n\n正文",
+        },
+      ]),
+    );
+  });
+  await page.goto("/");
+  await page.evaluate(async () => {
+    const modulePath = "/src/theme-css.ts";
+    const { typoraEditorCSS } = await import(/* @vite-ignore */ modulePath);
+    const style = document.createElement("style");
+    style.textContent = typoraEditorCSS(`
+      #write{font-size:16px}
+      #write > blockquote > p{font-size:21px;color:rgb(120,20,40)}
+      #write > ul > li > p{font-size:19px;color:rgb(20,80,120)}
+      #write blockquote ul li p{font-size:23px;color:rgb(80,40,120)}
+    `);
+    document.head.append(style);
+  });
+  const quote = page.locator(".md-quote.md-paragraph:not(.md-list-line)");
+  const list = page.locator(".md-list-line.md-paragraph:not(.md-quote)");
+  const quotedList = page.locator(".md-quote.md-list-line.md-paragraph");
+  await expect(quote).toHaveCSS("font-size", "21px");
+  await expect(quote).toHaveCSS("color", "rgb(120, 20, 40)");
+  await page.locator(".cm-line").filter({ hasText: "正文" }).click();
+  await expect(list).toHaveCSS("font-size", "19px");
+  await expect(list).toHaveCSS("color", "rgb(20, 80, 120)");
+  await expect(quotedList).toHaveCSS("font-size", "23px");
+  await expect(quotedList).toHaveCSS("color", "rgb(80, 40, 120)");
+  await expect(page.locator(".cm-line.md-root-paragraph")).toHaveCSS(
+    "font-size",
+    "16px",
+  );
+});
+
 test("Typora 引用与表格样式作用于正文，保留列对齐和表格工具", async ({
   page,
 }) => {
